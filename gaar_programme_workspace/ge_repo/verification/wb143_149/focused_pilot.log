@@ -1,0 +1,38 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python
+rootdir: /home/claude/scratch/gaar_programme_workspace/ge_repo
+plugins: anyio-4.15.1
+collecting ... collected 30 items
+
+tests/test_wb143_149_programme.py::test_integrated_change_run_and_idempotent_resume PASSED [  3%]
+tests/test_wb143_149_programme.py::test_production_cannot_use_unqualified_model PASSED [  6%]
+tests/test_wb143_149_programme.py::test_missing_evidence_returns_precise_request PASSED [ 10%]
+tests/test_wb143_149_programme.py::test_crash_after_stage_append_recovers_without_reinference PASSED [ 13%]
+tests/test_wb143_149_programme.py::test_changed_evidence_requires_new_revision PASSED [ 16%]
+tests/test_wb143_149_programme.py::test_signed_journal_rejects_role_abuse_and_rollback PASSED [ 20%]
+tests/test_wb143_149_programme.py::test_backup_restore_and_tamper_detection PASSED [ 23%]
+tests/test_wb143_149_programme.py::test_change_absence_stays_gap_and_population_mismatch_not_breach PASSED [ 26%]
+tests/test_wb143_149_programme.py::test_lock_blocks_concurrent_run PASSED [ 30%]
+tests/test_wb143_149_programme.py::test_missing_precedent_search_blocks_not_false_green PASSED [ 33%]
+tests/test_wb143_149_programme.py::test_pending_signed_proposal_recovers_without_new_inference PASSED [ 36%]
+tests/test_wb143_149_programme.py::test_omitted_dependency_and_unexecuted_test_rejected PASSED [ 40%]
+tests/test_wb143_149_programme.py::test_collector_blocks_unapproved_endpoint_before_network PASSED [ 43%]
+tests/test_wb143_149_programme.py::test_evaluation_requires_independent_corpus_and_scores_real_fields PASSED [ 46%]
+tests/test_wb143_149_programme.py::test_signed_result_seals_once_and_change_never_repromotes PASSED [ 50%]
+tests/test_wb143_149_programme.py::test_source_internal_requires_human_and_cannot_claim_binding PASSED [ 53%]
+tests/test_wb143_149_programme.py::test_wrong_qualification_signature_cannot_unlock PASSED [ 56%]
+tests/test_wb143_149_programme.py::test_single_run_page_reports_missing_setup_without_exception PASSED [ 60%]
+tests/test_wb143_149_programme.py::test_reviewer_trace_verifies_stage_and_operational_chains PASSED [ 63%]
+tests/test_wb143_149_programme.py::test_reviewer_app_reports_missing_setup_without_exception PASSED [ 66%]
+tests/test_wb143_149_programme.py::test_remediation_closure_cannot_invent_an_action PASSED [ 70%]
+tests/test_wb143_149_programme.py::test_evaluation_provisioner_builds_distinct_nonproduction_onramp PASSED [ 73%]
+tests/test_wb143_149_programme.py::test_trace_receipt_verification_distinguishes_valid_and_tampered PASSED [ 76%]
+tests/test_decisions.py::test_sign_and_seal PASSED                       [ 80%]
+tests/test_decisions.py::test_pilot_provisioning_uses_supplied_human_keys_and_never_creates_one PASSED [ 83%]
+tests/test_decisions.py::test_pilot_refuses_unconfirmed_scope_workspace_keys_and_group_readable_keys PASSED [ 86%]
+tests/test_decisions.py::test_pilot_run_attests_once_and_the_attestation_cannot_be_sealed PASSED [ 90%]
+tests/test_decisions.py::test_demonstration_configuration_cannot_attest PASSED [ 93%]
+tests/test_decisions.py::test_production_qualification_rejects_same_weights_at_another_endpoint PASSED [ 96%]
+tests/test_decisions.py::test_reviewer_app_reveals_on_request_logs_it_and_attests PASSED [100%]
+
+============================= 30 passed in 12.57s ==============================

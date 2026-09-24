@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "Treatment": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "INVESTIGATED",
+            "NOT_APPLICABLE",
+            "UNRESOLVED",
+            "UNAVAILABLE"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "material": {
+          "title": "Material",
+          "type": "boolean"
+        },
+        "rationale": {
+          "minLength": 12,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "test_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Test Refs",
+          "type": "array"
+        },
+        "risk_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Risk Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "edge_id",
+        "status",
+        "material",
+        "rationale"
+      ],
+      "title": "Treatment",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "knowledge_sha256": {
+      "title": "Knowledge Sha256",
+      "type": "string"
+    },
+    "treatments": {
+      "items": {
+        "$ref": "#/$defs/Treatment"
+      },
+      "title": "Treatments",
+      "type": "array"
+    }
+  },
+  "required": [
+    "knowledge_sha256",
+    "treatments"
+  ],
+  "title": "Review",
+  "type": "object"
+}

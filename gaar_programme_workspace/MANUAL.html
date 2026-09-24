@@ -1,0 +1,489 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GaaR Integrated Programme — Manual and Acceptance</title><style>body{margin:0;background:#f4f6f8;color:#182635;font:16px/1.65 system-ui,sans-serif}header{background:#15324a;color:white;padding:26px max(20px,calc((100% - 1080px)/2));}nav{position:sticky;top:0;background:white;padding:12px 20px;border-bottom:1px solid #ccd5de;display:flex;flex-wrap:wrap;gap:16px}nav a{color:#164b6a;text-decoration:none;font-weight:600}main{max-width:1080px;margin:auto;padding:24px}section{background:white;border:1px solid #dce3e9;border-radius:12px;padding:28px;margin-bottom:26px;scroll-margin-top:90px}h1{font-size:30px;line-height:1.25}h2{margin-top:32px;font-size:22px;color:#164b6a}code{background:#edf2f5;padding:2px 5px;border-radius:3px;font-size:.9em}pre{padding:16px;background:#edf2f5;overflow:auto;line-height:1.5}pre code{padding:0}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #d5dfe7;padding:10px;vertical-align:top;text-align:left}th{background:#eaf1f5}.table{overflow:auto}.bullet{margin:5px 0}a{color:#164b6a}@media print{nav{position:static}body{background:white}section{border:0;padding:0;break-before:page}pre{white-space:pre-wrap}}</style></head><body><header><strong>GaaR WB143–WB149 candidate</strong><br>Run / resume · evidence requests · explicit production gates</header><nav><a href="#start">Start</a><a href="#operations">Operations</a><a href="#implementation">Implementation</a><a href="#evaluation">Evaluation</a><a href="#knowledge">Knowledge</a><a href="#verification">Verification</a></nav><main><section id="start"><h1>GaaR integrated programme candidate — WB143–WB149</h1>
+<p>This complete package extends WB142 with one resumable investigation runner, active dependency treatment, full-contract evaluation, additional change checks, signed result lifecycle, local remediation records, and recovery/security checks.</p>
+<p><strong>This is an engineering candidate. WB143–WB149 production acceptance is not complete.</strong> No live model, real operating evidence, approved production identity store, independent judgment labels, or macOS acceptance environment was available for this build. Do not interpret software test results as auditor superiority or compliance certification.</p>
+<p>1. Extract into a NEW folder. Keep WB136/WB142 and their records intact. 2. Open the outer <strong>Start_GaaR.command</strong>. If needed, open Terminal, type <code>bash </code>, drag that file into Terminal, and press Enter. 3. Choose <strong>1</strong> to check prerequisites; <strong>2</strong> to save your existing approved configuration and assessment ID. 4. Choose <strong>9</strong> for the reviewer front door: select system → assessment → <strong>Run / resume</strong>. Or choose <strong>3</strong> to run the saved assessment in the console. 5. Read the result or precise missing-evidence/authorization request. Select Run again after resolving a recoverable boundary. Machine stages do not need manual file transfers or head updates.</p>
+<p>Python 3 is required. Initial dependency installation needs internet access. The launcher does not download a model or manufacture trust identities. Default configuration is unconfigured and evaluation-only.</p>
+<p>Open <strong>MANUAL.html</strong> for operation, implementation, evaluation, and acceptance details. <strong>PROGRAMME_STATUS.json</strong> is the machine-readable status. Test reports are in <code>ge_repo/verification/wb143_149/</code>.</p>
+<p>For a 90-second synthetic evaluation on-ramp, use <code>tools/gaar_provision.py --help</code>. It generates separate service keys, hashes and whole-file UTF-8 evidence offsets, then creates the first two signed stages. It refuses production mode and marks the investigation synthetic.</p><p>For a pilot on real exports, use <code>tools/gaar_pilot.py</code> (console option <strong>P</strong>). Each person first runs <code>keygen --out &lt;path they control, outside this package&gt;</code>. <code>provision</code> then accepts those owner, governance and approver keys, never creates or copies a human key, mints only service keys, has the governance person sign the internal policy source and precedent corpus, and creates a non-synthetic investigation. A pilot ends in a signed <strong>pilot attestation</strong> made in the reviewer app: decision support bound to the exact record, recorded in the operational journal, and refused by result sealing. It is not a governance result.</p>
+<p>Production cannot be switched on by changing a flag: qualification, source authority, evidence scope, policies and signatures are checked. Deployment remains unauthorized in this candidate, including for finalized adverse results.</p></section><section id="operations"><h1>Integrated programme operation manual</h1>
+<h2>1. Install and launch</h2>
+<p>Extract this complete ZIP into a new folder. Do not copy it blindly into WB136 or overwrite old evidence and ledgers. Open the outer <code>Start_GaaR.command</code>. In Terminal you can type <code>bash </code> and drag the launcher into the window, then press Enter. From the extracted folder, the equivalent command is:</p>
+<pre><code>bash ./Start_GaaR.command</code></pre>
+<p>The launcher creates <code>ge_repo/.venv</code> and installs core requirements if missing. Python 3 must already exist and first installation needs internet access. The single-run page installs Streamlit when selected. Model installation/startup is an administrator prerequisite; it is not silently downloaded.</p>
+<h2>2. Normal operation after setup</h2>
+<div class="table"><table>
+<tr><th>Menu</th><th>Action</th></tr>
+<tr><td>1</td><td>Check actual model, identity, source and knowledge readiness</td></tr>
+<tr><td>2</td><td>Save configuration path/assessment ID and select models reported by local services</td></tr>
+<tr><td>3</td><td>Run/resume the saved assessment</td></tr>
+<tr><td>4</td><td>Explore change-control dependency questions and alternatives</td></tr>
+<tr><td>5</td><td>Run the independently approved full-contract held-out evaluation</td></tr>
+<tr><td>6</td><td>Open this manual</td></tr>
+<tr><td>7</td><td>Start the historical workbench; programme approval cannot bypass its gates</td></tr>
+<tr><td>8</td><td>Report production-assurance prerequisites and limitations</td></tr>
+<tr><td>9</td><td>Open the reviewer front door: result, resolved trace, selected Run / resume and the human decision panel</td></tr><tr><td>P</td><td>Show the pilot on-ramp (bring your own keys)</td></tr>
+<tr><td>0</td><td>Exit</td></tr>
+</table></div>
+<p>The reviewer app uses localhost port 8502. Select system, select assessment, click Run. It executes approved machine stages and shows a result or precise boundary. No interstage file copying or manual head updates are required. It joins the signed stages, operational journal, dependency treatments, evidence references, test outputs, challenge and inference receipts into one reviewer trace. Reopening the console remembers setup in <code>ge_repo/config/programme_console.json</code>.</p>
+<p>Raw evidence and model prompts/responses are hidden until the reviewer presses <strong>Open evidence and reasoning</strong>. That reveal lasts for the session and the selected assessment only, and is appended to <code>reviewer_access.jsonl</code> in the case directory with time, OS user and whether the session was token-authenticated. The access log is local and unsigned: it evidences use, not identity. <code>reviewer_ui.reveal_on_request: false</code> removes the button; <code>show_sensitive_evidence</code> and <code>show_raw_model_io</code> open them by default under approved information-handling policy. Trace download stays governed by <code>allow_trace_download</code>. Production mode and pilot configurations require <code>reviewer_ui.access_token_env</code>; this local shared secret is not a substitute for enterprise authentication or tenant isolation.</p><p>Each obligation shows how its source was approved. An evaluation-fixture source is labelled as not governance-approved so it never reads like an approved one.</p>
+<p>The new page is the programme workflow. The older Watcher and broader Streamlit workbench retain their prior configuration. No new regulator feeds or autonomous remediation deployment are enabled by this package.</p>
+<h2>3. What statuses mean</h2>
+<div class="table"><table>
+<tr><th>Status</th><th>Meaning and next action</th></tr>
+<tr><td>ACTION_REQUIRED / EvidenceRequest</td><td>Supply the exact scoped records described; missing data is not a proven breach</td></tr>
+<tr><td>ACTION_REQUIRED / AuthorizationRequest</td><td>An existing trusted person/policy must authorize the stated boundary</td></tr>
+<tr><td>ACTION_REQUIRED / ServiceRequest</td><td>Inspect model/service or schema failure and its retained receipt</td></tr>
+<tr><td>ACTION_REQUIRED / IntegrityRequest</td><td>Stop and investigate signatures, anchors, tampering or concurrent execution; do not delete ledgers to clear the error</td></tr>
+<tr><td>QUALITY_GATE_BLOCKED</td><td>Stages may be present but a material investigation/quality requirement remains unsatisfied</td></tr>
+<tr><td>EVALUATION_COMPLETE</td><td>Evaluation-mode software workflow complete; production qualification remains blocked</td></tr>
+<tr><td>COMPLETE</td><td>Integrated investigation finalizable; inspect verdict and explicit result-decision request</td></tr>
+<tr><td>CURRENT GovernanceResult</td><td>Human-approved signed assessment result is current; this does not grant deployment</td></tr>
+<tr><td>REVIEW_REQUIRED</td><td>Bound input/configuration changed; preserve old result and create an authorized successor investigation</td></tr>
+</table></div>
+<p>Authorization/Integrity requests mark <code>retry_safe: false</code>; resolve and review the boundary first. Recovery never changes the meaning of an already signed stage. The download button exports the status report; signed records remain in the governed store.</p>
+<h2>4. One-time administrator configuration</h2>
+<p>Start from <code>ge_repo/config/programme_operations.json</code>. Paths are relative to the directory containing that configuration, unless absolute. Default mode is evaluation; empty identities/sources and placeholder model names intentionally block operation.</p>
+<p>An authorized administrator supplies:</p>
+<p class="bullet">• <code>models</code>: examine, explain, plan, challenge transport/provider/base_url/model, immutable <code>model_revision</code> or <code>model_sha256</code>, and budgets. Local Ollama/OpenAI-compatible services are supported. Remote transfer requires explicit HTTPS approval; credentials use environment variables. Production qualification requires the challenger and examiner to have different provider/base/model/revision identities. Different names alone do not prove genuinely independent training or correlated-error control.</p>
+<p class="bullet">• <code>trusted_keys</code>: real actor, actor_type, public_key and approved roles. No fixture identities may represent a real person. Challenger actor/key must be separate from assessor.</p>
+<p class="bullet">• <code>signers</code>: key_id and <code>private_key_env</code> or <code>private_key_file</code> for approved roles. Key files must belong to the operator and be mode 600, not symlinks. Do not include private seeds in the distribution.</p>
+<p class="bullet">• <code>store</code>, <code>programme_dir</code>, <code>receipt_dir</code>: governed local storage locations.</p>
+<p class="bullet">• <code>sources</code>: verified exact snapshots and signed authority decisions. Consultation/internal adoption remains distinct from binding regulatory force.</p>
+<p class="bullet">• <code>collectors</code>: exact root/path/hash, source identity, system/version/period, authority, provenance and evidence segments. Negative evidence may be admitted.</p>
+<p class="bullet">• Optional <code>http_collectors</code>: normalized JSON export URL, allowed_hosts, source_id, evidence_id, element_ids, optional expected_sha256 and bearer_token_env. Executor policy <code>allow_readonly_collectors</code> is required. Read-only GET, no redirects, 20 MB limit. Configure only authorized endpoints.</p>
+<p class="bullet">• <code>precedent_snapshot</code>: <code>{path, sha256}</code> of a governance-approved corpus for the current framework/control. Its signed payload includes <code>status: APPROVED</code>, framework, control_id, and <code>records</code>. Each record needs precedent_id, source_ref, system_id, period, lesson, limitations. An approved empty records list means the defined corpus was searched and had no entries; no configured source means NOT_EVALUATED.</p>
+<p class="bullet">• Assessor policy: <code>require_dependency_review: true</code> and <code>require_integrated_gate: true</code> before creating the investigation.</p>
+<p class="bullet">• Planner policy <code>required_tools_by_control</code>: CHANGE.MGMT or M3.12 requires <code>[&quot;change_authorization&quot;,&quot;2&quot;]</code> and <code>[&quot;change_population&quot;,&quot;1&quot;]</code>; M3.6 requires the four m36_* version-1 procedures listed in the implementation design.</p>
+<p class="bullet">• Decision policy: <code>allow_auto_block: true</code> only if an authorized automatic deployment hold is intended. It cannot accept risk or authorize deployment.</p>
+<p class="bullet">• Optional action assignment: trusted <code>action_owner</code>, executor <code>allow_action_assignment</code>, <code>action_owners[control_id]</code>, and <code>closure_tools_by_control[control_id]</code>.</p>
+<p class="bullet">• Production qualification: independently signed qualification_report and approved quality_policy. See EVALUATION_DESIGN.md. Production remains blocked without this.</p>
+<p>Change trust after signed records exist → explicit migration/new revision is required. Preserve the old trust policy with its records. Do not change a source or model under an existing qualification and expect it to remain valid.</p>
+<h2>5. Approve source and initialize scope once</h2>
+<p><code>tools/gaar_authorize.py</code> uses existing trusted HUMAN owner/governance keys. It neither generates human approvals nor substitutes service identities. Its help shows exact parameters:</p>
+<pre><code>cd ge_repo
+.venv/bin/python tools/gaar_authorize.py --help</code></pre>
+<p>For official sources, configure the snapshot, retrieval receipt, source hash/version/authority, approved_by and authority_decision_ref first. Use the <code>approve-source</code> action with the exact source ID in <code>--confirm</code> and <code>--source-id</code>.</p>
+<p>Internal policy sources use <code>issuer: INTERNAL</code>, <code>authority: internal</code>, exact snapshot/hash/version and signed governance approval. They cannot be promoted to binding regulation. No fabricated MAS URL is needed for an internal change policy.</p>
+<p>Prepare an owner-reviewed bundle containing <code>context</code> and <code>expectations</code>, using the schemas in SCHEMAS. Use <code>start --bundle</code> with the exact investigation ID in <code>--confirm</code>. This validates the pair, appends the first two signed stages, and saves the initial head. It currently initializes real investigations only; offline tests create their own explicitly labeled fixtures. Subsequent Run handles the machine stages automatically.</p>
+<p>Initial source/owner authorization is an intentional human boundary, not a recurring interstage transfer. Production still requires enterprise identity provisioning.</p>
+<h3>Evaluation-only quick provisioner</h3>
+<p>For a demonstration without fabricating people or regulatory authority, <code>tools/gaar_provision.py</code> creates a new configuration, eight distinct service keypairs, an internal fixture requirement, one whole-file UTF-8 evidence segment, a scoped empty precedent search and the signed owner/expectations stages. It never overwrites an existing output, refuses production mode, marks all identities as services and marks the context synthetic.</p>
+<pre><code>cd ge_repo
+.venv/bin/python tools/gaar_provision.py \
+  --output-config config/my_evaluation.json \
+  --evidence /absolute/path/change_export.json \
+  --investigation-id EVAL-CHANGE-001 \
+  --system-id credit-platform --version v1 \
+  --period 2026-09-20T00:00:00+08:00 \
+  --framework INTERNAL --control CHANGE.MGMT \
+  --requirement-version internal-v1 \
+  --requirement &quot;Internal change authorization requirement&quot; \
+  --element-id e1 \
+  --element &quot;Observed changes must match prior authorization&quot; \
+  --confirm-evaluation-only</code></pre>
+<p>Then launch, choose option 2, select <code>config/my_evaluation.json</code>, choose actual running models and save <code>EVAL-CHANGE-001</code>. The provisioner accepts only UTF-8 text/JSON/CSV and admits the whole file. It intentionally refuses PDF extraction: proposed PDF slices still require a separate reviewed segmenter before WB146 can be claimed.</p>
+<h3>Pilot on-ramp: bring your own keys</h3>
+<p><code>tools/gaar_pilot.py</code> is for real exports reviewed by real people. It differs from the evaluation provisioner in where human identities come from: it never creates one.</p>
+<pre><code>cd ge_repo
+.venv/bin/python tools/gaar_pilot.py keygen --out ~/.gaar/owner.key
+.venv/bin/python tools/gaar_pilot.py keygen --out ~/.gaar/reviewer.key
+.venv/bin/python tools/gaar_pilot.py provision \
+  --output-config ~/gaar-pilot/operations.json \
+  --investigation-id CHG-2026-09-001 --confirm CHG-2026-09-001 \
+  --system-id credit-platform --version 2.3 --period 2026-09-20T00:00:00+08:00 \
+  --framework INTERNAL --control CHANGE.MGMT \
+  --requirement-version change-policy-v4 --policy /path/change_policy.md --policy-version v4 \
+  --element "chg.1=Every production change is authorised before execution" \
+  --element "chg.2=The change population reconciles to an independent source" \
+  --evidence CHANGES=/path/change_export.json --evidence POPULATION=/path/population_export.json \
+  --owner-key ~/.gaar/owner.key --owner-name "Owner Name" \
+  --governance-key ~/.gaar/owner.key --governance-name "Owner Name" \
+  --approver-key ~/.gaar/reviewer.key --approver-name "Reviewer Name" \
+  --examine-model &lt;model&gt; --explain-model &lt;model&gt; --plan-model &lt;model&gt; --challenge-model &lt;different model&gt;
+.venv/bin/python tools/gaar_pilot.py verify --config ~/gaar-pilot/operations.json</code></pre>
+<p>Human key files must already exist, be owner-only (chmod 600), and sit outside both the pilot configuration directory and this package. The owner key signs scope; the governance key signs the internal source, the obligations and the precedent corpus (an empty approved corpus is an attestation that there are no precedents to consult). Service keys for assessor, planner, executor, challenger, decision and sealer are generated inside the pilot workspace. <code>separation_of_duties</code> records whether owner, governance and approver are distinct people; <code>SINGLE_REVIEWER_PILOT</code> is shown as a warning in the app.</p>
+<p>A pilot runs in evaluation mode, so the integrated gate always carries <code>production_judgment_not_qualified</code> and sealing is impossible. The reviewer app therefore offers <strong>Attest this pilot result</strong>: the same preflight as sealing with that one blocker tolerated, the same head binding and verdict-to-decision mapping, signed by the human approver, recorded as a <code>pilot_attestation</code> journal event with <code>reliance: PILOT_DECISION_SUPPORT</code> and <code>governance_result: false</code> inside the signed payload. Result sealing refuses any approval carrying those markers, so an attestation cannot be promoted into a governance result.</p>
+<h2>6. Evidence needed for change management</h2>
+<p>Use actual observed execution/audit events, approved request scope and timestamps, implementer identity, privileged credential grants, target systems, implementation content fingerprints, freeze windows/timezones and approved exceptions, emergency/incident references, failure outcomes and recovery records. Reconcile observed event IDs against a separately collected population. Logs must be scoped to the same system and time period.</p>
+<p>Two different source names do not prove independent collection. A self-asserted complete flag does not prove collector completeness. Validate collector boundaries and clocks separately. Missing ticket/approval/log records cause assurance gaps; do not reinterpret them as proof that no authorization existed.</p>
+<p>M3.6 requires model-specific validation and operating evidence. Asset/change checks do not establish M3.6 compliance. No regulatory authority determination is supplied here.</p>
+<h2>7. Human conclusion and signed result</h2>
+<p>If automatic hold is not authorized, the runner requests a decision. Optional <code>conclusion_decisions[investigation_id]</code> points to a human <code>decision</code> envelope binding investigation_id, input_head (current challenge head), and the complete <code>conclusion</code> schema. Its signer must match the configured human decision identity. Deployment requests are rejected by this programme.</p>
+<p>A qualified finalizable real investigation then requests a separate signed result approval. <code>result_decisions[investigation_id]</code> points to an envelope signed by an independent human <code>result_approver</code>. Payload: investigation_id, investigation_head, decision, decision_id, at (timezone-aware timestamp), rationale. ADVERSE requires FAIL. INCONCLUSIVE additionally requires <code>assurance_only_fail: true</code> and FAIL. A configured <code>result_sealer</code> signs the resulting GovernanceResult. In production the reviewer app's <strong>Sign and seal</strong> panel (<code>governance/decisions.py</code>) runs every precondition first, signs with the approver key through the existing secrets boundary, writes the envelope without overwriting, registers it and seals. Run again also seals a pre-registered decision without redoing machine stages.</p>
+<p>Every envelope is <code>{payload, key_id, signature}</code> over the canonical JSON payload using the existing CanonicalSigner. These are integration contracts for your authorized approval mechanism, not blank signatures supplied by this package.</p>
+<p>Passing conclusions are not generated automatically. Human approval does not override contradictory operating evidence or incomplete gates. Result sealing does not authorize deployment.</p>
+<h2>8. Terminal administration</h2>
+<p>From <code>ge_repo</code>, show all actions:</p>
+<pre><code>.venv/bin/python tools/gaar_programme.py --help
+.venv/bin/python tools/gaar_programme.py check
+.venv/bin/python tools/gaar_programme.py evaluate</code></pre>
+<p><code>run</code> needs <code>--investigation-id</code> (your existing authorized ID); <code>--config</code> selects another approved configuration. Prefer the saved console or page for daily operation.</p>
+<p><code>check-changes</code> takes the investigation ID and compares configured local bound files/configuration. It can append REVIEW_REQUIRED and a reassessment request. This is also checked on resume. It is not an installed background scheduler or general live Watcher poll.</p>
+<p><code>backup</code> needs investigation ID and a new <code>--destination</code> ZIP. It takes the run lock and writes signed hashes of the core journal, operational journal/anchor, available results/state log, receipts, retained HTTP evidence blobs and report. Original source archives, credentials, model files and external anchors need separate governed backup.</p>
+<p><code>restore-verify</code> takes <code>--archive</code> and a new empty <code>--destination</code>. It checks archive paths, member budget, manifest signature, exact hashes and retained journal heads before reporting VERIFIED_IN_NEW_DIRECTORY. It does not replace production files or prove service failover.</p>
+<p><code>close-action</code> needs investigation ID, <code>--action-id</code> and <code>--approval</code>. Approval must be signed by the assigned human owner and bind action_id, action_event_hash, verification_investigation_id, verification_head and test_ids. The new verification must match the real system/control/framework and required closure procedures. Selected executed tests must have no findings/gaps and an executor independent of the owner. This does not send an external notification.</p>
+<h2>9. Test and recovery operations</h2>
+<p>Install development test requirements in your isolated environment when needed, then use the existing offline regression runner. The delivered verification logs record the environment used for this build; they are not your Mac acceptance results.</p>
+<pre><code>.venv/bin/python -m pip install pytest pytest-timeout
+WB_WEB_KNOWLEDGE=off .venv/bin/python tools/wb141_offline_regression.py -q --timeout=20 tests/test_wb143_149_programme.py</code></pre>
+<p>The complete suite also needs the full historical requirements.txt. Core installation alone does not install every optional app/test dependency. Tests use isolated synthetic fixtures and do not prove a live assessor&#x27;s judgment.</p>
+<p>After interruption, use Run on the SAME assessment/configuration. For altered evidence, policy or knowledge, create a new authorized revision. For integrity errors, preserve files and investigate; never delete the anchor or rewrite the database to force success.</p>
+<h2>10. What remains before production assurance</h2>
+<p>Provide real authorized identities and source decisions, scoped real exports/connectors, a live model service, independent held-out corpus and quality approval, target macOS operation, complete source/collection validation, external rollback anchors, enterprise action delivery, scheduled reassessment/supersession, security/key-revocation/failover exercises and the release authority&#x27;s acceptance.</p>
+<p>The programme is intentionally unable to certify itself. Engineering checks can proceed automatically; missing institutional authority and independent evidence cannot be manufactured.</p></section><section id="implementation"><h1>WB143–WB149 implementation design</h1>
+<h2>Architecture and authority</h2>
+<p>The existing eight-stage signed InvestigationRecord remains the assessment contract. New operational sidecars bind checkpoint intentions, dependency treatments, collection receipts, local actions and lifecycle events. The orchestration is a bounded local state machine; it is not eight independent autonomous agents.</p>
+<p><code>governance/production/orchestrator.py</code> coordinates signed context/expectations → collection → examination → explanation/retrieval → planning → allowlisted execution → dependency treatment → full-record challenge → authorized conclusion → integrated gate → optional human-approved sealing. No proposed test is converted into an executed result by a model.</p>
+<p>The core legacy gate returns <code>integrated_gate_required</code> for programme policies. Only the integrated gate can discharge that marker after checking sidecars and qualification. Existing assessments without the signed contract do not acquire programme approval automatically.</p>
+<h2>Code map</h2>
+<div class="table"><table>
+<tr><th>Module</th><th>Responsibility</th></tr>
+<tr><td>production/orchestrator.py</td><td>Single run/resume, stage intentions, recovery, initial binding, integrated gate</td></tr>
+<tr><td>production/journal.py</td><td>Signed append-only events, local head anchor, atomic writes, per-investigation lock</td></tr>
+<tr><td>production/requests.py</td><td>EvidenceRequest, AuthorizationRequest, ServiceRequest, IntegrityRequest</td></tr>
+<tr><td>production/dependencies.py</td><td>Exactly one treatment per retrieved candidate; material risk and executed-test references</td></tr>
+<tr><td>production/precedents.py</td><td>Scoped governance-approved precedent snapshot, including authenticated empty search</td></tr>
+<tr><td>production/collectors.py</td><td>Approved local exports and bounded HTTPS GET collectors</td></tr>
+<tr><td>production/procedures.py</td><td>Change authorization/2 and independent population comparison/1</td></tr>
+<tr><td>production/evaluation.py</td><td>Frozen independently approved corpus, real response schemas, hidden labels, live receipts</td></tr>
+<tr><td>production/qualification.py</td><td>Human qualification, fingerprints, thresholds, signed receipts/artifact hashes</td></tr>
+<tr><td>production/lifecycle.py</td><td>Human-approved GovernanceResult sealing, CURRENT → REVIEW_REQUIRED, preserved history</td></tr>
+<tr><td>production/actions.py</td><td>Governed local assignment, notification drafts, verified closure guards</td></tr>
+<tr><td>production/assurance.py</td><td>Readiness report, signed backup and isolated restore verification</td></tr>
+<tr><td>tools/gaar_console.py</td><td>Outer launcher menu and saved configuration selection</td></tr>
+<tr><td>tools/gaar_run_app.py</td><td>Local system/assessment selector and Run / resume page</td></tr>
+<tr><td>app_gaar.py</td><td>Default reviewer front door with resolved evidence/reasoning trace</td></tr>
+<tr><td>governance/trace.py</td><td>Read-only stage, journal and receipt verification plus reference resolution</td></tr>
+<tr><td>tools/gaar_provision.py</td><td>Evaluation-only keys, fixture source, whole-file segment and initial signed stages</td></tr><tr><td>tools/gaar_pilot.py</td><td>Pilot on-ramp: accepts supplied human keys, mints service keys, governance-signed internal source and precedent corpus, non-synthetic initial stages</td></tr><tr><td>governance/decisions.py</td><td>Human decision step: preflight, sign and seal in production; pilot attestation in pilot profile; never mints keys</td></tr><tr><td>conftest.py</td><td>Restores shipped governance ledgers after a test session and names every ledger a test wrote</td></tr>
+<tr><td>tools/gaar_programme.py</td><td>Noninteractive run, evaluate, check, backup, restore, change check and closure</td></tr>
+</table></div>
+<h2>Recovery design</h2>
+<p>A signed stage intention contains the full validated proposal, previous head, and proposal hash. It is durably written before the investigation stage. A separate commit records the resulting stage head. Recovery either replays the recorded proposal or recognizes an already written matching stage. It does not ask the model to replace a persisted answer. Inference can be repeated if interruption occurs before a validated intention exists; live inference itself is not deterministic.</p>
+<p>A per-investigation OS lock rejects concurrent runs. SQLite serializes writes. Event signatures and hash chains detect mutation. A separately fsynced local anchor detects journal rollback relative to that retained anchor. It cannot detect coordinated rollback of the journal and anchor, deletion of both, or compromised OS/key custody. An independently retained anchor and governed production backups remain required.</p>
+<p>Initial owner/expectation head is approved once. Later stage heads are tracked automatically. Changed code, models, knowledge, trust, source/collector scope or relevant policy require a new approved revision. Changed bound local evidence preserves the original record and requests reassessment.</p>
+<h2>Dependency knowledge</h2>
+<p>The bundled WB142 catalogue contains 29 proposed relationships. Bounded traversal retrieves the candidates relevant to the assessment; the engine does not force all 29 onto every control or claim the catalogue is exhaustive.</p>
+<p>Each retrieved edge receives exactly one treatment: INVESTIGATED, NOT_APPLICABLE, UNRESOLVED or UNAVAILABLE. Investigation requires admitted evidence plus actual executed-test references. Material treatment requires a material risk reference and explicit disposition. The challenge receives the signed treatment record; the gate binds the exact reviewed sidecar to the signed challenge.</p>
+<p>Rules verify reference/coverage integrity. They cannot determine that a plausible rationale is true, that all real-world dependencies are catalogued, or that the chosen test actually resolves every question. Independent judgment evaluation and catalogue governance remain essential. New material explanations discovered after the explanation stage require a new investigation revision.</p>
+<p>For change management, start from observed production changes and compare to authorized scope, actor/credential privileges, approval timing, freeze exceptions, implementation content, incident/emergency context and failed-change recovery. Reconcile a second collection population. Ticket counts alone cannot prove absence of unauthorized change.</p>
+<h2>Evidence and test semantics</h2>
+<p>Admission verifies scope, provenance and integrity. Negative evidence is admissible. Design evidence does not silently satisfy an operating obligation. Missing approval/ticket/privilege/recovery records remain assurance gaps; supported mismatches are recorded separately. Supplied exports do not themselves establish complete discovery, authentic origin or independent collection.</p>
+<p>Change policies must require <code>change_authorization/2</code> and <code>change_population/1</code>. M3.6 policies must require model evaluation, representativeness, independent validation and residual-risk procedures, all version 1. These procedures are implemented; real M3.6 effectiveness and source authority remain unverified.</p>
+<p>HTTPS collectors use operator-approved URLs and host lists, GET only, no redirects, bounded responses and explicit scope checks. The model cannot select network endpoints. Collected JSON is retained by content hash. A normalized collector is an integration adapter, not a completed connector for every enterprise product.</p>
+<h2>Decisions, results and actions</h2>
+<p>Automatic conclusion is limited to a preauthorized deployment hold. Passing conclusions require a human decision identity and supporting gate evidence. Production result sealing requires current qualified judgment, real scoped context and a signed independent human result decision. A finalizable FAIL can be CURRENT as an assessment while deployment remains blocked. An inconclusive assessment needs explicit assurance-only FAIL mapping; this does not establish operational breach.</p>
+<p>Result signatures, human approval, dependency review and investigation head are retained. Changes append a REVIEW_REQUIRED transition and reassessment job; history is preserved. This candidate checks configured local inputs/configuration when run or explicitly polled. It does not install a continuous scheduler, automatically supersede old results with a successor, or monitor every regulator/system source.</p>
+<p>Material findings create local actions. Assignment requires trusted owner and policy permission. Notifications are drafts only. Closure requires assigned-owner signature, a fresh real investigation, scoped independent executed verification, approved closure procedures and no remaining findings/gaps. Enterprise ticket delivery, recipient resolution, closure semantic sufficiency and service-level acceptance are outstanding production work.</p>
+<h2>Security boundary</h2>
+<p>This is a local trusted-OS application. The page binds to localhost. There is no new multi-user authentication/tenant isolation layer, hardware key custody, automated revocation service, external anchor service or penetration-test certification. Private keys belong outside this package. Receipt/journal contents may include confidential evidence; apply governed storage and retention controls.</p>
+<p>The result gate, replay tests and signature checks are engineering safeguards. They do not make an assessor infallible or demonstrate superiority over experienced auditors.</p>
+<p>The reviewer trace checks the signed stage chain against the externally supplied trust policy, checks the operational journal and retained local anchor read-only, verifies inference receipt signatures and hashes, and flags unresolved references. <code>VALID</code> means those recorded bytes and identities verify; it does not mean their claims are true. <code>NOT_CHECKED</code>, <code>UNAVAILABLE</code>, <code>PARTIAL</code> and <code>INVALID</code> remain distinct.</p>
+<p>The old workbench remains legacy option 7. The reviewer app is option 9 and the programme front door; it does not import <code>data/assessments.json</code> into the signed contract. Human decision signing inside the app is not yet implemented.</p></section><section id="evaluation"><h1>WB145 judgment evaluation and qualification</h1>
+<h2>Separate the three questions</h2>
+<p>1. Does the software enforce the investigation contract? Offline integration, signature, replay, scope, recovery and negative tests answer this. 2. Does a live model produce correct, useful, appropriately uncertain judgments? Independently labeled held-out cases and semantic review answer this. 3. Can intended users safely operate the complete service in the target environment? Production acceptance exercises answer this.</p>
+<p>Software tests in this package establish only the first. Scripted fixtures are labeled as such. No live model quality score or auditor baseline was measured.</p>
+<h2>Full-contract runner</h2>
+<p><code>governance.production.evaluation.evaluate</code> uses the same EvidenceExamination, ExplanationSet, TestPlan and ChallengeRecord schemas as production. Each case contains a frozen <code>production_prompt</code>. The evaluator adds the actual response schema, calls the configured live transport, retains signed receipts and validates the response. Expected labels and assertions remain outside the model prompt.</p>
+<p>A human <code>judgment_evaluator</code> signs a manifest containing <code>frozen_at</code>, <code>development_input_hashes</code>, and cases. All 16 stage/category cells must exist: examine/explain/plan/challenge × violation/legitimate_exception/contradiction/insufficient_evidence. Case IDs and file hashes must be unique; development overlap and changed files are rejected.</p>
+<p>Each case entry has <code>case_id</code>, <code>stage</code>, <code>category</code>, <code>path</code>, <code>sha256</code>, nonempty <code>assertions</code>, and <code>independent_expected_judgment</code>. Each assertion has a unique <code>id</code>, a JSON-path component list <code>path</code>, <code>operator</code> (<code>equals</code>, <code>contains</code>, <code>absent</code>), optional <code>value</code>, and <code>critical</code> boolean. Case file format is exactly <code>{&quot;production_prompt&quot;: {...}}</code>.</p>
+<p>Predicates measure structural facts such as correct missing-evidence status or absence of an unsupported assertion. They are not claim-level precision/recall and do not establish semantic correctness. The runner reports semantic review PENDING and release authorization false. Reviewers must assess whether the frozen prompts represent actual runtime context.</p>
+<h2>Independent labels and auditor comparison</h2>
+<p>Keep the corpus outside development prompts and test fixtures. Independent experts label facts, warranted conclusions, legitimate exceptions, unresolved uncertainty, material dependencies, best next tests and invalid conclusions. Record disagreements and adjudication. Use equivalent information and time budgets for a qualified human auditor baseline. Include blinded cases, adversarial evidence, prompt injection, contradictory timestamps, emergency changes, wrong-scope approvals, absent logs, misleading equal counts, and evidence that refutes the initial hypothesis.</p>
+<p>Measure per stage and risk category: material finding recall, warranted-claim precision, unsupported conclusion rate, evidence attribution correctness, uncertainty calibration, useful alternative explanations, decision-impact test choice, challenge discovery rate, unavailable/abstention rate, cost and latency. Report denominators, confidence intervals and failures. Do not pool rare catastrophic errors into an attractive average.</p>
+<p>Critical failures include fabricated authority/approval/execution, cross-system satisfaction, invented citations, unsupported operational breach, material risk suppressed, proposed test claimed executed, and deployment authorization outside mandate.</p>
+<h2>Qualification artifact</h2>
+<p>Production mode requires an independent human <code>quality_approver</code> envelope: <code>payload</code>, <code>key_id</code>, <code>signature</code> over canonical payload. It binds the current code/knowledge/model/trust/operating-scope/policy fingerprint; <code>valid_until</code>; <code>decision: APPROVED</code>; <code>semantic_review: APPROVED</code>; <code>semantic_review_ref</code>; and the hashed <code>held_out_manifest</code>, <code>evaluation_results</code>, <code>semantic_review_artifact</code> files (<code>path</code>, <code>sha256</code>). Include signed live receipt file references for all four stages.</p>
+<p><code>metrics[stage][category]</code> contains integer <code>case_count</code>, <code>unavailable_count</code>, <code>critical_failures</code>, and finite <code>precision</code>, <code>recall</code>. Values are independently approved semantic measurements; the application validates their signature and limits, not the truth of the human labels. The runner does not manufacture this approval or calculate semantic precision from lexical checks.</p>
+<p>The supplied template suggests at least 10 cases per cell and precision/recall thresholds of 0.95. These are editable proposed release settings, not scientifically established sufficiency or regulatory requirements. The responsible authority must approve a risk-based sample design, critical-failure policy and thresholds. Zero observed errors does not prove zero future errors. Model aliases also require operational version pinning outside this configuration hash.</p>
+<p>Change code, prompts, knowledge, models, trust or relevant scope/policy → qualification no longer matches → production stops until requalified. A new evidence configuration may consequently require new qualification in this deliberately strict candidate.</p>
+<p>Production qualification also requires immutable revision/hash fields for examination and challenge and rejects an identical provider/base/model/revision identity for both roles. This reduces direct self-challenge but does not prove independence of training data, model family or failure modes; the independent evaluation corpus must measure correlated errors.</p>
+<h2>Required production proof not supplied</h2>
+<p>Independent corpus and labels; live full-contract outputs; independent semantic scoring and signed approval; auditor baseline; robustness and privacy evaluation; target-environment user acceptance. These remain blocking tasks rather than simulated successes.</p></section><section id="knowledge"><h1>WB142 proposed dependency catalogue</h1>
+<p>All 29 relationships are PROPOSED internal investigation knowledge. None is a regulatory obligation or automatic verdict-propagation rule. MAS mappings require expert approval. INTERNAL identifiers are investigative topics.</p>
+<h2>MAS-CANDIDATE-001: M2.1 → M2.2</h2>
+<p>Undetected AI use can leave the inventory population incomplete.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> UNAVAILABLE — procedure development required</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-002: M2.2 → M2.3</h2>
+<p>An incomplete inventory can omit systems from materiality assessment.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Unique asset IDs from inventory, discovery, configuration and vulnerability exports; Collection time, scope, retirement/ephemeral lifecycle and coverage records</p>
+<p><strong>Alternatives:</strong> Retired or ephemeral asset; Alias or duplicate identity; Collectors sampled different times or populations; Failed collector</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> asset_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-003: M2.2 → M3.7</h2>
+<p>Unidentified assets or dependencies may fall outside security-control coverage.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Unique asset IDs from inventory, discovery, configuration and vulnerability exports; Collection time, scope, retirement/ephemeral lifecycle and coverage records</p>
+<p><strong>Alternatives:</strong> Retired or ephemeral asset; Alias or duplicate identity; Collectors sampled different times or populations; Failed collector</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> asset_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-004: M2.2 → M3.10</h2>
+<p>An incomplete inventory can make monitoring coverage denominators unreliable.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Unique asset IDs from inventory, discovery, configuration and vulnerability exports; Collection time, scope, retirement/ephemeral lifecycle and coverage records</p>
+<p><strong>Alternatives:</strong> Retired or ephemeral asset; Alias or duplicate identity; Collectors sampled different times or populations; Failed collector</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> asset_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-005: M2.3 → M3.6</h2>
+<p>Incorrect materiality may select an inappropriate evaluation or validation depth.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_independent_validation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-006: M3.1 → M3.6</h2>
+<p>Unsuitable data can invalidate evaluation representativeness.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_independent_validation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-007: M3.5 → M3.6</h2>
+<p>Model and feature selection assumptions affect evaluation and validation scope.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_independent_validation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-008: M3.6 → M3.9</h2>
+<p>Unresolved evaluation findings can invalidate release clearance.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_independent_validation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-009: M3.6 → M3.10</h2>
+<p>Known model limitations and thresholds should inform ongoing monitoring.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_independent_validation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-010: M3.10 → M3.11</h2>
+<p>Detection gaps may delay incident escalation.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> UNAVAILABLE — procedure development required</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-011: M3.12 → M3.6</h2>
+<p>Material changes may invalidate the scope of prior validation.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-012: M3.14 → M3.6</h2>
+<p>Third-party opacity or changes can create evaluation and validation gaps.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_independent_validation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-013: M3.7 → M3.12</h2>
+<p>Privilege grants and actual credential use affect whether an implementer was authorized for a change.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-014: M3.8 → M3.12</h2>
+<p>Independent execution logs are needed to reconcile actual changes against the ticket population.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-015: M3.9 → M3.12</h2>
+<p>Release approval, implementation windows and freeze exceptions constrain authorized changes.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-016: M3.11 → M3.12</h2>
+<p>Post-incident changes need context-sensitive review of emergency authorization and remediation.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>MAS-CANDIDATE-017: M3.12 → M3.11</h2>
+<p>Failed changes can require verified rollback or authorized fix-forward and incident handling.</p>
+<p><strong>Framework:</strong> MAS · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-001: ASSET.INVENTORY → ASSET.CONFIGURATION</h2>
+<p>Incomplete asset identity coverage can exclude assets from configuration checks.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Unique asset IDs from inventory, discovery, configuration and vulnerability exports; Collection time, scope, retirement/ephemeral lifecycle and coverage records</p>
+<p><strong>Alternatives:</strong> Retired or ephemeral asset; Alias or duplicate identity; Collectors sampled different times or populations; Failed collector</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> asset_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-002: ASSET.INVENTORY → ASSET.PATCH</h2>
+<p>Inventory gaps can undermine the denominator used for patch coverage.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Unique asset IDs from inventory, discovery, configuration and vulnerability exports; Collection time, scope, retirement/ephemeral lifecycle and coverage records</p>
+<p><strong>Alternatives:</strong> Retired or ephemeral asset; Alias or duplicate identity; Collectors sampled different times or populations; Failed collector</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> asset_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-003: CHANGE.MGMT → ACCESS.PRIVILEGED</h2>
+<p>Actual credential use may differ from the identity and privilege approved for a change.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-004: LOGGING.COVERAGE → CHANGE.MGMT</h2>
+<p>Unobserved implementations cannot be reconciled using change tickets alone.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-005: CHANGE.APPROVAL → CHANGE.MGMT</h2>
+<p>Approvals must bind the executed target, content, actor, credential and implementation window.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-006: CHANGE.FREEZE → CHANGE.MGMT</h2>
+<p>A change inside a freeze needs a valid applicable exception under the governing policy.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-007: INCIDENT.RESPONSE → CHANGE.MGMT</h2>
+<p>Changes after incidents may be legitimate emergency remediation or may require further investigation.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-008: CHANGE.MGMT → SERVICE.RECOVERY</h2>
+<p>Failed changes can leave services impaired unless rollback or authorized fix-forward is evidenced.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness</p>
+<p><strong>Alternatives:</strong> Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.</p>
+<p><strong>Proposed comparison:</strong> change_reconciliation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-009: MODEL.DATA → MODEL.VALIDATION</h2>
+<p>Unrepresentative evaluation data can undermine conclusions about intended populations.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_representativeness/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-010: MODEL.VALIDATION → MODEL.RELEASE</h2>
+<p>Unresolved validation findings may invalidate release clearance.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_independent_validation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-011: MODEL.MONITORING → MODEL.VALIDATION</h2>
+<p>Drift or changed use can invalidate earlier validation assumptions.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_model_evaluation/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p>
+<h2>INTERNAL-012: MODEL.VALIDATION → RISK.ACCEPTANCE</h2>
+<p>Residual risk decisions depend on accurate findings and authorized acceptance evidence.</p>
+<p><strong>Framework:</strong> INTERNAL · <strong>Version:</strong> 1 · <strong>Review:</strong> PROPOSED</p>
+<p><strong>Evidence to examine:</strong> Scoped source exports and collection coverage; Applicable policy/version and record of authorization</p>
+<p><strong>Alternatives:</strong> Collection timing or scope mismatch; Approved exception or effective compensating control; Incomplete or inaccurate source records</p>
+<p><strong>Disproof:</strong> What independent evidence or authorized exception would refute this explanation?</p>
+<p><strong>Corroboration:</strong> Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.</p>
+<p><strong>Proposed comparison:</strong> m36_residual_risk/1</p>
+<p><strong>Limit:</strong> A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.</p></section><section id="verification"><h1>Verification and acceptance record</h1>
+<p><strong>2026-09-20: 1,249 passed, 3 skipped, 0 failed, no warnings in the final offline suite (198.35 seconds).</strong> The 23 focused programme checks passed. <code>pip check</code> reports no broken requirements. Shell syntax and Python compilation checks passed.</p>
+<p>These results verify software behavior on Linux with scripted model responses and isolated identities. They do not establish live model judgment, production evidence quality, independent human approval, macOS usability or production assurance. Tests that exercise a production-shaped result deliberately mock qualification and use synthetic keys; those results are not deployment artifacts.</p>
+<div class="table"><table>
+<tr><th>Gate</th><th>Implemented/proved here</th><th>Still required for acceptance</th></tr>
+<tr><td>WB143: Integrated investigation</td><td>Implemented; offline protocol tests passed</td><td>Live end-to-end investigation, trusted setup and target-user acceptance not verified</td></tr>
+<tr><td>WB144: Dependency review</td><td>Exactly-one treatment, executed-test references and challenge binding implemented</td><td>Catalogue completeness, applicability and treatment semantics need independent expert validation</td></tr>
+<tr><td>WB145: Judgment evaluation</td><td>Full-contract live runner and signed qualification gate implemented</td><td>No independent corpus, live responses, semantic measurements or auditor baseline supplied</td></tr>
+<tr><td>WB146: Evidence and verification</td><td>Scoped collection adapters, change checks and inherited M3.6 procedures implemented</td><td>Enterprise connectors, collection authenticity/completeness and real control coverage unverified</td></tr>
+<tr><td>WB147: Results and reassessment</td><td>Signed seal, adverse CURRENT, change invalidation and local reassessment requests tested</td><td>Real result, external anchoring, scheduled continuous reassessment and successor/supersession workflow outstanding</td></tr>
+<tr><td>WB148: Actions and reporting</td><td>Local actions, optional policy assignment, draft notifications and closure guards implemented</td><td>Authorized external delivery, full closure acceptance and operational ownership unverified</td></tr>
+<tr><td>WB149: Production assurance</td><td>Local security/recovery checks, signed backup/isolated restore and environment report implemented</td><td>Independent security review, revocation/failover drills, macOS acceptance and release approval outstanding</td></tr>
+</table></div>
+<h2>New checks</h2>
+<p>Integrated change run/idempotent resume; missing production qualification; missing evidence; crash before/after stage append; changed evidence requires revision; journal role abuse/rollback; signed backup/tamper/restore; missing record versus contradiction; concurrent-run lock; missing precedent visibility; dependency omission and unexecuted-test rejection; unapproved collector endpoint; full-schema evaluation prerequisites; signed result sealing/idempotence and changed-evidence non-repromotion; internal policy authority/human approval; invalid qualification signature; legacy single-run and reviewer-app missing-setup behavior; stage/operational trace integrity; receipt signature/hash tamper detection; evaluation-only provisioner identities, offsets and signed initial stages; invalid remediation closure.</p>
+<h2>Reproducible evidence</h2>
+<p><code>ge_repo/verification/wb143_149/full_regression_reviewer.log</code> is the final full run. <code>focused_reviewer.log</code> is the focused run. <code>environment_check.json</code> records actual missing service/identity/source/qualification configuration and Linux rather than macOS. <code>pip_check_reviewer.log</code> records software dependency consistency, not vulnerability scanning. <code>runtime_versions.json</code> records the runtime. Earlier failed collection and pre-final logs are retained for transparency; an import cycle and a repeat-sealing idempotency defect were corrected.</p>
+<h2>Explicit limitations</h2>
+<p class="bullet">• No running live model was available; endpoint health returned connection refused.</p>
+<p class="bullet">• No real production evidence, trusted identities, approved source snapshots or independent evaluation corpus was provided.</p>
+<p class="bullet">• No actual human authorization, notification delivery or production deployment occurred.</p>
+<p class="bullet">• Local signatures and anchors do not replace external immutable retention, encryption/key management or host security.</p>
+<p class="bullet">• Restore verifies a new directory and retained cryptographic heads; it does not prove disaster-recovery service failover.</p>
+<p class="bullet">• Adversarial audit, key compromise/revocation, multi-user access control, enterprise integrations and Mac target acceptance remain release gates.</p>
+<p class="bullet">• The 29 dependency relationships remain proposed internal knowledge; no blanket regulatory mapping or completeness claim is made.</p>
+<p class="bullet">• No percentage of overall production maturity is inferred from passing tests.</p>
+<p>The eight-agent picture remains a capability map. This package does not certify that every box is a deployed production service.</p></section></main></body></html>

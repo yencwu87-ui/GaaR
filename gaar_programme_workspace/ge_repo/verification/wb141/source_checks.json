@@ -1,0 +1,52 @@
+{
+  "snapshots": [
+    {
+      "source_id": "MAS-AI-CANDIDATE",
+      "issuer": "MAS",
+      "url": "https://www.mas.gov.sg/publications/consultations/2025/consultation-paper-on-guidelines-on-artificial-intelligence-risk-management",
+      "retrieved_at": "2026-09-20T09:36:32.902085+00:00",
+      "status": "UNABLE_TO_CHECK",
+      "authority": "UNAPPROVED",
+      "final_url": "https://www.mas.gov.sg/publications/consultations/2025/consultation-paper-on-guidelines-on-artificial-intelligence-risk-management",
+      "sha256": "bd18b53e70c59d6745e7ff5c5cc164f1e463439424489e6409410d00621acb5e",
+      "content_type": "text/html",
+      "byte_length": 853816,
+      "snapshot": "bd18b53e70c59d6745e7ff5c5cc164f1e463439424489e6409410d00621acb5e.snapshot",
+      "download_status": "QUARANTINED",
+      "content_validation_error": "empty, maintenance or bot-challenge response; not a regulatory snapshot"
+    },
+    {
+      "source_id": "FCA-AI-CANDIDATE",
+      "issuer": "FCA",
+      "url": "https://www.fca.org.uk/publications/research/artificial-intelligence-uk-financial-services-2024",
+      "retrieved_at": "2026-09-20T09:36:45.570068+00:00",
+      "status": "UNABLE_TO_CHECK",
+      "authority": "UNAPPROVED",
+      "error": "HTTPError: HTTP Error 403: Forbidden"
+    },
+    {
+      "source_id": "HKMA-INDEX-CANDIDATE",
+      "issuer": "HKMA",
+      "url": "https://www.hkma.gov.hk/eng/regulatory-resources/regulatory-guides/circulars/",
+      "retrieved_at": "2026-09-20T09:36:53.293617+00:00",
+      "status": "UNABLE_TO_CHECK",
+      "authority": "UNAPPROVED",
+      "error": "HTTPError: HTTP Error 404: Not Found"
+    },
+    {
+      "source_id": "NFRA-INDEX-CANDIDATE",
+      "issuer": "NFRA",
+      "url": "https://www.nfra.gov.cn/",
+      "retrieved_at": "2026-09-20T09:37:03.060716+00:00",
+      "status": "UNABLE_TO_CHECK",
+      "authority": "UNAPPROVED",
+      "final_url": "https://www.nfra.gov.cn/",
+      "sha256": "bf53f96b07fd8671804af243440ac4275f567a39b07a1c66ba8f6279ae72c7eb",
+      "content_type": "text/html",
+      "byte_length": 237,
+      "snapshot": "bf53f96b07fd8671804af243440ac4275f567a39b07a1c66ba8f6279ae72c7eb.snapshot",
+      "download_status": "QUARANTINED",
+      "content_validation_error": "HTML shell contains insufficient readable publication content"
+    }
+  ]
+}

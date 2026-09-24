@@ -1,0 +1,615 @@
+{
+  "synthetic": true,
+  "data_classification": "CONSTRUCTED_TEST_DATA",
+  "scope": "CONSTRUCTED-payments-api",
+  "as_of": "2026-09-15T00:00:00+08:00",
+  "policy": {
+    "incident_lookback_hours": 24,
+    "failed_change_requires_recovery": true
+  },
+  "collection": {
+    "complete": true,
+    "source_ids": [
+      "CONSTRUCTED-ci-deploy-log",
+      "CONSTRUCTED-change-register"
+    ],
+    "period_start": "2026-09-01T00:00:00+08:00",
+    "period_end": "2026-09-15T00:00:00+08:00"
+  },
+  "changes": [
+    {
+      "event_id": "CHG-01",
+      "ticket_id": "CR-101",
+      "occurred_at": "2026-09-02T21:05:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "alice.tan",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "d65baafde8bad6fc40dd335afb29ab32b6aa1d92",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-02",
+      "ticket_id": "CR-102",
+      "occurred_at": "2026-09-03T21:10:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "bob.koh",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "29ea74d86c05c559302d15b84f389d15b113a124",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-03",
+      "ticket_id": "CR-103",
+      "occurred_at": "2026-09-04T21:00:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "alice.tan",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "bd4c796f78007f8593617849ba6026b90ce0e202",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-04",
+      "ticket_id": "CR-104",
+      "occurred_at": "2026-09-05T20:30:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "bob.koh",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "e7879f3615c7ff63380d21e275397b435d6bf366",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-05",
+      "ticket_id": "CR-105",
+      "occurred_at": "2026-09-05T22:15:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "alice.tan",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "8b9e5b326ca634f3e3af21e74bd625662ba900ac",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-06",
+      "ticket_id": "CR-106",
+      "occurred_at": "2026-09-06T10:00:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "bob.koh",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "02384d0ede28f0c887436ac28faace8e2c41a712",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-07",
+      "ticket_id": "CR-107",
+      "occurred_at": "2026-09-06T23:40:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "alice.tan",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "c84be52871830be89234293baa263fed90e22964",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-08",
+      "ticket_id": "CR-108",
+      "occurred_at": "2026-09-07T21:00:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "bob.koh",
+      "credential_id": "cred-bob-personal",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "86e4d6039ceb26797947f1187e7678d2ed87c2c2",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-09",
+      "ticket_id": "CR-109",
+      "occurred_at": "2026-09-10T21:30:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "alice.tan",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "bad501d7d485356d972ca426c50c92d2423edcb4",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-10",
+      "ticket_id": "CR-110",
+      "occurred_at": "2026-09-10T21:45:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "bob.koh",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "2618f7e3f35e4e75f0423ecb5cd35fb0a0782846",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-11",
+      "ticket_id": "CR-111",
+      "occurred_at": "2026-09-11T21:00:00+08:00",
+      "asset_id": "payments-db-prod",
+      "actor_id": "carol.wee",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "apply_migration"
+      ],
+      "actual_spec_hash": "fee7b9f5075493fd0c8420c3ac644adae3b2a660",
+      "outcome": "failed"
+    },
+    {
+      "event_id": "CHG-12",
+      "ticket_id": "CR-112",
+      "occurred_at": "2026-09-12T21:00:00+08:00",
+      "asset_id": "payments-db-prod",
+      "actor_id": "carol.wee",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "apply_migration"
+      ],
+      "actual_spec_hash": "0cfff354d0248219fe51bc35962e472a69adfb19",
+      "outcome": "failed"
+    },
+    {
+      "event_id": "CHG-13",
+      "ticket_id": "ECR-113",
+      "occurred_at": "2026-09-13T03:20:00+08:00",
+      "asset_id": "payments-db-prod",
+      "actor_id": "carol.wee",
+      "credential_id": "cred-carol-admin",
+      "actions": [
+        "restart_service",
+        "apply_config"
+      ],
+      "actual_spec_hash": "615e637237813018b40053cbfe58dbd1997890f1",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-14",
+      "ticket_id": "CR-114",
+      "occurred_at": "2026-09-14T21:00:00+08:00",
+      "asset_id": "payments-db-prod",
+      "actor_id": "carol.wee",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "apply_migration",
+        "drop_index"
+      ],
+      "actual_spec_hash": "a7d579f0be5ecf7f7aac99a32bce8d5f9fdaa6f9",
+      "outcome": "succeeded"
+    },
+    {
+      "event_id": "CHG-16",
+      "ticket_id": "CR-116",
+      "occurred_at": "2026-09-14T21:30:00+08:00",
+      "asset_id": "payments-api-prod",
+      "actor_id": "alice.tan",
+      "credential_id": "deploy-key-ci",
+      "actions": [
+        "deploy_release"
+      ],
+      "actual_spec_hash": "9e7d9fabdc7f46b94a76e66add99d2864d1a92fe",
+      "outcome": "succeeded"
+    }
+  ],
+  "tickets": [
+    {
+      "ticket_id": "CR-101",
+      "status": "approved",
+      "approved_by": "dave.lim",
+      "approved_at": "2026-09-02T09:00:00+08:00",
+      "window_start": "2026-09-02T20:00:00+08:00",
+      "window_end": "2026-09-02T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "alice.tan"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "d65baafde8bad6fc40dd335afb29ab32b6aa1d92"
+    },
+    {
+      "ticket_id": "CR-102",
+      "status": "approved",
+      "approved_by": "erin.ng",
+      "approved_at": "2026-09-03T10:00:00+08:00",
+      "window_start": "2026-09-03T20:00:00+08:00",
+      "window_end": "2026-09-03T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "bob.koh"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "29ea74d86c05c559302d15b84f389d15b113a124"
+    },
+    {
+      "ticket_id": "CR-103",
+      "status": "approved",
+      "approved_by": "alice.tan",
+      "approved_at": "2026-09-04T11:00:00+08:00",
+      "window_start": "2026-09-04T20:00:00+08:00",
+      "window_end": "2026-09-04T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "alice.tan"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "bd4c796f78007f8593617849ba6026b90ce0e202"
+    },
+    {
+      "ticket_id": "CR-104",
+      "status": "approved",
+      "approved_by": "dave.lim",
+      "approved_at": "2026-09-05T09:30:00+08:00",
+      "window_start": "2026-09-05T20:00:00+08:00",
+      "window_end": "2026-09-05T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "bob.koh"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "1c998b3c5f7d7dc4e878c4b77d54c84657ccf853"
+    },
+    {
+      "ticket_id": "CR-105",
+      "status": "approved",
+      "approved_by": "erin.ng",
+      "approved_at": "2026-09-05T22:40:00+08:00",
+      "window_start": "2026-09-05T20:00:00+08:00",
+      "window_end": "2026-09-05T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "alice.tan"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "8b9e5b326ca634f3e3af21e74bd625662ba900ac"
+    },
+    {
+      "ticket_id": "CR-106",
+      "status": "approved",
+      "approved_by": "dave.lim",
+      "approved_at": "2026-09-05T08:00:00Z",
+      "window_start": "2026-09-06T09:00:00Z",
+      "window_end": "2026-09-06T18:00:00Z",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "bob.koh"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "02384d0ede28f0c887436ac28faace8e2c41a712"
+    },
+    {
+      "ticket_id": "CR-108",
+      "status": "approved",
+      "approved_by": "erin.ng",
+      "approved_at": "2026-09-07T09:00:00+08:00",
+      "window_start": "2026-09-07T20:00:00+08:00",
+      "window_end": "2026-09-07T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "bob.koh"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "86e4d6039ceb26797947f1187e7678d2ed87c2c2"
+    },
+    {
+      "ticket_id": "CR-109",
+      "status": "approved",
+      "approved_by": "dave.lim",
+      "approved_at": "2026-09-08T09:00:00+08:00",
+      "window_start": "2026-09-10T20:00:00+08:00",
+      "window_end": "2026-09-10T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "alice.tan"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "bad501d7d485356d972ca426c50c92d2423edcb4"
+    },
+    {
+      "ticket_id": "CR-110",
+      "status": "approved",
+      "approved_by": "dave.lim",
+      "approved_at": "2026-09-08T09:00:00+08:00",
+      "window_start": "2026-09-10T21:00:00+08:00",
+      "window_end": "2026-09-10T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "bob.koh"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "2618f7e3f35e4e75f0423ecb5cd35fb0a0782846"
+    },
+    {
+      "ticket_id": "CR-111",
+      "status": "approved",
+      "approved_by": "erin.ng",
+      "approved_at": "2026-09-11T09:00:00+08:00",
+      "window_start": "2026-09-11T20:00:00+08:00",
+      "window_end": "2026-09-11T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-db-prod"
+      ],
+      "allowed_actions": [
+        "apply_migration"
+      ],
+      "allowed_implementers": [
+        "carol.wee"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "fee7b9f5075493fd0c8420c3ac644adae3b2a660"
+    },
+    {
+      "ticket_id": "CR-112",
+      "status": "approved",
+      "approved_by": "erin.ng",
+      "approved_at": "2026-09-12T09:00:00+08:00",
+      "window_start": "2026-09-12T20:00:00+08:00",
+      "window_end": "2026-09-12T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-db-prod"
+      ],
+      "allowed_actions": [
+        "apply_migration"
+      ],
+      "allowed_implementers": [
+        "carol.wee"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "0cfff354d0248219fe51bc35962e472a69adfb19"
+    },
+    {
+      "ticket_id": "ECR-113",
+      "status": "approved",
+      "approved_by": "dave.lim",
+      "approved_at": "2026-09-13T03:05:00+08:00",
+      "window_start": "2026-09-13T03:00:00+08:00",
+      "window_end": "2026-09-13T06:00:00+08:00",
+      "allowed_targets": [
+        "payments-db-prod"
+      ],
+      "allowed_actions": [
+        "restart_service",
+        "apply_config"
+      ],
+      "allowed_implementers": [
+        "carol.wee"
+      ],
+      "allowed_credentials": [
+        "cred-carol-admin"
+      ],
+      "approved_spec_hash": "615e637237813018b40053cbfe58dbd1997890f1"
+    },
+    {
+      "ticket_id": "CR-114",
+      "status": "approved",
+      "approved_by": "dave.lim",
+      "approved_at": "2026-09-14T09:00:00+08:00",
+      "window_start": "2026-09-14T20:00:00+08:00",
+      "window_end": "2026-09-14T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-db-prod"
+      ],
+      "allowed_actions": [
+        "apply_migration"
+      ],
+      "allowed_implementers": [
+        "carol.wee"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "a7d579f0be5ecf7f7aac99a32bce8d5f9fdaa6f9"
+    },
+    {
+      "ticket_id": "CR-116",
+      "status": "pending",
+      "approved_by": "",
+      "approved_at": "",
+      "window_start": "2026-09-14T20:00:00+08:00",
+      "window_end": "2026-09-14T23:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ],
+      "allowed_implementers": [
+        "alice.tan"
+      ],
+      "allowed_credentials": [
+        "deploy-key-ci"
+      ],
+      "approved_spec_hash": "9e7d9fabdc7f46b94a76e66add99d2864d1a92fe"
+    }
+  ],
+  "privilege_grants": [
+    {
+      "grant_id": "PG-1",
+      "actor_id": "alice.tan",
+      "credential_id": "deploy-key-ci",
+      "approved_by": "sec.admin",
+      "approved_at": "2026-08-25T09:00:00+08:00",
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2026-10-01T00:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ]
+    },
+    {
+      "grant_id": "PG-2",
+      "actor_id": "bob.koh",
+      "credential_id": "deploy-key-ci",
+      "approved_by": "sec.admin",
+      "approved_at": "2026-08-25T09:00:00+08:00",
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2026-10-01T00:00:00+08:00",
+      "allowed_targets": [
+        "payments-api-prod"
+      ],
+      "allowed_actions": [
+        "deploy_release"
+      ]
+    },
+    {
+      "grant_id": "PG-3",
+      "actor_id": "carol.wee",
+      "credential_id": "deploy-key-ci",
+      "approved_by": "sec.admin",
+      "approved_at": "2026-08-25T09:00:00+08:00",
+      "valid_from": "2026-09-01T00:00:00+08:00",
+      "valid_until": "2026-10-01T00:00:00+08:00",
+      "allowed_targets": [
+        "payments-db-prod"
+      ],
+      "allowed_actions": [
+        "apply_migration"
+      ]
+    },
+    {
+      "grant_id": "PG-4",
+      "actor_id": "carol.wee",
+      "credential_id": "cred-carol-admin",
+      "approved_by": "sec.admin",
+      "approved_at": "2026-09-13T03:02:00+08:00",
+      "valid_from": "2026-09-13T03:00:00+08:00",
+      "valid_until": "2026-09-13T07:00:00+08:00",
+      "allowed_targets": [
+        "payments-db-prod"
+      ],
+      "allowed_actions": [
+        "restart_service",
+        "apply_config"
+      ]
+    }
+  ],
+  "freezes": [
+    {
+      "freeze_id": "FRZ-MONTH-CLOSE",
+      "start": "2026-09-10T00:00:00+08:00",
+      "end": "2026-09-11T00:00:00+08:00",
+      "targets": [
+        "payments-api-prod"
+      ]
+    }
+  ],
+  "freeze_exceptions": [
+    {
+      "freeze_id": "FRZ-MONTH-CLOSE",
+      "event_id": "CHG-10",
+      "approved_by": "cfo.office",
+      "approved_at": "2026-09-09T17:00:00+08:00",
+      "reason": "Regulatory reporting fix required before month close"
+    }
+  ],
+  "incidents": [
+    {
+      "incident_id": "INC-7781",
+      "started_at": "2026-09-13T02:40:00+08:00",
+      "assets": [
+        "payments-db-prod"
+      ]
+    }
+  ],
+  "recoveries": [
+    {
+      "event_id": "CHG-12",
+      "method": "rollback",
+      "approved_by": "erin.ng",
+      "status": "succeeded",
+      "completed_at": "2026-09-12T21:25:00+08:00"
+    }
+  ]
+}

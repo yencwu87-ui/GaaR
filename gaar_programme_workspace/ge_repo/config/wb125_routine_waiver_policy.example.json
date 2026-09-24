@@ -1,0 +1,5 @@
+{
+  "schema": "gaar.routine-blind-waiver.v1",
+  "status": "EXAMPLE_ONLY_NOT_APPROVED",
+  "description": "Do not use this as an approved policy. Use tools/routine_waiver_policy.py --approve, then explicitly set WB_GAAR_ROUTINE_WAIVER_ENABLED=1 and WB_GAAR_ROUTINE_POLICY_FILE."
+}

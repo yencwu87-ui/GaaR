@@ -1,0 +1,18 @@
+# WB-123 policy proposal. Effective routing is implemented in policy_engine.py;
+# modifying this YAML does not silently change approved policy or the core cycle.
+policy_version: wb123.v1
+policy_change_status: PROPOSED_ONLY
+routing_priority: [critical, elevated, routine]
+routine:
+  allowed_risk_tiers: [low, medium]
+  first_assessment: false
+  admitted_evidence_required: true
+  freshness_verified_required: true
+  unresolved_strong_challenges: false
+  material_change: false
+  human_decision_required: true
+  batch_preview_limit: 25
+critical:
+  blind_read_required: true
+  independent_human_assessment_required: true
+existing_cycle_blind_read_enforcement: preserved

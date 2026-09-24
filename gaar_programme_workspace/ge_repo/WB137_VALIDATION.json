@@ -1,0 +1,56 @@
+{
+  "schema": "wb137.validation.v1",
+  "validated_at": "2026-09-20T03:26:00Z",
+  "overall_status": "PARTIAL",
+  "m3_6_artifact_maturity": {
+    "green": 1,
+    "total": 11,
+    "percent": 9,
+    "status": "IN_PROGRESS"
+  },
+  "tests": {
+    "governed_change_subset": {
+      "status": "PASS",
+      "passed": 40,
+      "failed": 0
+    },
+    "full_repository": {
+      "status": "NOT_CLEAN",
+      "passed": 1151,
+      "skipped": 3,
+      "failed": 17,
+      "note": "One ticket-register failure was corrected after this run. The remaining observed cascade came from legacy tests importing and rendering the full Streamlit application under a 30-second per-test guard; it is not recorded as PASS."
+    },
+    "streamlit_smoke": {
+      "status": "PASS",
+      "http_status": 200,
+      "bytes": 7459
+    }
+  },
+  "live_read_only_probes": {
+    "cisa_kev": {
+      "status": "OK",
+      "http_status": 200,
+      "bytes": 1735385
+    },
+    "hkma_brdr": {
+      "status": "OK",
+      "items_sampled": 3
+    },
+    "nfra_official_api": {
+      "status": "OK",
+      "items_sampled": 3
+    },
+    "ollama": {
+      "status": "UNAVAILABLE",
+      "endpoint": "http://localhost:11434",
+      "meaning": "No local model service exists in the validation container; this is not a product all-clear."
+    }
+  },
+  "release_blockers": [
+    "No qualifying M3.6 evidence and no admission-ready dossier",
+    "No admitted M3.6 cycle, assessment, independent challenge, or FINALIZABLE gate",
+    "No human decision, signed CURRENT GovernanceResult, or result replay proof",
+    "Full repository regression is not yet clean"
+  ]
+}

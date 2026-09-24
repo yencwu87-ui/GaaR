@@ -1,0 +1,47 @@
+sources:
+  - source_id: demo-mas-regulatory-feed
+    source_type: background
+    authority: background
+    jurisdiction: Singapore
+    enabled: false
+    connector:
+      type: static
+      items: []
+    filters:
+      framework: MAS
+      keywords: [technology risk, artificial intelligence, model risk]
+      control_mappings:
+        M3.6: [model, governance]
+    min_confidence: 0.85
+    materiality_threshold: 0.60
+    max_items_per_run: 100
+
+  - source_id: cisa-kev-awareness
+    source_type: threat
+    authority: threat
+    jurisdiction: GLOBAL
+    enabled: true
+    connector:
+      type: http_json
+      url: https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+      items_field: vulnerabilities
+      content_field: shortDescription
+      title_field: cveID
+      publication_field: dateAdded
+    filters:
+      framework: SAFR
+      keywords: [vulnerability, exploited]
+      require_source_validation: true
+    min_confidence: 0.85
+    materiality_threshold: 0.60
+
+  - source_id: background-industry-feed
+    source_type: background
+    authority: background
+    jurisdiction: GLOBAL
+    enabled: false
+    connector:
+      type: static
+      items: []
+    filters:
+      framework: MGF Agentic

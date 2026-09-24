@@ -1,0 +1,1 @@
+Adobe ColdFusion contains a path traversal vulnerability that could lead to arbitrary code execution in the context of the current user.

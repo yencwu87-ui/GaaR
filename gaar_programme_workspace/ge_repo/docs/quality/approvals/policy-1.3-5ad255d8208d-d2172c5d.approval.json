@@ -1,0 +1,13 @@
+{
+  "payload": {
+    "policy_path": "docs/quality/quality_policy.md",
+    "policy_version": "1.3",
+    "policy_sha256": "5ad255d8208dd2583b521b345a1445cbc307246274ced5af954f7c364e57ff5c",
+    "statement": "I approve this exact policy text as the governing policy for standing authorisations signed after this approval. I have reviewed what it claims, what it does not claim, and how each gate is held.",
+    "approver": "Test Owner",
+    "approver_key_id": "HUMAN-dcca632bd2172c5d",
+    "approver_public_key": "pZxVLSBekONlYjGiGQnjADYKg1EKgN7Qc0WmTWPAutw=",
+    "approved_at": "2026-09-24T18:12:27.228510+08:00"
+  },
+  "signature": "nbRln8yH+yJ20V654CtO/Z5F371XDj3gCFy9mz2A9V+MZ+LAYNo7Ic/rYVbmNplbtLpgOqcDvrfn8JGVaeJDDQ=="
+}

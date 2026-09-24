@@ -1,0 +1,51 @@
+{
+  "scope": "CONSTRUCTED-payments-api",
+  "as_of": "2026-09-15T00:00:00+08:00",
+  "primary": {
+    "scope": "CONSTRUCTED-payments-api",
+    "as_of": "2026-09-15T00:00:00+08:00",
+    "complete": true,
+    "source_id": "CONSTRUCTED-ci-deploy-log",
+    "event_ids": [
+      "CHG-01",
+      "CHG-02",
+      "CHG-03",
+      "CHG-04",
+      "CHG-05",
+      "CHG-06",
+      "CHG-07",
+      "CHG-08",
+      "CHG-09",
+      "CHG-10",
+      "CHG-11",
+      "CHG-12",
+      "CHG-13",
+      "CHG-14",
+      "CHG-16"
+    ]
+  },
+  "independent": {
+    "scope": "CONSTRUCTED-payments-api",
+    "as_of": "2026-09-15T00:00:00+08:00",
+    "complete": true,
+    "source_id": "CONSTRUCTED-host-audit",
+    "event_ids": [
+      "CHG-01",
+      "CHG-02",
+      "CHG-03",
+      "CHG-04",
+      "CHG-05",
+      "CHG-06",
+      "CHG-07",
+      "CHG-08",
+      "CHG-09",
+      "CHG-10",
+      "CHG-11",
+      "CHG-12",
+      "CHG-13",
+      "CHG-14",
+      "CHG-16",
+      "CHG-15"
+    ]
+  }
+}

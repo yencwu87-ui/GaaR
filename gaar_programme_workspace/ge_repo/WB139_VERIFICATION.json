@@ -1,0 +1,14 @@
+{
+  "focused_tests": {
+    "passed": 38,
+    "duration_seconds": 34.17,
+    "command": "WB_WEB_KNOWLEDGE=off python3 -m pytest -q tests/test_wb139_risk_review.py tests/test_wb139_risk_integration.py tests/test_assessor_contract.py tests/test_element_pass_wb033.py"
+  },
+  "model_integration": "MOCKED",
+  "live_llm": "NOT_RUN",
+  "full_regression": "NOT_RUN",
+  "browser_ui": "NOT_RUN",
+  "syntax": "PASS",
+  "asset_reconciliation": "EXECUTED_ON_SYNTHETIC_EXPORTS",
+  "production_golden_path": "NOT_RUN"
+}

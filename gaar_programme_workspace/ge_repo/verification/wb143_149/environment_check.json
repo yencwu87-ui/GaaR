@@ -1,0 +1,97 @@
+{
+  "status": "ASSESSMENT_RECORDED",
+  "readiness": {
+    "status": "BLOCKED",
+    "checks": {
+      "model:examine": {
+        "status": "UNAVAILABLE",
+        "model": "CONFIGURE_ACTUAL_MODEL",
+        "reason": "URLError: <urlopen error [Errno 111] Connection refused>"
+      },
+      "model:explain": {
+        "status": "UNAVAILABLE",
+        "model": "CONFIGURE_ACTUAL_MODEL",
+        "reason": "URLError: <urlopen error [Errno 111] Connection refused>"
+      },
+      "model:plan": {
+        "status": "UNAVAILABLE",
+        "model": "CONFIGURE_ACTUAL_MODEL",
+        "reason": "URLError: <urlopen error [Errno 111] Connection refused>"
+      },
+      "model:challenge": {
+        "status": "UNAVAILABLE",
+        "model": "CONFIGURE_ACTUAL_MODEL",
+        "reason": "URLError: <urlopen error [Errno 111] Connection refused>"
+      },
+      "identities": {
+        "status": "UNAVAILABLE",
+        "reason": "'assessor'"
+      },
+      "sources": {
+        "status": "UNAVAILABLE",
+        "reason": "No approved source snapshots configured"
+      },
+      "dependency_knowledge": {
+        "status": "AVAILABLE",
+        "version": "WB142.1",
+        "sha256": "789946ac76ebb7b0d107483c0dc09ddc54ca78bd4a0fabf125f51348cbafaf44",
+        "edges": 29,
+        "authority": "PROPOSED_INTERNAL_KNOWLEDGE"
+      },
+      "held_out_judgment": {
+        "status": "NOT_EVALUATED",
+        "reason": "Independent held-out corpus and recorded inference required"
+      }
+    },
+    "blockers": [
+      "model:examine",
+      "model:explain",
+      "model:plan",
+      "model:challenge",
+      "identities",
+      "sources"
+    ],
+    "production_readiness": "NOT_ESTABLISHED"
+  },
+  "qualification": {
+    "status": "NOT_QUALIFIED",
+    "reason": "Independent live-judgment qualification approval missing"
+  },
+  "checks": [
+    {
+      "check": "store",
+      "status": "NOT_CREATED"
+    },
+    {
+      "check": "programme_dir",
+      "status": "NOT_CREATED"
+    },
+    {
+      "check": "receipt_dir",
+      "status": "NOT_CREATED"
+    },
+    {
+      "check": "target_platform",
+      "status": "NOT_VERIFIED_ON_MACOS",
+      "actual": "Linux"
+    },
+    {
+      "check": "external_rollback_anchor",
+      "status": "NOT_VERIFIED",
+      "reason": "Local sidecar anchor cannot detect coordinated rollback of journal and anchor."
+    },
+    {
+      "check": "outbound_messages",
+      "status": "DISABLED",
+      "reason": "Only local notification drafts are implemented."
+    }
+  ],
+  "production_assured": false,
+  "remaining_proof": [
+    "independent security review",
+    "target-environment acceptance",
+    "identity provisioning/revocation drill",
+    "external anchor and backup retention verification",
+    "approved production release decision"
+  ]
+}

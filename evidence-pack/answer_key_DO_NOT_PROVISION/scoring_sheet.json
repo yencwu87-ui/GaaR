@@ -1,0 +1,88 @@
+{
+  "run": {
+    "examine_model": "",
+    "challenge_model": "",
+    "date": "",
+    "review_minutes": null
+  },
+  "schema_failures": [
+    {
+      "stage": "",
+      "retry_passed": null
+    }
+  ],
+  "verdict": "",
+  "elements": {
+    "chg.1": "",
+    "chg.2": "",
+    "chg.3": "",
+    "chg.4": ""
+  },
+  "found_by": {
+    "CHG-03": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-04": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-05": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-06": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-07": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-08": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-09": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-11": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-14": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-15": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    },
+    "CHG-16": {
+      "assessor": null,
+      "challenger": null,
+      "treated_as": ""
+    }
+  },
+  "false_positives": {
+    "CHG-01": null,
+    "CHG-02": null,
+    "CHG-10": null,
+    "CHG-12": null,
+    "CHG-13": null
+  },
+  "narrative_contradicts_executed_test": null,
+  "challenger_added_something_new": null,
+  "notes": ""
+}

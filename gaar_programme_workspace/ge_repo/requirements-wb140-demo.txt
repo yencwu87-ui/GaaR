@@ -1,0 +1,3 @@
+# Standalone signed synthetic investigation; no UI/model-provider dependencies.
+pydantic>=2,<3
+cryptography>=43,<50

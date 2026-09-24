@@ -1,0 +1,141 @@
+{
+  "$defs": {
+    "Disposition": {
+      "additionalProperties": false,
+      "properties": {
+        "risk_ref": {
+          "title": "Risk Ref",
+          "type": "string"
+        },
+        "action": {
+          "enum": [
+            "accept",
+            "remediate",
+            "refute",
+            "block_deployment"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "basis_refs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Basis Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "risk_ref",
+        "action",
+        "rationale",
+        "basis_refs"
+      ],
+      "title": "Disposition",
+      "type": "object"
+    },
+    "EscalationDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "risk_ref": {
+          "title": "Risk Ref",
+          "type": "string"
+        },
+        "route": {
+          "enum": [
+            "policy_auto",
+            "human",
+            "colibri"
+          ],
+          "title": "Route",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "COMPLETED",
+            "UNAVAILABLE"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "disposition_ref": {
+          "default": "",
+          "title": "Disposition Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "risk_ref",
+        "route",
+        "rationale",
+        "status"
+      ],
+      "title": "EscalationDecision",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "enum": [
+        "PASS",
+        "ADVERSE",
+        "INCONCLUSIVE"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "rationale": {
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "dispositions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Disposition"
+      },
+      "title": "Dispositions",
+      "type": "array"
+    },
+    "escalation_decisions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EscalationDecision"
+      },
+      "title": "Escalation Decisions",
+      "type": "array"
+    },
+    "uncertainty": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Uncertainty",
+      "type": "array"
+    },
+    "deployment_requested": {
+      "default": false,
+      "title": "Deployment Requested",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "verdict",
+    "rationale"
+  ],
+  "title": "InvestigationConclusion",
+  "type": "object"
+}

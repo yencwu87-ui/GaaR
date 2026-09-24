@@ -1,0 +1,15 @@
+{
+  "schema": "gaar.synthetic-evidence-pack.v1",
+  "evidence_mode": "SYNTHETIC_DEMO_ONLY",
+  "control_id": "M3.6",
+  "framework": "MAS",
+  "production_compliance_proof": false,
+  "files": [
+    {"path": "MAS/M3.6/M3.6_Lifecycle_Revalidation_Standard.md", "sha256": "ca841cf3ac2f721951b28315ba82354b3dde81531ec3070c159136bb95fb535a"},
+    {"path": "MAS/M3.6/M3.6_UC01_Retail_Credit_Validation.md", "sha256": "f1aec4afc1bbef94010b0f2ee28796468b0ae7495c580a7125ecb6663c92409c", "origin_case": "d", "origin_sha256": "6e1b172199dfc2a60d52ebbc420db72e00f0d061dae00011900a3bdf60c5c288"},
+    {"path": "MAS/M3.6/M3.6_UC02_Contact_Centre_GenAI.md", "sha256": "cd193663e6be2b0086e9700ce858988337498be08e2b0a6a533c9814ac94809e", "origin_case": "e", "origin_sha256": "b9eb9582994fc224b96c6b163b924e9e15681f49cf10d4cdeb8b917a425d3c39"},
+    {"path": "MAS/M3.6/M3.6_UC03_AML_Alert_Prioritisation.md", "sha256": "5e2af43b14a3f6ceda5fe45a2ccaaaaa5e00b318980a8012b52619a36b3fef20", "origin_case": "f", "origin_sha256": "b92bc8616e0148cab88fd7fb94dcf82f8181b864d3950862ffdf807d0cbfc7d0"},
+    {"path": "MAS/M3.6/M3.6_UC04_Customer_Eligibility.md", "sha256": "dcb868f5af05bf134008b732f0a71f6e3a7a89f0230e3ea211e6ae10b5ce46d8", "origin_case": "g", "origin_sha256": "98eecd81ebac3ca58116003412a28d45f409b9b64803b2d22e2b7befd59e960b"}
+  ]
+}
+

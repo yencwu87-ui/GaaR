@@ -1,0 +1,39 @@
+........................................................................ [  5%]
+........................................................................ [ 11%]
+........................................................................ [ 17%]
+........................................................................ [ 23%]
+........................................................................ [ 29%]
+.......s................................................................ [ 35%]
+.................s.....................s................................ [ 41%]
+........................................................................ [ 47%]
+........................................................................ [ 53%]
+........................................................................ [ 59%]
+........................................................................ [ 65%]
+........................................................................ [ 71%]
+........................................................................ [ 77%]
+........................................................................ [ 83%]
+........................................................................ [ 89%]
+........................................................................ [ 95%]
+..........................................................               [100%]
+=============================== warnings summary ===============================
+tests/test_auto_assess_workflow.py::test_stage_includes_ai_assessment_state
+  /root/.local/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function ZipFile.__del__ at 0x7fabd3afa8e0>
+  
+  Traceback (most recent call last):
+    File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/zipfile/__init__.py", line 1975, in __del__
+      def __del__(self):
+      
+    File "/root/.local/lib/python3.12/site-packages/pytest_timeout.py", line 317, in handler
+      timeout_sigalrm(item, settings)
+    File "/root/.local/lib/python3.12/site-packages/pytest_timeout.py", line 502, in timeout_sigalrm
+      pytest.fail(PYTEST_FAILURE_MESSAGE % settings.timeout)
+    File "/root/.local/lib/python3.12/site-packages/_pytest/outcomes.py", line 163, in __call__
+      raise Failed(msg=reason, pytrace=pytrace)
+  Failed: Timeout (>12.0s) from pytest-timeout.
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1207 passed, 3 skipped, 1 warning in 280.81s (0:04:40)

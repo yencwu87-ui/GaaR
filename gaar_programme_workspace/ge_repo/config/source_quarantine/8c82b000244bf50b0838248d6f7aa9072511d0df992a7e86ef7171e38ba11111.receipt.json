@@ -1,0 +1,9 @@
+{
+  "source_id": "FCA-AI-CANDIDATE",
+  "issuer": "FCA",
+  "url": "https://www.fca.org.uk/publications/research/artificial-intelligence-uk-financial-services-2024",
+  "retrieved_at": "2026-09-20T09:36:45.570068+00:00",
+  "status": "UNABLE_TO_CHECK",
+  "authority": "UNAPPROVED",
+  "error": "HTTPError: HTTP Error 403: Forbidden"
+}

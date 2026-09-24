@@ -1,0 +1,79 @@
+{
+  "store": "../var/investigations.sqlite",
+  "receipt_dir": "../var/live_receipts",
+  "models": {
+    "examine": {
+      "provider": "ollama",
+      "base_url": "http://127.0.0.1:11434",
+      "model": "qwen2.5:7b",
+      "timeout_seconds": 120,
+      "max_tokens": 8192
+    },
+    "explain": {
+      "provider": "ollama",
+      "base_url": "http://127.0.0.1:11434",
+      "model": "qwen2.5:7b",
+      "timeout_seconds": 120,
+      "max_tokens": 8192
+    },
+    "plan": {
+      "provider": "openai_compatible",
+      "base_url": "http://127.0.0.1:8000/v1",
+      "model": "glm-5.2-colibri",
+      "timeout_seconds": 120,
+      "max_tokens": 8192
+    },
+    "challenge": {
+      "provider": "openai_compatible",
+      "base_url": "http://127.0.0.1:8000/v1",
+      "model": "glm-5.2-colibri",
+      "timeout_seconds": 120,
+      "max_tokens": 8192
+    }
+  },
+  "trusted_keys": {},
+  "signers": {},
+  "sources": {},
+  "collectors": [],
+  "expected_heads": {},
+  "source_candidates": [
+    {
+      "source_id": "MAS-AI-CANDIDATE",
+      "issuer": "MAS",
+      "url": "https://www.mas.gov.sg/publications/consultations/2025/consultation-paper-on-guidelines-on-artificial-intelligence-risk-management"
+    },
+    {
+      "source_id": "FCA-AI-CANDIDATE",
+      "issuer": "FCA",
+      "url": "https://www.fca.org.uk/publications/research/artificial-intelligence-uk-financial-services-2024"
+    },
+    {
+      "source_id": "HKMA-INDEX-CANDIDATE",
+      "issuer": "HKMA",
+      "url": "https://www.hkma.gov.hk/eng/regulatory-resources/regulatory-guides/circulars/"
+    },
+    {
+      "source_id": "NFRA-INDEX-CANDIDATE",
+      "issuer": "NFRA",
+      "url": "https://www.nfra.gov.cn/"
+    }
+  ],
+  "operation_mode": "evaluation",
+  "programme_dir": "../var/programme",
+  "http_collectors": [],
+  "qualification_report": "",
+  "result_decisions": {},
+  "action_owners": {},
+  "closure_tools_by_control": {},
+  "reviewer_ui": {
+    "show_sensitive_evidence": false,
+    "show_raw_model_io": false,
+    "allow_trace_download": false,
+    "reveal_on_request": true
+  },
+  "quality_policy": {
+    "minimum_cases_per_cell": 10,
+    "minimum_precision": 0.95,
+    "minimum_recall": 0.95
+  }
+}

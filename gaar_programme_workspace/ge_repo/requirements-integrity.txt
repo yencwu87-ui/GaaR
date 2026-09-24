@@ -1,0 +1,2 @@
+# Optional Workstream A integrity dependency.
+cryptography>=43,<50

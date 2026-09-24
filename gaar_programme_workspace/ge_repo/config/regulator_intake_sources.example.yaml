@@ -1,0 +1,22 @@
+# Template only. Does not schedule or activate a live Watcher collector.
+# Copy, inspect and explicitly pass --config to regulator_fetch.py --stage.
+# Actual document class must be reviewed individually at ADD/COMMIT.
+sources:
+  - source_id: mas-manual-official-intake
+    source_type: regulation
+    authority: binding  # source ceiling only; consultation remains consultation
+    jurisdiction: SG
+    enabled: true
+    connector: {type: static, items: []}
+    filters:
+      framework: MAS
+      approved_domains: [www.mas.gov.sg, mas.gov.sg]
+  - source_id: fca-manual-official-intake
+    source_type: regulation
+    authority: binding  # source ceiling only
+    jurisdiction: UK
+    enabled: true
+    connector: {type: static, items: []}
+    filters:
+      framework: FCA
+      approved_domains: [www.fca.org.uk, fca.org.uk]

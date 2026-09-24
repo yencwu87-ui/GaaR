@@ -1,0 +1,35 @@
+WB-111 validation checkpoint
+============================
+
+Final focused suite:
+121 passed in 5.89s
+
+Covered:
+- inference engineering / policy routing
+- control complexity boundaries
+- production control complexity
+- Colibri provider integration and fallback
+- router-selected generation token budgets
+- Reviewer Copilot schema and live transport normalization
+- Copilot review correlation
+- WB-109 reassessment workflow
+- WB-110 live reassessment integration
+- Governance Result contract and pipeline integration
+- dashboard/history regressions
+- WB-111 Operations metrics projection
+- app static contract
+- measurement UI projection
+
+Additional checks:
+- python compileall: PASS
+- start_ui.sh shell syntax: PASS
+- durable baseline ledgers restored after testing: PASS
+
+Full repository run:
+Started successfully and progressed without failures until the build-environment timeout. It was
+not completed, therefore this checkpoint does not claim a full-suite pass.
+
+Browser-level Streamlit run:
+Not executed in the build container because Streamlit is not installed there and outbound package
+network is unavailable. requirements.txt pins streamlit==1.63.0. Final render smoke test is to be
+performed on the live Mac using ./start_ui.sh after installing requirements.

@@ -1,0 +1,12 @@
+usage: gaar_authorize.py [-h] --config CONFIG --confirm CONFIRM
+                         {approve-source,start} ...
+
+Explicit administrative authorization with existing trusted human keys.
+
+positional arguments:
+  {approve-source,start}
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG
+  --confirm CONFIRM     Exact source or investigation ID being authorized

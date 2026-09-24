@@ -1,0 +1,53 @@
+{
+  "status": "BLOCKED",
+  "checks": {
+    "model:examine": {
+      "status": "MODEL_NOT_LOADED",
+      "provider": "ollama",
+      "model": "CONFIGURE_ACTUAL_MODEL"
+    },
+    "model:explain": {
+      "status": "MODEL_NOT_LOADED",
+      "provider": "ollama",
+      "model": "CONFIGURE_ACTUAL_MODEL"
+    },
+    "model:plan": {
+      "status": "MODEL_NOT_LOADED",
+      "provider": "ollama",
+      "model": "CONFIGURE_ACTUAL_MODEL"
+    },
+    "model:challenge": {
+      "status": "MODEL_NOT_LOADED",
+      "provider": "ollama",
+      "model": "CONFIGURE_ACTUAL_MODEL"
+    },
+    "identities": {
+      "status": "UNAVAILABLE",
+      "reason": "'assessor'"
+    },
+    "sources": {
+      "status": "UNAVAILABLE",
+      "reason": "No approved source snapshots configured"
+    },
+    "dependency_knowledge": {
+      "status": "AVAILABLE",
+      "version": "WB142.1",
+      "sha256": "789946ac76ebb7b0d107483c0dc09ddc54ca78bd4a0fabf125f51348cbafaf44",
+      "edges": 29,
+      "authority": "PROPOSED_INTERNAL_KNOWLEDGE"
+    },
+    "held_out_judgment": {
+      "status": "NOT_EVALUATED",
+      "reason": "Independent held-out corpus and recorded inference required"
+    }
+  },
+  "blockers": [
+    "model:examine",
+    "model:explain",
+    "model:plan",
+    "model:challenge",
+    "identities",
+    "sources"
+  ],
+  "production_readiness": "NOT_ESTABLISHED"
+}

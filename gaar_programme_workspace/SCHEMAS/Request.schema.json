@@ -1,0 +1,60 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "enum": [
+        "EvidenceRequest",
+        "AuthorizationRequest",
+        "ServiceRequest",
+        "IntegrityRequest"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "investigation_id": {
+      "title": "Investigation Id",
+      "type": "string"
+    },
+    "stage": {
+      "title": "Stage",
+      "type": "string"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "required_items": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Required Items",
+      "type": "array"
+    },
+    "scope": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Scope",
+      "type": "object"
+    },
+    "retry_safe": {
+      "default": true,
+      "title": "Retry Safe",
+      "type": "boolean"
+    },
+    "deployment_authorized": {
+      "default": false,
+      "title": "Deployment Authorized",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "kind",
+    "investigation_id",
+    "stage",
+    "reason",
+    "required_items"
+  ],
+  "title": "Request",
+  "type": "object"
+}

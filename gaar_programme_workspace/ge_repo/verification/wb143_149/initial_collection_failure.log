@@ -1,0 +1,24 @@
+
+==================================== ERRORS ====================================
+___________ ERROR collecting governance/investigation/change_test.py ___________
+ImportError while importing test module '/workspace/scratch/98932e10b8af/wb143_149/gaar_wb142_workspace/ge_repo/governance/investigation/change_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+governance/investigation/__init__.py:1: in <module>
+    from .service import InvestigationEngine, admit_segments, dependency_closure, resolve_question
+governance/investigation/service.py:15: in <module>
+    from governance.production.procedures import PROCEDURES as PRODUCTION_PROCEDURES
+governance/production/procedures.py:2: in <module>
+    from governance.investigation.change_test import reconcile_changes,_time
+governance/investigation/__init__.py:1: in <module>
+    from .service import InvestigationEngine, admit_segments, dependency_closure, resolve_question
+governance/investigation/service.py:15: in <module>
+    from governance.production.procedures import PROCEDURES as PRODUCTION_PROCEDURES
+E   ImportError: cannot import name 'PROCEDURES' from partially initialized module 'governance.production.procedures' (most likely due to a circular import) (/workspace/scratch/98932e10b8af/wb143_149/gaar_wb142_workspace/ge_repo/governance/production/procedures.py)
+=========================== short test summary info ============================
+ERROR governance/investigation/change_test.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 2.48s

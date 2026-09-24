@@ -1,0 +1,406 @@
+[
+  {
+    "actor": "SYNTHETIC-owner",
+    "at": "2026-09-20T08:49:28.132578+00:00",
+    "investigation_id": "SYNTHETIC-WB140-CHANGE",
+    "key_id": "synthetic-owner",
+    "payload": {
+      "boundary": "Synthetic credit platform exports only",
+      "control_id": "CHANGE.MGMT",
+      "criticality": "high",
+      "framework": "INTERNAL-DEMO",
+      "investigation_id": "SYNTHETIC-WB140-CHANGE",
+      "owner": "SYNTHETIC-owner",
+      "requirement_version": "demo-v1",
+      "scope": {
+        "period": "2026-09-20T00:00:00Z",
+        "system_id": "credit-platform-v2.3",
+        "version": "2.3"
+      },
+      "synthetic": true
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+    "record_hash": "6b53c2146550d81dff9c38192a13ae94f1cab080416d85a16363997e843657ae",
+    "schema": "investigation-stage.1",
+    "sequence": 0,
+    "signature": "Jr08fmcCxqJoPR9eTzhufU09KRu5y+tpkAoOcI1Un7bW3s7W7R8p2Pioi7rzeXWIfNgok05BpG5blMmQNkHXCw==",
+    "stage": "understand"
+  },
+  {
+    "actor": "SYNTHETIC-governance",
+    "at": "2026-09-20T08:49:28.133569+00:00",
+    "investigation_id": "SYNTHETIC-WB140-CHANGE",
+    "key_id": "synthetic-governance",
+    "payload": {
+      "elements": [
+        {
+          "applicability_reason": "Synthetic demonstration scope",
+          "applies": true,
+          "authority": "internal",
+          "element_id": "e1",
+          "purpose": "operating",
+          "source_id": "INTERNAL-DEMO",
+          "source_sha256": "7540377f73e2558368b1172b720c8a3b7bcefa841ad15f67a4cfd619de853649",
+          "source_version": "demo-v1",
+          "text": "Reconcile observed changes against approved scope, timing, credentials and recovery",
+          "uncertainty": ""
+        },
+        {
+          "applicability_reason": "Synthetic demonstration scope",
+          "applies": true,
+          "authority": "internal",
+          "element_id": "e2",
+          "purpose": "design",
+          "source_id": "INTERNAL-DEMO",
+          "source_sha256": "7540377f73e2558368b1172b720c8a3b7bcefa841ad15f67a4cfd619de853649",
+          "source_version": "demo-v1",
+          "text": "Define change authorization policy",
+          "uncertainty": ""
+        }
+      ],
+      "requirement_version": "demo-v1"
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "6b53c2146550d81dff9c38192a13ae94f1cab080416d85a16363997e843657ae",
+    "record_hash": "461666d6c9b282b931cd2759e6c941a2a43c9a45d46afc6c16afc407b6b4af69",
+    "schema": "investigation-stage.1",
+    "sequence": 1,
+    "signature": "UWg1r+wOfJ4h7sM+ubb/yW3W3+4NVy+0ixg+nlpVTEYHsCviBBQlJwrKkanjMXmWHkMJXactyyu8jQGvMxcYAw==",
+    "stage": "expectations"
+  },
+  {
+    "actor": "SYNTHETIC-assessor",
+    "at": "2026-09-20T08:49:28.135272+00:00",
+    "investigation_id": "SYNTHETIC-WB140-CHANGE",
+    "key_id": "synthetic-assessor",
+    "payload": {
+      "evidence": [
+        {
+          "authority": "internal",
+          "content_sha256": "2e11aea80c004114ef2deecbdb06f9096c98a02a6ad8c214b26487257f750c62",
+          "element_ids": [
+            "e1"
+          ],
+          "end": 1334,
+          "evidence_id": "E1",
+          "finding_status": "gap_identified",
+          "integrity_status": "verified",
+          "provenance": [
+            "synthetic-generator",
+            "frozen-export"
+          ],
+          "purposes": [
+            "operating_record",
+            "gap"
+          ],
+          "scope": {
+            "period": "2026-09-20T00:00:00Z",
+            "system_id": "credit-platform-v2.3",
+            "version": "2.3"
+          },
+          "source_id": "SYNTHETIC-mixed-source",
+          "source_sha256": "baa457ac0ab3b7c71c26df6b24d5aa9339af364a50e913b618b49dd4147285e5",
+          "start": 0,
+          "text": "{\"as_of\": \"2026-09-20T00:00:00Z\", \"changes\": [{\"actions\": [\"disable_audit_logging\"], \"actor_id\": \"operator-A\", \"actual_spec_hash\": \"actual-different-version\", \"asset_id\": \"db-prod\", \"credential_id\": \"shared-admin\", \"event_id\": \"CHG-OBS-1\", \"occurred_at\": \"2026-09-19T10:30:00Z\", \"outcome\": \"failed\", \"ticket_id\": \"CR-1\"}], \"collection\": {\"complete\": true, \"period_end\": \"2026-09-20T00:00:00Z\", \"period_start\": \"2026-09-19T00:00:00Z\", \"source_ids\": [\"SYNTHETIC-audit-events\"]}, \"freeze_exceptions\": [], \"freezes\": [{\"end\": \"2026-09-19T20:00:00+08:00\", \"freeze_id\": \"FREEZE-1\", \"start\": \"2026-09-19T18:00:00+08:00\", \"targets\": [\"db-prod\"]}], \"incidents\": [{\"assets\": [\"db-prod\"], \"incident_id\": \"INC-1\", \"started_at\": \"2026-09-19T09:00:00Z\"}], \"policy\": {\"failed_change_requires_recovery\": true, \"incident_lookback_hours\": 24}, \"privilege_grants\": [], \"recoveries\": [], \"scope\": \"credit-platform-v2.3\", \"synthetic\": true, \"tickets\": [{\"allowed_actions\": [\"apply_security_patch\"], \"allowed_credentials\": [\"jit-approved-credential\"], \"allowed_implementers\": [\"operator-A\"], \"allowed_targets\": [\"db-prod\"], \"approved_at\": \"2026-09-19T11:00:00Z\", \"approved_by\": \"reviewer-B\", \"approved_spec_hash\": \"approved-version\", \"status\": \"approved\", \"ticket_id\": \"CR-1\", \"window_end\": \"2026-09-19T12:00:00Z\", \"window_start\": \"2026-09-19T10:00:00Z\"}]}"
+        },
+        {
+          "authority": "internal",
+          "content_sha256": "94d3936de902cb4e70761af6c36aa4137c2ad504443dc34c6823011dad4ab682",
+          "element_ids": [
+            "e2"
+          ],
+          "end": 1442,
+          "evidence_id": "E2",
+          "finding_status": "supports",
+          "integrity_status": "verified",
+          "provenance": [
+            "synthetic-generator",
+            "frozen-export"
+          ],
+          "purposes": [
+            "design_statement"
+          ],
+          "scope": {
+            "period": "2026-09-20T00:00:00Z",
+            "system_id": "credit-platform-v2.3",
+            "version": "2.3"
+          },
+          "source_id": "SYNTHETIC-mixed-source",
+          "source_sha256": "baa457ac0ab3b7c71c26df6b24d5aa9339af364a50e913b618b49dd4147285e5",
+          "start": 1335,
+          "text": "SYNTHETIC POLICY: Approve change scope, implementer, credential and implementation window before execution."
+        }
+      ],
+      "findings": [
+        {
+          "element_id": "e1",
+          "evidence_refs": [
+            "E1"
+          ],
+          "rationale": "Missing records or identity discrepancy in supplied scope",
+          "status": "CONTRADICTED"
+        },
+        {
+          "element_id": "e2",
+          "evidence_refs": [
+            "E2"
+          ],
+          "rationale": "Design policy present",
+          "status": "SUPPORTED"
+        }
+      ]
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "461666d6c9b282b931cd2759e6c941a2a43c9a45d46afc6c16afc407b6b4af69",
+    "record_hash": "cea5a11707fcc721844e82cdae86f03d8fd7d68fdf5df8b1f282b2d2d0eca253",
+    "schema": "investigation-stage.1",
+    "sequence": 2,
+    "signature": "q3jqZUVSjBIhBizTI18XhhVsg+EkD9dL+bQu34JcqXq6gORLfp88mgLhPPI4Oe9L9P+t+NbbqtDoizilsBQJAQ==",
+    "stage": "examine"
+  },
+  {
+    "actor": "SYNTHETIC-assessor",
+    "at": "2026-09-20T08:49:28.137478+00:00",
+    "investigation_id": "SYNTHETIC-WB140-CHANGE",
+    "key_id": "synthetic-assessor",
+    "payload": {
+      "dependencies": [
+        {
+          "basis_refs": [
+            "E1"
+          ],
+          "dependency_id": "D1",
+          "downstream": "SECURITY.LOGGING",
+          "relation": "Unauthorized changes can alter security logging and weaken detection",
+          "status": "hypothesis",
+          "upstream": "CHANGE.MGMT"
+        }
+      ],
+      "hypotheses": [
+        {
+          "alternatives": [
+            "Valid preauthorized emergency procedure",
+            "Clock or identity mapping errors"
+          ],
+          "basis_refs": [
+            "E1"
+          ],
+          "claim": "Observed changes may exceed authorized timing, scope or credentials",
+          "compensating_controls_review": "Examine just-in-time access, independent deployment records and logging retention",
+          "dependencies": [
+            "D1"
+          ],
+          "hypothesis_id": "H1",
+          "material": true
+        }
+      ],
+      "limitations": [
+        "Synthetic exports; no live asset condition established"
+      ],
+      "retrieval": [
+        {
+          "error": "",
+          "name": "expectations",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "facts",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "dependencies",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "counterevidence",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "procedures",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "precedents",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "cea5a11707fcc721844e82cdae86f03d8fd7d68fdf5df8b1f282b2d2d0eca253",
+    "record_hash": "abf702621bbbe7da4eafd1f4a4ec26f3b0c409c7a4cdf642e7a462d7a59c66b4",
+    "schema": "investigation-stage.1",
+    "sequence": 3,
+    "signature": "Qt/vRNNrBObMuk7LgTRecGkqoIJnONxnNEboXsl0e/nDdCDo+ZM+aSb/p66IZo13d+aoUA2pYc8cZo98JvB7Cw==",
+    "stage": "explain"
+  },
+  {
+    "actor": "SYNTHETIC-test_planner",
+    "at": "2026-09-20T08:49:28.140129+00:00",
+    "investigation_id": "SYNTHETIC-WB140-CHANGE",
+    "key_id": "synthetic-test_planner",
+    "payload": {
+      "no_test_rationale": "",
+      "policy_id": "SYNTHETIC-read-only-policy",
+      "tests": [
+        {
+          "decision_impact": "Test actual implementation against authorization and recovery records",
+          "hypothesis_id": "H1",
+          "input_ref": "E1",
+          "priority": 1,
+          "required": true,
+          "test_id": "T1",
+          "tool": "change_reconciliation",
+          "version": "1"
+        }
+      ]
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "abf702621bbbe7da4eafd1f4a4ec26f3b0c409c7a4cdf642e7a462d7a59c66b4",
+    "record_hash": "305b64c58dcb54171cff6c2b2947a9a5e283498de2df4d78848108feb88e7a2c",
+    "schema": "investigation-stage.1",
+    "sequence": 4,
+    "signature": "GiiqwoJvHlXvYs3Xmui/AQWL4edDhTc9fj2pg4o1HP/IzbmYD8QAWAXDUNmnYASJ09x41nXWaIuAWFlJ5jB5BQ==",
+    "stage": "plan"
+  },
+  {
+    "actor": "SYNTHETIC-executor",
+    "at": "2026-09-20T08:49:28.146651+00:00",
+    "investigation_id": "SYNTHETIC-WB140-CHANGE",
+    "key_id": "synthetic-executor",
+    "payload": {
+      "tests": [
+        {
+          "implementation_sha256": "2ceee38c2f8310459a57f71bebfb0c57345d9a35a6d84b4fca09ce29f7356ea0",
+          "input_sha256": "2e11aea80c004114ef2deecbdb06f9096c98a02a6ad8c214b26487257f750c62",
+          "limitation": "Read-only comparison of supplied exports; neither live discovery nor proof of source completeness or authenticity.",
+          "result_json": "{\"actual_changes_examined\":1,\"as_of\":\"2026-09-20T00:00:00Z\",\"changes_control_verdict\":false,\"findings\":[{\"code\":\"APPROVAL_AFTER_EXECUTION\",\"event_id\":\"CHG-OBS-1\",\"reason\":\"Approval timestamp follows actual implementation\",\"refs\":[\"CR-1\"],\"status\":\"RECORD_DISCREPANCY\"},{\"code\":\"DEVIATES_FROM_APPROVED_SCOPE\",\"event_id\":\"CHG-OBS-1\",\"reason\":\"Observed target/actions exceed the approved request\",\"refs\":[\"CR-1\"],\"status\":\"RECORD_DISCREPANCY\"},{\"code\":\"CREDENTIAL_NOT_APPROVED_FOR_CHANGE\",\"event_id\":\"CHG-OBS-1\",\"reason\":\"Actual credential differs from the approved change credentials\",\"refs\":[\"CR-1\"],\"status\":\"RECORD_DISCREPANCY\"},{\"code\":\"IMPLEMENTATION_CONTENT_MISMATCH\",\"event_id\":\"CHG-OBS-1\",\"reason\":\"Actual change specification hash is missing or differs from the approved version\",\"refs\":[\"CR-1\"],\"status\":\"RECORD_DISCREPANCY\"},{\"code\":\"PRIVILEGE_NOT_ESTABLISHED\",\"event_id\":\"CHG-OBS-1\",\"reason\":\"No timely matching privilege grant for actual actor, credential, target and actions\",\"refs\":[],\"status\":\"RECORD_DISCREPANCY\"},{\"code\":\"FREEZE_WITHOUT_PRIOR_EXCEPTION\",\"event_id\":\"CHG-OBS-1\",\"reason\":\"Actual implementation falls inside a freeze without a matching prior exception\",\"refs\":[\"FREEZE-1\"],\"status\":\"RECORD_DISCREPANCY\"},{\"code\":\"RECOVERY_NOT_ESTABLISHED\",\"event_id\":\"CHG-OBS-1\",\"reason\":\"Failed change has no successful authorized rollback/fix-forward record\",\"refs\":[],\"status\":\"RECORD_DISCREPANCY\"}],\"input_sha256\":\"1b5d0bc0020370b2bedaf192e6e9c1fa04ef4ef4694eb3fcd26d3577f7d1a018\",\"limitation\":\"Supplied-record reconciliation; no live change discovery. Source authenticity, clock quality, collection completeness and approver authority need separate corroboration. No findings is not proof that no unauthorized changes occurred.\",\"observations\":[{\"code\":\"POST_INCIDENT_CHANGE\",\"event_id\":\"CHG-OBS-1\",\"incident_id\":\"INC-1\",\"reason\":\"May be legitimate remediation or unauthorized activity; timing alone is not a breach\",\"status\":\"INVESTIGATE_CONTEXT\"}],\"schema\":\"change-reconciliation.1\",\"scope\":\"credit-platform-v2.3\",\"status\":\"COMPUTED_ON_SUPPLIED_EXPORTS\",\"synthetic\":true}",
+          "result_sha256": "f1471e5e92c97f4d650069bef9dffe8f366f01bce973471168b76735ba2afe90",
+          "status": "EXECUTED",
+          "test_id": "T1",
+          "tool": "change_reconciliation",
+          "version": "1"
+        }
+      ]
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "305b64c58dcb54171cff6c2b2947a9a5e283498de2df4d78848108feb88e7a2c",
+    "record_hash": "6010a02186462e556b0c6e9eec668161c5e0080522614dbc13543624361f1400",
+    "schema": "investigation-stage.1",
+    "sequence": 5,
+    "signature": "PmFWZ9KvGkeWX9LAD6VPMqAN3jqwuihe6SO0PZRMNnwIQRJ9EtNNlnXNzqMthkvoErvLMaHafmtIVxteHXEfCQ==",
+    "stage": "verify"
+  },
+  {
+    "actor": "SYNTHETIC-challenger",
+    "at": "2026-09-20T08:49:28.157238+00:00",
+    "investigation_id": "SYNTHETIC-WB140-CHANGE",
+    "key_id": "synthetic-challenger",
+    "payload": {
+      "disproof_attempts": [
+        "Examined proposed alternate explanations against scoped input records and the test's export-only limitation"
+      ],
+      "findings": [
+        {
+          "basis_refs": [
+            "H1"
+          ],
+          "claim": "Export reconciliation does not establish source authenticity or full collection coverage",
+          "finding_id": "C1",
+          "material": true
+        }
+      ],
+      "input_head": "6010a02186462e556b0c6e9eec668161c5e0080522614dbc13543624361f1400",
+      "missing_explanations": [
+        "Real source authenticity and collector-health corroboration unavailable in fixture"
+      ],
+      "reviewed_refs": [
+        "E1",
+        "E2",
+        "H1",
+        "T1"
+      ],
+      "status": "COMPLETED"
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "6010a02186462e556b0c6e9eec668161c5e0080522614dbc13543624361f1400",
+    "record_hash": "129865e7cf832699d0c02699f2c07abaeaa87ed0c9a98835d5d2034df55b5b12",
+    "schema": "investigation-stage.1",
+    "sequence": 6,
+    "signature": "dakdvNHakwlimZ1NOXRRd0Qp8kQ3Xd8QumyeyjLQnWaPJj3pj2LaU4Dyx96lZMgRlqx/cbETy9mAPVXxQ9VTCA==",
+    "stage": "challenge"
+  },
+  {
+    "actor": "SYNTHETIC-decision",
+    "at": "2026-09-20T08:49:28.164645+00:00",
+    "investigation_id": "SYNTHETIC-WB140-CHANGE",
+    "key_id": "synthetic-decision",
+    "payload": {
+      "deployment_requested": false,
+      "dispositions": [
+        {
+          "action": "block_deployment",
+          "basis_refs": [
+            "E1"
+          ],
+          "rationale": "Hold deployment pending resolution under configured blocking policy",
+          "risk_ref": "H1"
+        },
+        {
+          "action": "block_deployment",
+          "basis_refs": [
+            "H1"
+          ],
+          "rationale": "Hold deployment pending resolution under configured blocking policy",
+          "risk_ref": "C1"
+        }
+      ],
+      "escalation_decisions": [
+        {
+          "disposition_ref": "H1",
+          "rationale": "Authorized automatic hold; no risk acceptance or deployment permission",
+          "risk_ref": "H1",
+          "route": "policy_auto",
+          "status": "COMPLETED"
+        },
+        {
+          "disposition_ref": "C1",
+          "rationale": "Authorized automatic hold; no risk acceptance or deployment permission",
+          "risk_ref": "C1",
+          "route": "policy_auto",
+          "status": "COMPLETED"
+        }
+      ],
+      "rationale": "Assessment records adverse evidence or unresolved uncertainty; deployment remains blocked",
+      "uncertainty": [
+        "Synthetic exports; no live asset condition established"
+      ],
+      "verdict": "ADVERSE"
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "129865e7cf832699d0c02699f2c07abaeaa87ed0c9a98835d5d2034df55b5b12",
+    "record_hash": "81a0c3aaeb5f0dbaa87ed844edfa93b02e5a4a3162af65d5522bab46d4444f77",
+    "schema": "investigation-stage.1",
+    "sequence": 7,
+    "signature": "9nOZVREjqj2PnuPhS3WCwh/4QKLrQroFGMSeM853WXnbJiNBvJeEeBDCrzArgTu1jA+BK6VO7yh3Wg3ckRtEDg==",
+    "stage": "conclude"
+  }
+]

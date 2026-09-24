@@ -1,0 +1,406 @@
+[
+  {
+    "actor": "SYNTHETIC-owner",
+    "at": "2026-09-20T08:49:28.096967+00:00",
+    "investigation_id": "SYNTHETIC-WB140",
+    "key_id": "synthetic-owner",
+    "payload": {
+      "boundary": "Synthetic credit platform exports only",
+      "control_id": "ASSET.INVENTORY",
+      "criticality": "high",
+      "framework": "INTERNAL-DEMO",
+      "investigation_id": "SYNTHETIC-WB140",
+      "owner": "SYNTHETIC-owner",
+      "requirement_version": "demo-v1",
+      "scope": {
+        "period": "2026-09-20T00:00:00Z",
+        "system_id": "credit-platform-v2.3",
+        "version": "2.3"
+      },
+      "synthetic": true
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+    "record_hash": "e6fafff5754d73c2df80fc420f388713e715c05b37d0e4898efe593870dbfc49",
+    "schema": "investigation-stage.1",
+    "sequence": 0,
+    "signature": "ck5uIHenYSLbtAXRghCo1QqSxp9R0A9K94Gq22C1rktrQ3O4QNjxatUm+10jI1mYFzKWeTvR1ehKaEejigaTCg==",
+    "stage": "understand"
+  },
+  {
+    "actor": "SYNTHETIC-governance",
+    "at": "2026-09-20T08:49:28.098318+00:00",
+    "investigation_id": "SYNTHETIC-WB140",
+    "key_id": "synthetic-governance",
+    "payload": {
+      "elements": [
+        {
+          "applicability_reason": "Synthetic demonstration scope",
+          "applies": true,
+          "authority": "internal",
+          "element_id": "e1",
+          "purpose": "operating",
+          "source_id": "INTERNAL-DEMO",
+          "source_sha256": "7540377f73e2558368b1172b720c8a3b7bcefa841ad15f67a4cfd619de853649",
+          "source_version": "demo-v1",
+          "text": "Reconcile actual discovered asset identities with inventory",
+          "uncertainty": ""
+        },
+        {
+          "applicability_reason": "Synthetic demonstration scope",
+          "applies": true,
+          "authority": "internal",
+          "element_id": "e2",
+          "purpose": "design",
+          "source_id": "INTERNAL-DEMO",
+          "source_sha256": "7540377f73e2558368b1172b720c8a3b7bcefa841ad15f67a4cfd619de853649",
+          "source_version": "demo-v1",
+          "text": "Define asset ownership policy",
+          "uncertainty": ""
+        }
+      ],
+      "requirement_version": "demo-v1"
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "e6fafff5754d73c2df80fc420f388713e715c05b37d0e4898efe593870dbfc49",
+    "record_hash": "79bf3745b0edcf0c03fd735d9a023f92dd0fd7a0bb7b5ffac789dc71936c78b3",
+    "schema": "investigation-stage.1",
+    "sequence": 1,
+    "signature": "oa3xKRc5t7ZTQ4NtftAbuOg2OerwQW3+OgchigaUB8Y/wXVNfstqQrmh8gtbfPojUNZ2n7SXzpvX35F18weQBA==",
+    "stage": "expectations"
+  },
+  {
+    "actor": "SYNTHETIC-assessor",
+    "at": "2026-09-20T08:49:28.100049+00:00",
+    "investigation_id": "SYNTHETIC-WB140",
+    "key_id": "synthetic-assessor",
+    "payload": {
+      "evidence": [
+        {
+          "authority": "internal",
+          "content_sha256": "12cfc4cea339eb302ecb0187ec57f47884204c810ce1d18283bdbb603f0be810",
+          "element_ids": [
+            "e1"
+          ],
+          "end": 622,
+          "evidence_id": "E1",
+          "finding_status": "gap_identified",
+          "integrity_status": "verified",
+          "provenance": [
+            "synthetic-generator",
+            "frozen-export"
+          ],
+          "purposes": [
+            "operating_record",
+            "gap"
+          ],
+          "scope": {
+            "period": "2026-09-20T00:00:00Z",
+            "system_id": "credit-platform-v2.3",
+            "version": "2.3"
+          },
+          "source_id": "SYNTHETIC-mixed-source",
+          "source_sha256": "6b2eef3108d3cbbff9e82a584302df8bb649b4b8395d5d7f9d207869b03cd133",
+          "start": 0,
+          "text": "{\"snapshots\": {\"configuration\": {\"as_of\": \"2026-09-20T00:00:00Z\", \"assets\": [\"a\", \"b\"], \"scope\": \"credit-platform-v2.3\", \"source_id\": \"SYNTHETIC-configuration\"}, \"discovery\": {\"as_of\": \"2026-09-20T00:00:00Z\", \"assets\": [\"a\", \"b\", \"c\"], \"scope\": \"credit-platform-v2.3\", \"source_id\": \"SYNTHETIC-discovery\"}, \"inventory\": {\"as_of\": \"2026-09-20T00:00:00Z\", \"assets\": [\"a\", \"b\", \"retired\"], \"scope\": \"credit-platform-v2.3\", \"source_id\": \"SYNTHETIC-inventory\"}, \"vulnerability\": {\"as_of\": \"2026-09-20T00:00:00Z\", \"assets\": [\"a\", \"b\"], \"scope\": \"credit-platform-v2.3\", \"source_id\": \"SYNTHETIC-vulnerability\"}}, \"synthetic\": true}"
+        },
+        {
+          "authority": "internal",
+          "content_sha256": "9f19cd4e9a490a8e3e12e03e0c9ffdc4a5f730f78ece68f16dbdb78e6707e57b",
+          "element_ids": [
+            "e2"
+          ],
+          "end": 682,
+          "evidence_id": "E2",
+          "finding_status": "supports",
+          "integrity_status": "verified",
+          "provenance": [
+            "synthetic-generator",
+            "frozen-export"
+          ],
+          "purposes": [
+            "design_statement"
+          ],
+          "scope": {
+            "period": "2026-09-20T00:00:00Z",
+            "system_id": "credit-platform-v2.3",
+            "version": "2.3"
+          },
+          "source_id": "SYNTHETIC-mixed-source",
+          "source_sha256": "6b2eef3108d3cbbff9e82a584302df8bb649b4b8395d5d7f9d207869b03cd133",
+          "start": 623,
+          "text": "SYNTHETIC POLICY: Assign a responsible owner to each asset."
+        }
+      ],
+      "findings": [
+        {
+          "element_id": "e1",
+          "evidence_refs": [
+            "E1"
+          ],
+          "rationale": "Missing records or identity discrepancy in supplied scope",
+          "status": "CONTRADICTED"
+        },
+        {
+          "element_id": "e2",
+          "evidence_refs": [
+            "E2"
+          ],
+          "rationale": "Design policy present",
+          "status": "SUPPORTED"
+        }
+      ]
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "79bf3745b0edcf0c03fd735d9a023f92dd0fd7a0bb7b5ffac789dc71936c78b3",
+    "record_hash": "2992cc614767c09ca34ad006671e25c81422cbfc2761afbddb974df2cc1c8b03",
+    "schema": "investigation-stage.1",
+    "sequence": 2,
+    "signature": "RaaU7srJO2PeB2ZrKyYRc5LyOsppZFR5kH0WaDto340t2smvRgpCcvkICEBicAnbZ1bgeaYbds2gZJOZEb6VAg==",
+    "stage": "examine"
+  },
+  {
+    "actor": "SYNTHETIC-assessor",
+    "at": "2026-09-20T08:49:28.102417+00:00",
+    "investigation_id": "SYNTHETIC-WB140",
+    "key_id": "synthetic-assessor",
+    "payload": {
+      "dependencies": [
+        {
+          "basis_refs": [
+            "E1"
+          ],
+          "dependency_id": "D1",
+          "downstream": "ASSET.PATCH",
+          "relation": "Incomplete inventory can invalidate management-coverage denominators; no automatic failure propagation",
+          "status": "hypothesis",
+          "upstream": "ASSET.INVENTORY"
+        }
+      ],
+      "hypotheses": [
+        {
+          "alternatives": [
+            "Retired or ephemeral assets",
+            "Export timing or collection failure"
+          ],
+          "basis_refs": [
+            "E1"
+          ],
+          "claim": "Inventory discrepancies may coincide with management coverage gaps",
+          "compensating_controls_review": "Check independent discovery and endpoint coverage; no compensating effectiveness established",
+          "dependencies": [
+            "D1"
+          ],
+          "hypothesis_id": "H1",
+          "material": true
+        }
+      ],
+      "limitations": [
+        "Synthetic exports; no live asset condition established"
+      ],
+      "retrieval": [
+        {
+          "error": "",
+          "name": "expectations",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "facts",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "dependencies",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "counterevidence",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "procedures",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        },
+        {
+          "error": "",
+          "name": "precedents",
+          "refs": [],
+          "required": true,
+          "status": "COMPLETED"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "2992cc614767c09ca34ad006671e25c81422cbfc2761afbddb974df2cc1c8b03",
+    "record_hash": "0e8856eaeefba6d0b2c50488bfb4f3592d69b6ac1d481a058765532923b925a4",
+    "schema": "investigation-stage.1",
+    "sequence": 3,
+    "signature": "68xhPUYUI1x9ICYEatLMSho+ELpWaA4RFO6wiYWz+4ifJuJhRuHuwo0FMsmxJbhrFVLkG4OZ+xCCubdr3SvqBw==",
+    "stage": "explain"
+  },
+  {
+    "actor": "SYNTHETIC-test_planner",
+    "at": "2026-09-20T08:49:28.105278+00:00",
+    "investigation_id": "SYNTHETIC-WB140",
+    "key_id": "synthetic-test_planner",
+    "payload": {
+      "no_test_rationale": "",
+      "policy_id": "SYNTHETIC-read-only-policy",
+      "tests": [
+        {
+          "decision_impact": "Distinguish equal counts from matching identities and management coverage",
+          "hypothesis_id": "H1",
+          "input_ref": "E1",
+          "priority": 1,
+          "required": true,
+          "test_id": "T1",
+          "tool": "asset_reconciliation",
+          "version": "1"
+        }
+      ]
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "0e8856eaeefba6d0b2c50488bfb4f3592d69b6ac1d481a058765532923b925a4",
+    "record_hash": "44cffa1a7c9df59af3313b159364b085346b7fb1b6c9103659bdfcf33d34a724",
+    "schema": "investigation-stage.1",
+    "sequence": 4,
+    "signature": "LpoPSMU6umPVAUscFW48xuID8Tm9byX7lBHnG/7tHXlOkpfzKPVvuf5EIUNPN/h06vI8lTDUW1Ewh4IC09w8DQ==",
+    "stage": "plan"
+  },
+  {
+    "actor": "SYNTHETIC-executor",
+    "at": "2026-09-20T08:49:28.110629+00:00",
+    "investigation_id": "SYNTHETIC-WB140",
+    "key_id": "synthetic-executor",
+    "payload": {
+      "tests": [
+        {
+          "implementation_sha256": "d5265774f9eb1673cc5709005344f520469aeabd8bc6835958a96d247cc16511",
+          "input_sha256": "12cfc4cea339eb302ecb0187ec57f47884204c810ce1d18283bdbb603f0be810",
+          "limitation": "Read-only comparison of supplied exports; neither live discovery nor proof of source completeness or authenticity.",
+          "result_json": "{\"as_of\":\"2026-09-20T00:00:00Z\",\"changes_control_verdict\":false,\"discovered_count\":3,\"duplicate_rows\":{\"configuration\":0,\"discovery\":0,\"inventory\":0,\"vulnerability\":0},\"input_sha256\":\"3c975e85a4aaeb0f62003019a1c0eef9e8bb084ebd86ed472bfd9c2606495597\",\"inventory_count\":3,\"inventory_not_discovered_ids\":[\"retired\"],\"limitation\":\"Missing export records do not establish misconfiguration or unpatched vulnerabilities. Validate collection, exceptions and actual technical results.\",\"missing_configuration_records\":[\"c\"],\"missing_vulnerability_records\":[\"c\"],\"population_basis\":\"unique asset IDs in discovery export; not guaranteed complete\",\"schema\":\"asset-reconciliation.1\",\"scope\":\"credit-platform-v2.3\",\"source_ids\":{\"configuration\":\"SYNTHETIC-configuration\",\"discovery\":\"SYNTHETIC-discovery\",\"inventory\":\"SYNTHETIC-inventory\",\"vulnerability\":\"SYNTHETIC-vulnerability\"},\"status\":\"COMPUTED_ON_SUPPLIED_EXPORTS\",\"synthetic\":true,\"unregistered_and_missing_both\":[\"c\"],\"unregistered_fraction\":0.3333333333333333,\"unregistered_ids\":[\"c\"]}",
+          "result_sha256": "b713eb2d19370cbd1c089ff2beb6ca9230e95d19b2057e86298234f478d466b0",
+          "status": "EXECUTED",
+          "test_id": "T1",
+          "tool": "asset_reconciliation",
+          "version": "1"
+        }
+      ]
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "44cffa1a7c9df59af3313b159364b085346b7fb1b6c9103659bdfcf33d34a724",
+    "record_hash": "bb9a76770dbcc09f00ad68c06d8414ca0f6376b65e339086e3c09e0357e0d34d",
+    "schema": "investigation-stage.1",
+    "sequence": 5,
+    "signature": "qKzBxQHUF34BWtv6FbPxK7zdg5t0b7bOReNXGGKAeYQMEogt3qhCOVLzJCGkdKYvB0b1Lpe25ZnL1D+V+1lfCQ==",
+    "stage": "verify"
+  },
+  {
+    "actor": "SYNTHETIC-challenger",
+    "at": "2026-09-20T08:49:28.119845+00:00",
+    "investigation_id": "SYNTHETIC-WB140",
+    "key_id": "synthetic-challenger",
+    "payload": {
+      "disproof_attempts": [
+        "Examined proposed alternate explanations against scoped input records and the test's export-only limitation"
+      ],
+      "findings": [
+        {
+          "basis_refs": [
+            "H1"
+          ],
+          "claim": "Export reconciliation does not establish source authenticity or full collection coverage",
+          "finding_id": "C1",
+          "material": true
+        }
+      ],
+      "input_head": "bb9a76770dbcc09f00ad68c06d8414ca0f6376b65e339086e3c09e0357e0d34d",
+      "missing_explanations": [
+        "Real source authenticity and collector-health corroboration unavailable in fixture"
+      ],
+      "reviewed_refs": [
+        "E1",
+        "E2",
+        "H1",
+        "T1"
+      ],
+      "status": "COMPLETED"
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "bb9a76770dbcc09f00ad68c06d8414ca0f6376b65e339086e3c09e0357e0d34d",
+    "record_hash": "09e03b48182032f06baad32872ebc133fca302d039be00f3145ce781c161683b",
+    "schema": "investigation-stage.1",
+    "sequence": 6,
+    "signature": "fo1dOhxdef4JZvMGvyPjyoANT7YMk/iADlvWI9Iv7DO14lqd49bYbDHi/srHhHpro3R28fNBoET0dfNcrlgzDA==",
+    "stage": "challenge"
+  },
+  {
+    "actor": "SYNTHETIC-decision",
+    "at": "2026-09-20T08:49:28.126497+00:00",
+    "investigation_id": "SYNTHETIC-WB140",
+    "key_id": "synthetic-decision",
+    "payload": {
+      "deployment_requested": false,
+      "dispositions": [
+        {
+          "action": "block_deployment",
+          "basis_refs": [
+            "E1"
+          ],
+          "rationale": "Hold deployment pending resolution under configured blocking policy",
+          "risk_ref": "H1"
+        },
+        {
+          "action": "block_deployment",
+          "basis_refs": [
+            "H1"
+          ],
+          "rationale": "Hold deployment pending resolution under configured blocking policy",
+          "risk_ref": "C1"
+        }
+      ],
+      "escalation_decisions": [
+        {
+          "disposition_ref": "H1",
+          "rationale": "Authorized automatic hold; no risk acceptance or deployment permission",
+          "risk_ref": "H1",
+          "route": "policy_auto",
+          "status": "COMPLETED"
+        },
+        {
+          "disposition_ref": "C1",
+          "rationale": "Authorized automatic hold; no risk acceptance or deployment permission",
+          "risk_ref": "C1",
+          "route": "policy_auto",
+          "status": "COMPLETED"
+        }
+      ],
+      "rationale": "Assessment records adverse evidence or unresolved uncertainty; deployment remains blocked",
+      "uncertainty": [
+        "Synthetic exports; no live asset condition established"
+      ],
+      "verdict": "ADVERSE"
+    },
+    "policy_sha256": "6ad2459b4481167fa235eae0232647d4481ffac7a84adec487e3cf78b747b93d",
+    "previous": "09e03b48182032f06baad32872ebc133fca302d039be00f3145ce781c161683b",
+    "record_hash": "5c9376e304218b8f25d11ee2f3066a70b7c50b5b79b0695491787e3143a459b4",
+    "schema": "investigation-stage.1",
+    "sequence": 7,
+    "signature": "mvzkw3JcHthB3d/Aa5u6z5VWbAnPbfP8HRSBGqc2PXMsqnI+g+AQA+px9+cKWWqr/LJ+d6/emPNlgYAY1G8oDQ==",
+    "stage": "conclude"
+  }
+]

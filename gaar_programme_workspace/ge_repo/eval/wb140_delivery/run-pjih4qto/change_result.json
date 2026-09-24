@@ -1,0 +1,25 @@
+{
+  "assessment_finalizable": true,
+  "deployment_authorized": false,
+  "blockers": [],
+  "verdict": "ADVERSE",
+  "investigation_id": "SYNTHETIC-WB140-CHANGE",
+  "head": "81a0c3aaeb5f0dbaa87ed844edfa93b02e5a4a3162af65d5522bab46d4444f77",
+  "synthetic": true,
+  "escalation_decisions": [
+    {
+      "risk_ref": "H1",
+      "route": "policy_auto",
+      "rationale": "Authorized automatic hold; no risk acceptance or deployment permission",
+      "status": "COMPLETED",
+      "disposition_ref": "H1"
+    },
+    {
+      "risk_ref": "C1",
+      "route": "policy_auto",
+      "rationale": "Authorized automatic hold; no risk acceptance or deployment permission",
+      "status": "COMPLETED",
+      "disposition_ref": "C1"
+    }
+  ]
+}

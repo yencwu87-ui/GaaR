@@ -1,0 +1,76 @@
+Framework: MAS
+Control ID: M3.6
+Evidence Mode: SYNTHETIC_DEMO_ONLY
+Scenario ID: common-lifecycle-governance
+Document ID: SYN-MRP-2026-04
+Status: Synthetic approved policy for workflow testing only
+
+Scope abstract: Re-validation triggers are defined and proportionate to assessed risk materiality.
+The standard also governs evaluation measures, acceptable performance thresholds, representative
+testing, error and failure conditions, edge cases, robustness, security, adversarial testing,
+fairness, independent pre-deployment review, effective challenge, findings, limitations,
+conditions for use, residual risk and accountable ownership.
+
+# Synthetic AI Evaluation, Independent Review and Revalidation Standard
+
+This document is fictional test evidence. It is deliberately complete enough to exercise the
+M3.6 evidence, admission, assessment, challenge, decision, sealing and replay controls. It is
+not an MAS publication and does not establish compliance by any organisation.
+
+## 1. Evaluation planning before testing
+
+Before testing begins, the owner documents the AI objectives, intended use, evaluation measures,
+acceptable performance thresholds, error tolerances and prohibited outcomes. The approval record
+must precede the first governed test execution. Any threshold changed after results are observed
+is treated as an exception and independently challenged.
+
+## 2. Representative evaluation and retained results
+
+Evaluation is specific to the AI use case, system and model version. It uses representative data
+and plausible conditions of use. Results, datasets, configuration, prompts, retrieval snapshots,
+code versions and exceptions are retained under a unique evaluation ID.
+
+Testing covers performance, errors, failure conditions and relevant edge cases. Where risks are
+applicable, the plan includes robustness, security, adversarial and prompt-injection testing.
+Sub-population, fairness and stakeholder-impact analysis is required where people or groups may
+be affected by the outcome.
+
+## 3. Pre-deployment review and proportionality
+
+Every release receives a pre-deployment review by parties not involved in development. The review
+scope and degree of independence are proportionate to the recorded risk materiality. High-risk AI
+requires formal independent validation by competent and objective personnel outside development
+and deployment teams.
+
+Formal validation provides effective challenge and covers conceptual soundness, suitability and
+quality of data inputs, implementation integrity, evaluation measures, performance thresholds,
+testing approaches and results, explainability, fairness and limitations. Developers must respond
+to each challenge; unresolved strong challenges are escalated to the Model Risk Committee.
+
+## 4. Findings, residual risk and approval
+
+Findings, limitations, conditions for use and closure dates are recorded and reported to the
+relevant approval body before deployment. The validation outcome records residual risk and the
+accountable owner. Approval cannot be inferred from the absence of findings.
+
+## 5. Revalidation triggers
+
+Revalidation triggers are defined according to risk materiality. Revalidation is mandatory when:
+
+- a high-risk model, major model version, intended use or decision threshold changes;
+- feature composition, training population, base model, retrieval corpus or guardrails change
+  materially;
+- monitoring breaches an approved performance, fairness, safety or stability threshold;
+- a material incident, regulatory change, new failure mode or unresolved strong challenge occurs;
+- a vendor deprecates or silently substitutes a model or service component;
+- the scheduled interval expires: annually for high risk, every two years for medium risk, and
+  every three years for low risk unless an earlier trigger applies.
+
+The owner records the trigger assessment, decision, approver, affected version and due date. A
+decision that revalidation is not required must state its policy basis and is reviewable by the
+independent validation function.
+
+## 6. Synthetic approval record
+
+Policy owner: Synthetic Model Risk Committee. Approved: 1 September 2026. Effective: 2 September
+2026. Review due: 1 September 2027. This approval record exists only for deterministic testing.

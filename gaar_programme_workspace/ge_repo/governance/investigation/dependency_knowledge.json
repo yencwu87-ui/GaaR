@@ -1,0 +1,1236 @@
+{
+  "schema": "dependency-knowledge.2",
+  "version": "WB142.1",
+  "authority": "internal_investigation_hypotheses",
+  "note": "PROPOSED knowledge; not approved regulatory mappings. No automatic verdict propagation.",
+  "edges": [
+    {
+      "framework": "MAS",
+      "upstream": "M2.1",
+      "downstream": "M2.2",
+      "relation": "Undetected AI use can leave the inventory population incomplete.",
+      "edge_id": "MAS-CANDIDATE-001",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [],
+      "procedure_status": "UNAVAILABLE",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M2.2",
+      "downstream": "M2.3",
+      "relation": "An incomplete inventory can omit systems from materiality assessment.",
+      "edge_id": "MAS-CANDIDATE-002",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Unique asset IDs from inventory, discovery, configuration and vulnerability exports",
+        "Collection time, scope, retirement/ephemeral lifecycle and coverage records"
+      ],
+      "alternatives": [
+        "Retired or ephemeral asset",
+        "Alias or duplicate identity",
+        "Collectors sampled different times or populations",
+        "Failed collector"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "asset_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M2.2",
+      "downstream": "M3.7",
+      "relation": "Unidentified assets or dependencies may fall outside security-control coverage.",
+      "edge_id": "MAS-CANDIDATE-003",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Unique asset IDs from inventory, discovery, configuration and vulnerability exports",
+        "Collection time, scope, retirement/ephemeral lifecycle and coverage records"
+      ],
+      "alternatives": [
+        "Retired or ephemeral asset",
+        "Alias or duplicate identity",
+        "Collectors sampled different times or populations",
+        "Failed collector"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "asset_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M2.2",
+      "downstream": "M3.10",
+      "relation": "An incomplete inventory can make monitoring coverage denominators unreliable.",
+      "edge_id": "MAS-CANDIDATE-004",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Unique asset IDs from inventory, discovery, configuration and vulnerability exports",
+        "Collection time, scope, retirement/ephemeral lifecycle and coverage records"
+      ],
+      "alternatives": [
+        "Retired or ephemeral asset",
+        "Alias or duplicate identity",
+        "Collectors sampled different times or populations",
+        "Failed collector"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "asset_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M2.3",
+      "downstream": "M3.6",
+      "relation": "Incorrect materiality may select an inappropriate evaluation or validation depth.",
+      "edge_id": "MAS-CANDIDATE-005",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_independent_validation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.1",
+      "downstream": "M3.6",
+      "relation": "Unsuitable data can invalidate evaluation representativeness.",
+      "edge_id": "MAS-CANDIDATE-006",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_independent_validation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.5",
+      "downstream": "M3.6",
+      "relation": "Model and feature selection assumptions affect evaluation and validation scope.",
+      "edge_id": "MAS-CANDIDATE-007",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_independent_validation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.6",
+      "downstream": "M3.9",
+      "relation": "Unresolved evaluation findings can invalidate release clearance.",
+      "edge_id": "MAS-CANDIDATE-008",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_independent_validation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.6",
+      "downstream": "M3.10",
+      "relation": "Known model limitations and thresholds should inform ongoing monitoring.",
+      "edge_id": "MAS-CANDIDATE-009",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_independent_validation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.10",
+      "downstream": "M3.11",
+      "relation": "Detection gaps may delay incident escalation.",
+      "edge_id": "MAS-CANDIDATE-010",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [],
+      "procedure_status": "UNAVAILABLE",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.12",
+      "downstream": "M3.6",
+      "relation": "Material changes may invalidate the scope of prior validation.",
+      "edge_id": "MAS-CANDIDATE-011",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.14",
+      "downstream": "M3.6",
+      "relation": "Third-party opacity or changes can create evaluation and validation gaps.",
+      "edge_id": "MAS-CANDIDATE-012",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_independent_validation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.7",
+      "downstream": "M3.12",
+      "relation": "Privilege grants and actual credential use affect whether an implementer was authorized for a change.",
+      "edge_id": "MAS-CANDIDATE-013",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.8",
+      "downstream": "M3.12",
+      "relation": "Independent execution logs are needed to reconcile actual changes against the ticket population.",
+      "edge_id": "MAS-CANDIDATE-014",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.9",
+      "downstream": "M3.12",
+      "relation": "Release approval, implementation windows and freeze exceptions constrain authorized changes.",
+      "edge_id": "MAS-CANDIDATE-015",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.11",
+      "downstream": "M3.12",
+      "relation": "Post-incident changes need context-sensitive review of emergency authorization and remediation.",
+      "edge_id": "MAS-CANDIDATE-016",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "MAS",
+      "upstream": "M3.12",
+      "downstream": "M3.11",
+      "relation": "Failed changes can require verified rollback or authorized fix-forward and incident handling.",
+      "edge_id": "MAS-CANDIDATE-017",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "ASSET.INVENTORY",
+      "downstream": "ASSET.CONFIGURATION",
+      "relation": "Incomplete asset identity coverage can exclude assets from configuration checks.",
+      "edge_id": "INTERNAL-001",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Unique asset IDs from inventory, discovery, configuration and vulnerability exports",
+        "Collection time, scope, retirement/ephemeral lifecycle and coverage records"
+      ],
+      "alternatives": [
+        "Retired or ephemeral asset",
+        "Alias or duplicate identity",
+        "Collectors sampled different times or populations",
+        "Failed collector"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "asset_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "ASSET.INVENTORY",
+      "downstream": "ASSET.PATCH",
+      "relation": "Inventory gaps can undermine the denominator used for patch coverage.",
+      "edge_id": "INTERNAL-002",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Unique asset IDs from inventory, discovery, configuration and vulnerability exports",
+        "Collection time, scope, retirement/ephemeral lifecycle and coverage records"
+      ],
+      "alternatives": [
+        "Retired or ephemeral asset",
+        "Alias or duplicate identity",
+        "Collectors sampled different times or populations",
+        "Failed collector"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "asset_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "CHANGE.MGMT",
+      "downstream": "ACCESS.PRIVILEGED",
+      "relation": "Actual credential use may differ from the identity and privilege approved for a change.",
+      "edge_id": "INTERNAL-003",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "LOGGING.COVERAGE",
+      "downstream": "CHANGE.MGMT",
+      "relation": "Unobserved implementations cannot be reconciled using change tickets alone.",
+      "edge_id": "INTERNAL-004",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "CHANGE.APPROVAL",
+      "downstream": "CHANGE.MGMT",
+      "relation": "Approvals must bind the executed target, content, actor, credential and implementation window.",
+      "edge_id": "INTERNAL-005",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "CHANGE.FREEZE",
+      "downstream": "CHANGE.MGMT",
+      "relation": "A change inside a freeze needs a valid applicable exception under the governing policy.",
+      "edge_id": "INTERNAL-006",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "INCIDENT.RESPONSE",
+      "downstream": "CHANGE.MGMT",
+      "relation": "Changes after incidents may be legitimate emergency remediation or may require further investigation.",
+      "edge_id": "INTERNAL-007",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "CHANGE.MGMT",
+      "downstream": "SERVICE.RECOVERY",
+      "relation": "Failed changes can leave services impaired unless rollback or authorized fix-forward is evidenced.",
+      "edge_id": "INTERNAL-008",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "MODEL.DATA",
+      "downstream": "MODEL.VALIDATION",
+      "relation": "Unrepresentative evaluation data can undermine conclusions about intended populations.",
+      "edge_id": "INTERNAL-009",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_representativeness",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "MODEL.VALIDATION",
+      "downstream": "MODEL.RELEASE",
+      "relation": "Unresolved validation findings may invalidate release clearance.",
+      "edge_id": "INTERNAL-010",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_independent_validation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "MODEL.MONITORING",
+      "downstream": "MODEL.VALIDATION",
+      "relation": "Drift or changed use can invalidate earlier validation assumptions.",
+      "edge_id": "INTERNAL-011",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_model_evaluation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "MODEL.VALIDATION",
+      "downstream": "RISK.ACCEPTANCE",
+      "relation": "Residual risk decisions depend on accurate findings and authorized acceptance evidence.",
+      "edge_id": "INTERNAL-012",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Scoped source exports and collection coverage",
+        "Applicable policy/version and record of authorization"
+      ],
+      "alternatives": [
+        "Collection timing or scope mismatch",
+        "Approved exception or effective compensating control",
+        "Incomplete or inaccurate source records"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Establish the upstream observation and separately verify the downstream consequence against scoped operating evidence.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "m36_residual_risk",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation."
+    }
+  ]
+}

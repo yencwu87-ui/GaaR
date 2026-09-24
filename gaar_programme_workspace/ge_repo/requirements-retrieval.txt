@@ -1,0 +1,3 @@
+# Optional retrieval intelligence dependencies.
+# Core engine remains runnable without these packages.
+sentence-transformers>=4.0,<6

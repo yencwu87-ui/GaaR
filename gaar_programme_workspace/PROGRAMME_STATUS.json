@@ -1,0 +1,83 @@
+{
+  "package": "GaaR_Pilot_MVP_Reviewer_Onramp_v4",
+  "date": "2026-09-21",
+  "base": "WB142",
+  "production_assured": false,
+  "deployment_authorized": false,
+  "live_judgment_verified": false,
+  "macos_verified": false,
+  "overall": "PILOT_MVP_CANDIDATE_PRODUCTION_ACCEPTANCE_BLOCKED",
+  "regression": {
+    "passed": 1248,
+    "skipped": 11,
+    "failed": 0,
+    "warnings": 0,
+    "duration_seconds": 245.66,
+    "scope": "offline software suite after pilot on-ramp and decision integration; 8 of the skips are optional-PyMuPDF PDF tests that previously failed on import",
+    "tree_unchanged_after_run": true
+  },
+  "focused": {
+    "passed": 30,
+    "scope": "23 programme checks plus 7 decision/pilot checks, including the supplied seal contract and an end-to-end reviewer app attestation"
+  },
+  "gates": [
+    {
+      "checkpoint": "WB143",
+      "scope": "Integrated investigation",
+      "implementation": "Implemented; offline protocol tests passed; bring-your-own-key pilot on-ramp creates a non-synthetic runnable investigation",
+      "acceptance": "NOT_COMPLETE",
+      "remaining": "Live end-to-end investigation, trusted setup and target-user acceptance not verified"
+    },
+    {
+      "checkpoint": "WB144",
+      "scope": "Dependency review",
+      "implementation": "Exactly-one treatment, executed-test references and challenge binding implemented",
+      "acceptance": "NOT_COMPLETE",
+      "remaining": "Catalogue completeness, applicability and treatment semantics need independent expert validation"
+    },
+    {
+      "checkpoint": "WB145",
+      "scope": "Judgment evaluation",
+      "implementation": "Full-contract live runner and signed qualification gate implemented; qualification rejects identical examine/challenge model revisions at different endpoints",
+      "acceptance": "NOT_COMPLETE",
+      "remaining": "No independent corpus, live responses, semantic measurements or auditor baseline supplied"
+    },
+    {
+      "checkpoint": "WB146",
+      "scope": "Evidence and verification",
+      "implementation": "Scoped collection adapters, change checks and inherited M3.6 procedures implemented",
+      "acceptance": "NOT_COMPLETE",
+      "remaining": "Enterprise connectors, collection authenticity/completeness and real control coverage unverified"
+    },
+    {
+      "checkpoint": "WB147",
+      "scope": "Results and reassessment",
+      "implementation": "Signed seal, adverse CURRENT, change invalidation and local reassessment requests tested; in-app human sign-and-seal (production) and non-promotable pilot attestation (pilot) implemented",
+      "acceptance": "NOT_COMPLETE",
+      "remaining": "Real result, external anchoring, scheduled continuous reassessment and successor/supersession workflow outstanding"
+    },
+    {
+      "checkpoint": "WB148",
+      "scope": "Actions and reporting",
+      "implementation": "Local actions, optional policy assignment, draft notifications and closure guards implemented",
+      "acceptance": "NOT_COMPLETE",
+      "remaining": "Authorized external delivery, full closure acceptance and operational ownership unverified"
+    },
+    {
+      "checkpoint": "WB149",
+      "scope": "Production assurance",
+      "implementation": "Local security/recovery checks, signed backup/isolated restore and environment report implemented; reviewer reveal is per-session, per-assessment and access-logged (unsigned local log)",
+      "acceptance": "NOT_COMPLETE",
+      "remaining": "Independent security review, revocation/failover drills, macOS acceptance and release approval outstanding"
+    }
+  ],
+  "pilot": {
+    "profile": "pilot",
+    "operation_mode": "evaluation",
+    "outcome": "PILOT_ATTESTATION",
+    "outcome_is_governance_result": false,
+    "human_keys": "supplied by people; never generated, copied or stored by provisioning",
+    "promotion_to_sealed_result": "refused by lifecycle.seal",
+    "live_pilot_run_performed": false
+  }
+}

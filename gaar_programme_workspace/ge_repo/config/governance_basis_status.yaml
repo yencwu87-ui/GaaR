@@ -1,0 +1,8 @@
+# Operator-supplied metadata only. Does NOT reimport, replace or attest existing basis.
+existing_basis:
+  status: USE_EXISTING_WORKSPACE
+  instruction: Keep existing frameworks, controls, requirements and assessment workbooks unchanged.
+iso_iec_42001:
+  official_reference_status: AWAITING_OPERATOR_DOCUMENT
+  instruction: Add the licensed/legitimately obtained official document when available, through human-reviewed reference intake.
+  assessment_evidence_status: NOT_INFERRED_FROM_REFERENCE_AVAILABILITY

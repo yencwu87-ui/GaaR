@@ -1,0 +1,52 @@
+{
+  "checkpoint": "GE-SEMANTIC-BASELINE-1",
+  "recorded_at": "2026-09-15",
+  "recorded_by": "Claude",
+  "why": "Another process is actively writing this tree. Pinning the state the integration audit runs against, so any later change is attributable to that writer rather than silently becoming part of the audit result.",
+  "semantic_baseline": {
+    "controls": 195,
+    "elements": 538,
+    "by_framework": {
+      "ISO 42001": 39,
+      "MAS": 101,
+      "MGF Agentic": 126,
+      "NIST AI RMF": 212,
+      "SAFR": 60
+    },
+    "decomposition_errors": 0,
+    "canonical_drift": 0,
+    "templated_archetypes": 0,
+    "derived_views_synchronised": 7,
+    "tests_passing": 738,
+    "tests_failing": 0
+  },
+  "frozen_for_this_pass": {
+    "canonical_semantic_layer": [
+      "control_contracts.yaml",
+      "semantic registry / canonicalisation",
+      "derived-view sync",
+      "source grounding / locators",
+      "predicate metadata"
+    ],
+    "assessor_challenger_layer": [
+      "assessor prompt",
+      "split-mode behaviour",
+      "challenge validation",
+      "sufficiency / gap handling"
+    ],
+    "exception": "a demonstrated integration defect, and nothing else"
+  },
+  "files": {
+    "governance/knowledge/control_contracts.yaml": "647fda0fe857ea27",
+    "governance/knowledge/semantic_registry.yaml": "9ff31a7e4ede14ba",
+    "governance/knowledge/predicate_specs.yaml": "fa69c2ec4756f500",
+    "assessor.py": "1be35db5836bee85",
+    "challenge.py": "3df21404295120bd",
+    "compare.py": "6dccfa1563c8252b",
+    "core/cycle.py": "8f0fa529976bdbda",
+    "governance/semantic_canon.py": "812f00d2038fb554",
+    "governance/decomposition_audit.py": "da0167add338313d",
+    "governance/verification_semantics.py": "83294c92c6eaa2ff",
+    "governance/contract_integrity.py": "d3d975aef8f39ab3"
+  }
+}

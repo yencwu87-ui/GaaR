@@ -1,0 +1,20 @@
+evidence/
+data/assessments.json
+__pycache__/
+.DS_Store
+.cache/
+*.bak
+.DS_Store
+.DS_Store
+.scratch/
+data/backups/
+# Inference task telemetry (runtime-generated)
+governance/inference_tasks.jsonl
+
+# GaaR Workstream A runtime stores
+governance/result_store.jsonl
+governance/result_store.jsonl.lock
+governance/result_state_events.jsonl
+governance/result_state_events.jsonl.lock
+.test_runs/
+reports/

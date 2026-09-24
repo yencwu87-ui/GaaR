@@ -1,0 +1,34 @@
+Change-management investigation relationships (proposed internal knowledge):
+
+CHANGE.MGMT → ACCESS.PRIVILEGED
+  Actual credential use may differ from the identity and privilege approved for a change.
+  Check: Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness
+  Alternative: Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback
+
+LOGGING.COVERAGE → CHANGE.MGMT
+  Unobserved implementations cannot be reconciled using change tickets alone.
+  Check: Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness
+  Alternative: Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback
+
+CHANGE.APPROVAL → CHANGE.MGMT
+  Approvals must bind the executed target, content, actor, credential and implementation window.
+  Check: Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness
+  Alternative: Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback
+
+CHANGE.FREEZE → CHANGE.MGMT
+  A change inside a freeze needs a valid applicable exception under the governing policy.
+  Check: Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness
+  Alternative: Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback
+
+INCIDENT.RESPONSE → CHANGE.MGMT
+  Changes after incidents may be legitimate emergency remediation or may require further investigation.
+  Check: Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness
+  Alternative: Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback
+
+CHANGE.MGMT → SERVICE.RECOVERY
+  Failed changes can leave services impaired unless rollback or authorized fix-forward is evidenced.
+  Check: Observed deployment/audit events, not tickets alone; Approved tickets with targets, actions, implementers, credentials, content hashes and approval times; Privilege grants and session identities; Timezone-aware freeze windows and exceptions; Incident and recovery records; collection completeness
+  Alternative: Timely authorized emergency exception; Approved delegated or service identity with a verified mapping; Clock normalization or incomplete logs; Approved fix-forward instead of rollback
+
+These are investigation questions, not proof of a breach.
+Report: /workspace/scratch/98932e10b8af/wb142/gaar_wb141_workspace/ge_repo/verification/wb142/operator_runs/20260920T131800258906-knowledge.json

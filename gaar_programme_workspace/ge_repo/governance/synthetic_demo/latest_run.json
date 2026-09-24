@@ -1,0 +1,67 @@
+{
+  "status": "READY_FOR_HUMAN_REVIEW",
+  "evidence_mode": "SYNTHETIC_DEMO_ONLY",
+  "production_compliance_proof": false,
+  "control_id": "M3.6",
+  "framework": "MAS",
+  "requirement_version_id": "SYNTHETIC-M3.6-DEMO-v1",
+  "governed_elements": 14,
+  "frozen_use_cases": [
+    {
+      "case": "d",
+      "file": "M3.6_UC01_Retail_Credit_Validation.md",
+      "origin_sha256": "6e1b172199dfc2a60d52ebbc420db72e00f0d061dae00011900a3bdf60c5c288",
+      "pack_sha256": "f1aec4afc1bbef94010b0f2ee28796468b0ae7495c580a7125ecb6663c92409c"
+    },
+    {
+      "case": "e",
+      "file": "M3.6_UC02_Contact_Centre_GenAI.md",
+      "origin_sha256": "b9eb9582994fc224b96c6b163b924e9e15681f49cf10d4cdeb8b917a425d3c39",
+      "pack_sha256": "cd193663e6be2b0086e9700ce858988337498be08e2b0a6a533c9814ac94809e"
+    },
+    {
+      "case": "f",
+      "file": "M3.6_UC03_AML_Alert_Prioritisation.md",
+      "origin_sha256": "b92bc8616e0148cab88fd7fb94dcf82f8181b864d3950862ffdf807d0cbfc7d0",
+      "pack_sha256": "5e2af43b14a3f6ceda5fe45a2ccaaaaa5e00b318980a8012b52619a36b3fef20"
+    },
+    {
+      "case": "g",
+      "file": "M3.6_UC04_Customer_Eligibility.md",
+      "origin_sha256": "98eecd81ebac3ca58116003412a28d45f409b9b64803b2d22e2b7befd59e960b",
+      "pack_sha256": "dcb868f5af05bf134008b732f0a71f6e3a7a89f0230e3ea211e6ae10b5ce46d8"
+    }
+  ],
+  "acquisition_id": "EA-2fab6879e70349f0a685cbd4ba1b7389",
+  "exact_control_candidates": 5,
+  "preflight": {
+    "evaluation_status": "EVALUATED",
+    "sufficiency_score": 0.964,
+    "evidence_freshness": "100%",
+    "open_evidence_gaps": [],
+    "covered_elements": [
+      "e1",
+      "e2",
+      "e3",
+      "e4",
+      "e5",
+      "e6",
+      "e7",
+      "e8",
+      "e9",
+      "e10",
+      "e11",
+      "e12",
+      "e13",
+      "e14"
+    ],
+    "recommended_action": "NONE",
+    "rationale": "Deterministic preflight: 14/14 governed elements have visible lexical coverage; evidence freshness=100%. This is a triage signal, not a sufficiency verdict."
+  },
+  "dossier_id": "ED-8784760fc91f5d709b53be199a7cb246",
+  "anchors": 5,
+  "gaps": [],
+  "dossier_path": "/workspace/scratch/98932e10b8af/wb136_upgrade/gaar_wb136_workspace/ge_repo/governance/synthetic_demo/M3.6_SYNTHETIC_DOSSIER.md",
+  "next_checkpoint": "NAMED_HUMAN_ADMISSION",
+  "note": "Synthetic evidence can prove workflow behavior but cannot prove MAS compliance."
+}

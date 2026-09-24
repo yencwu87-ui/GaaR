@@ -1,0 +1,61 @@
+# Disabled by default. Official INDEX pages only, not proof of regulator-wide coverage.
+# Set enabled: true for a source after reviewing its page structure on your network.
+sources:
+  - source_id: mas-consultations-index
+    jurisdiction: Singapore
+    authority: MAS
+    enabled: false
+    url: https://www.mas.gov.sg/publications/consultations
+    approved_hosts: [www.mas.gov.sg]
+    path_prefixes: [/publications/consultations/]
+    interval_minutes: 360
+    max_items: 100
+  - source_id: mas-notices-index
+    jurisdiction: Singapore
+    authority: MAS
+    enabled: false
+    url: https://www.mas.gov.sg/regulation/notices
+    approved_hosts: [www.mas.gov.sg]
+    path_prefixes: [/regulation/notices/]
+    interval_minutes: 360
+    max_items: 100
+  - source_id: fca-consultations-index
+    jurisdiction: UK
+    authority: FCA
+    enabled: false
+    url: https://www.fca.org.uk/publications/consultation-papers
+    approved_hosts: [www.fca.org.uk]
+    path_prefixes: [/publications/consultation-papers/]
+    interval_minutes: 360
+    max_items: 100
+  - source_id: fca-policy-statements-index
+    jurisdiction: UK
+    authority: FCA
+    enabled: false
+    url: https://www.fca.org.uk/publications/policy-statements
+    approved_hosts: [www.fca.org.uk]
+    path_prefixes: [/publications/policy-statements/]
+    interval_minutes: 360
+    max_items: 100
+  - source_id: hkma-brdr-whats-new
+    jurisdiction: Hong Kong
+    authority: HKMA
+    enabled: true
+    url: https://brdr.hkma.gov.hk/eng/main
+    approved_hosts: [brdr.hkma.gov.hk]
+    path_prefixes: [/eng/doc-ldg/docId/]
+    interval_minutes: 360
+    max_items: 100
+    language: English
+    coverage_note: "HKMA Banking Regulatory Document Repository What's New listing only"
+  - source_id: nfra-rules-en-index
+    jurisdiction: China
+    authority: NFRA
+    enabled: true
+    url: https://www.nfra.gov.cn/en/view/pages/ItemList.html?itemId=981&itemPId=973&itemTitle=Rules%20and%20Regulations&itemUrl=ItemListRightList.html
+    approved_hosts: [www.nfra.gov.cn, nfra.gov.cn, big5.nfra.gov.cn]
+    path_prefixes: [/en/view/pages/ItemDetail.html, /cn/view/pages/ItemDetail.html, /cn/view/pages/rulesDetail.html]
+    interval_minutes: 360
+    max_items: 100
+    language: English/Chinese
+    coverage_note: "NFRA Rules and Regulations listing; Chinese originals remain authoritative"

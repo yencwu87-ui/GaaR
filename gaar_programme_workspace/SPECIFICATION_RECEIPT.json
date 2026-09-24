@@ -1,0 +1,8 @@
+{
+  "requested_scope": "Use supplied decisions.py and test as contract; integrate pilot on-ramp and reviewer decision panel; ship recommended hardening",
+  "delivery": "Pilot MVP revision with 30 focused checks and 1248 passed / 11 skipped / 0 failed full offline suite",
+  "production_acceptance_complete": false,
+  "reference": "PROGRAMME_STATUS.json",
+  "source_package": "GaaR_Evaluation_MVP_Reviewer_Onramp_v3.zip",
+  "source_sha256": "cec3060301e9c4d6a7928475bf33f9239e9d4a2ee1aff4c3ec405c9d8e052e66"
+}

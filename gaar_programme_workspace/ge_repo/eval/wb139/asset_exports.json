@@ -1,0 +1,43 @@
+{
+  "synthetic": true,
+  "snapshots": {
+    "inventory": {
+      "scope": "credit-platform-v2.3",
+      "as_of": "2026-09-20T00:00:00Z",
+      "source_id": "inventory-SYNTHETIC",
+      "assets": [
+        "a",
+        "b",
+        "retired"
+      ]
+    },
+    "discovery": {
+      "scope": "credit-platform-v2.3",
+      "as_of": "2026-09-20T00:00:00Z",
+      "source_id": "discovery-SYNTHETIC",
+      "assets": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "configuration": {
+      "scope": "credit-platform-v2.3",
+      "as_of": "2026-09-20T00:00:00Z",
+      "source_id": "configuration-SYNTHETIC",
+      "assets": [
+        "a",
+        "b"
+      ]
+    },
+    "vulnerability": {
+      "scope": "credit-platform-v2.3",
+      "as_of": "2026-09-20T00:00:00Z",
+      "source_id": "vulnerability-SYNTHETIC",
+      "assets": [
+        "a",
+        "b"
+      ]
+    }
+  }
+}

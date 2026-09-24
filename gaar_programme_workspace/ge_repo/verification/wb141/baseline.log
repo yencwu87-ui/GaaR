@@ -1,0 +1,335 @@
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 18%]
+........................................................................ [ 24%]
+........................................................................ [ 30%]
+.......s.............................F.................................. [ 36%]
+.................s.....................s................................ [ 42%]
+........................................................................ [ 48%]
+........................................................................ [ 54%]
+........................................................................ [ 60%]
+..F.........................F........................................... [ 66%]
+........................................................................ [ 72%]
+............F........................................................... [ 78%]
+..........F.F.FFF....................................................... [ 84%]
+....................................F................F.................. [ 90%]
+........................................................................ [ 96%]
+.............................................                            [100%]
+=================================== FAILURES ===================================
+___________ test_full_change_to_reassessment_to_conductor_checkpoint ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-25/test_full_change_to_reassessme0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13e25c4140>
+
+    def test_full_change_to_reassessment_to_conductor_checkpoint(tmp_path,monkeypatch):
+        monkeypatch.setenv('WB_GAAR_CHANGE_INTELLIGENCE','1'); monkeypatch.setenv('WB_GAAR_REASSESSMENT_WORKFLOW','1')
+        old=_result(); rs=ResultStore(tmp_path/'results.jsonl'); sl=ResultStateLog(tmp_path/'states.jsonl'); rs.append(old)
+        sl.append(approve_result(old,actor_id='human-old',decision_id='HD-OLD',reason='approved'))
+        _seed_source_cycle(tmp_path,old); ch,imp,candidate=_change(old)
+        trig_store=TriggerStore(tmp_path/'triggers.jsonl'); mon=ChangeMonitor(trig_store)
+        trig=mon.emit(trigger_type=TriggerType.GOVERNANCE_CHANGE,control_id='M3.6',framework='MAS',reason='material regulation change',material=True,
+            source_id=ch.source_id,change_id=ch.change_id,payload=ch.to_dict())
+        policy=AutopilotPolicy(enabled=True,max_concurrent_reassessments=2,evidence_sufficiency_threshold=0.5)
+        sched=AutopilotScheduler(tmp_path/'jobs.jsonl',policy=policy); queued=sched.enqueue(trig); running=sched.claim()[0]
+        loop=ContinuousGovernanceLoop(policy=policy,scheduler=sched,result_store=rs,state_log=sl)
+        out=loop.run_job(running,trig,change=ch,impact=imp,candidate_requirements=candidate)
+        assert out.state_events==1 and len(out.cycle_ids)==1
+        assert sl.current_state(old.result_id)==ValidityState.REASSESSING
+>       assert out.human_attention_required is True
+E       AssertionError: assert False is True
+E        +  where False = LoopOutcome(job_id='AJ-d3389aa34bb425ed4193a08a', trigger_id='AT-f20666743b9eb6d63ffcb3b2', status='COMPLETE', cycle_i...), state_events=1, human_attention_required=False, message='Machine-owned steps completed without a human checkpoint.').human_attention_required
+
+tests/test_g_integration.py:62: AssertionError
+________ test_human_decision_boundary_supersedes_r1_and_sets_r2_current ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-25/test_human_decision_boundary_s0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13e248c500>
+
+    def test_human_decision_boundary_supersedes_r1_and_sets_r2_current(tmp_path, monkeypatch):
+        old = _result()
+        result_store_path = tmp_path / "results.jsonl"
+        state_path = tmp_path / "states.jsonl"
+        monkeypatch.setenv("WB_GAAR_RESULT_STORE", str(result_store_path))
+        monkeypatch.setenv("WB_GAAR_RESULT_STATE_STORE", str(state_path))
+        store = ResultStore(result_store_path)
+        states = ResultStateLog(state_path)
+        store.append(old)
+        states.append(approve_result(old, actor_id="reviewer-1", decision_id="HD-OLD", reason="approved"))
+    
+        change, impact, _candidate = _change_and_impact(old)
+        review_event = build_review_required_events(
+            change, impact, results=[old], current_result_ids={old.result_id}, prev_hash=states.last_hash()
+        )[0]
+        states.append(review_event)
+        from governance.result_contract import begin_reassessment
+        states.append(begin_reassessment(
+            old, actor_id="reassessment-engine", case_id="RC-1", reason="started", prev_hash=states.last_hash()
+        ))
+    
+        p = old.provenance.model_copy(update={
+            "requirement_version_id": "REQ-TARGET-v3",
+            "human_decision_id": "HD-NEW",
+            "human_decider_id": "reviewer-2",
+            "human_decision_timestamp": "2026-09-18T10:00:00+00:00",
+        })
+        new = create_governance_result(
+            requirement_version_id="REQ-TARGET-v3",
+            evidence_set_id=old.evidence_set_id,
+            assessment_id=old.assessment_id,
+            challenge_set_id=old.challenge_set_id,
+            human_decision_id="HD-NEW",
+            decision=Decision.PASS,
+            rationale="Reassessment approved.",
+            provenance=p,
+            signer=_signer(),
+            result_version=2,
+            parent_result_id=old.result_id,
+            supersedes_result_id=old.result_id,
+        )
+        out = persist_and_set_current(
+            new,
+            actor_id="reviewer-2",
+            decision_id="HD-NEW",
+            governance_context={"is_reassessment": True, "supersedes_result_id": old.result_id},
+        )
+>       assert out["superseded_event"].to_state == ValidityState.SUPERSEDED
+               ^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'superseded_event'
+
+tests/test_reassessment_live_integration_wb110.py:249: KeyError
+_______ test_gaar_result_compiler_wires_human_decision_to_sealed_result ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13e2453170>
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-25/test_gaar_result_compiler_wire0')
+
+    def test_gaar_result_compiler_wires_human_decision_to_sealed_result(monkeypatch, tmp_path):
+        monkeypatch.setattr(events, "LOG", tmp_path / "events.jsonl")
+        monkeypatch.setenv("WB_GAAR_RESULT_ENABLE", "1")
+        monkeypatch.setenv("WB_GAAR_RESULT_SIGNING_KEY_B64", _test_key())
+        monkeypatch.setenv("WB_GAAR_RESULT_KEY_ID", "test-gaar-key")
+        monkeypatch.setenv("WB_GAAR_RESULT_STORE", str(tmp_path / "results.jsonl"))
+        monkeypatch.setenv("WB_GAAR_RESULT_STATE_STORE", str(tmp_path / "result_state_events.jsonl"))
+    
+        cid = _prepare_cycle()
+        rec = cycle.decide(
+            cid,
+            sufficiency="full",
+            maturity=4,
+            reviewer="reviewer-01",
+            reason="The retained independent evaluation report covers the deployed model and records the test results.",
+        )
+    
+        assert rec["governance_result_id"]
+        assert rec["human_decision_id"]
+        assert rec["governance_result"]["result_id"] == rec["governance_result_id"]
+        assert rec["governance_result"]["content_hash"]
+    
+        state = cycle.state(cid)
+        assert state["stage"] == "decided"
+        assert state["decision"]["governance_result_id"] == rec["governance_result_id"]
+        assert state["decision"]["human_decision_id"] == rec["human_decision_id"]
+    
+        stored = ResultStore(tmp_path / "results.jsonl").read()
+>       assert len(stored) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_result_pipeline_integration.py:90: AssertionError
+________________ test_ticket_register_references_are_reconciled ________________
+
+    def test_ticket_register_references_are_reconciled():
+        result = validate_ticket_register(ROOT / "governance" / "tickets.csv", root=ROOT)
+>       assert not [e for e in result["errors"] if "absent from register" in e], result["errors"]
+E       AssertionError: ["invalid ticket_id 'GE-109'", "invalid ticket_id 'GE-110'", "invalid ticket_id 'GE-110c'", "invalid ticket_id 'GE-110b.1'", "invalid ticket_id 'GE-110b.2'", "invalid ticket_id 'GE-110c.1'", ...]
+E       assert not ['referenced tickets absent from register: WB-139']
+
+tests/test_v04_governance.py:71: AssertionError
+________ test_conductor_stops_at_human_decision_and_never_calls_decide _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13dffe18b0>
+
+    def test_conductor_stops_at_human_decision_and_never_calls_decide(monkeypatch):
+        state = {
+            "cycle_id":"C1", "control_id":"2.1", "framework":"SAFR",
+            "evidence":{"text":"threshold governance review before deployment"},
+            "read":{"sufficiency":"full","maturity":3,"reason":"x"},
+            "proposal":{"sufficiency":"full","maturity":3},
+            "diff":{"comparable":True,"disagreements":[]},
+            "challenges":[],
+        }
+        class C:
+            id="2.1"; lib="SAFR"; req="threshold governance review before deployment"; elements=(("e1",req),)
+        monkeypatch.setattr(events, "state", lambda cid: dict(state))
+        conductor = ReviewConductor()
+        monkeypatch.setattr(conductor, "_control", lambda s: C())
+        called = {"decide":0}
+        from core import cycle
+        monkeypatch.setattr(cycle, "decide", lambda *a, **k: called.__setitem__("decide", called["decide"]+1))
+        out = conductor.run_to_checkpoint("C1")
+>       assert out.checkpoint == "HUMAN_DECISION"
+E       AssertionError: assert 'INVESTIGATION_REQUIRED' == 'HUMAN_DECISION'
+E         
+E         - HUMAN_DECISION
+E         + INVESTIGATION_REQUIRED
+
+tests/test_wb115_ai_auditor.py:108: AssertionError
+___________ test_quality_gate_finalizable_when_four_dimensions_pass ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13e2a68170>
+
+    def test_quality_gate_finalizable_when_four_dimensions_pass(monkeypatch):
+        import governance.quality_gate as qg
+        monkeypatch.setattr(events, "state", lambda cid: _good_state())
+        monkeypatch.setattr(qg, "ReviewConductor", _Conductor)
+        out=evaluate(cycle_id="C1", result=_result(), evidence_threshold=0.50, min_sources=1)
+>       assert out.status == GateStatus.FINALIZABLE
+E       AssertionError: assert <GateStatus.B...ED: 'BLOCKED'> == <GateStatus.F...'FINALIZABLE'>
+E         
+E         - FINALIZABLE
+E         + BLOCKED
+
+tests/test_wb116_quality_gate.py:64: AssertionError
+____________________ test_quality_gate_log_is_hash_chained _____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-25/test_quality_gate_log_is_hash_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13e02a5bb0>
+
+    def test_quality_gate_log_is_hash_chained(tmp_path, monkeypatch):
+        import governance.quality_gate as qg
+        monkeypatch.setattr(events, "state", lambda cid: _good_state())
+        monkeypatch.setattr(qg, "ReviewConductor", _Conductor)
+        log=QualityGateLog(tmp_path/"gate.jsonl")
+        row=log.append(evaluate(cycle_id="C1", result=_result(), evidence_threshold=0.50, min_sources=1))
+        assert log.read()[0].record_hash == row.record_hash
+>       assert log.latest_for_result(row.result_id).status == GateStatus.FINALIZABLE
+E       AssertionError: assert <GateStatus.B...ED: 'BLOCKED'> == <GateStatus.F...'FINALIZABLE'>
+E         
+E         - FINALIZABLE
+E         + BLOCKED
+
+tests/test_wb116_quality_gate.py:85: AssertionError
+_____________ test_persist_blocks_current_when_quality_gate_blocks _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-25/test_persist_blocks_current_wh0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13e3043b60>
+
+    def test_persist_blocks_current_when_quality_gate_blocks(tmp_path, monkeypatch):
+        import governance.quality_gate as qg
+        monkeypatch.setenv("WB_GAAR_QUALITY_GATE", "1")
+        monkeypatch.setenv("WB_GAAR_RESULT_STORE", str(tmp_path/"results.jsonl"))
+        monkeypatch.setenv("WB_GAAR_RESULT_STATE_STORE", str(tmp_path/"states.jsonl"))
+        monkeypatch.setenv("WB_GAAR_QUALITY_GATE_STORE", str(tmp_path/"gates.jsonl"))
+        state=_good_state(); state["proposal"]={"sufficiency":"full","maturity":3}
+        monkeypatch.setattr(events, "state", lambda cid: state)
+        monkeypatch.setattr(qg, "ReviewConductor", _Conductor)
+        out=persist_and_set_current(_result(), actor_id="human-1", decision_id="HD-1", cycle_id="C1")
+        assert out["blocked"] is True
+        assert out["state_event"] is None
+>       assert out["quality_gate"].status == GateStatus.BLOCKED
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'status'
+
+tests/test_wb116_quality_gate.py:100: AttributeError
+___________ test_persist_sets_current_when_quality_gate_finalizable ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-25/test_persist_sets_current_when0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13dfef3470>
+
+    def test_persist_sets_current_when_quality_gate_finalizable(tmp_path, monkeypatch):
+        import governance.quality_gate as qg
+        from governance.result_contract import ResultStateLog, ValidityState
+        monkeypatch.setenv("WB_GAAR_QUALITY_GATE", "1")
+        monkeypatch.setenv("WB_GAAR_RESULT_STORE", str(tmp_path/"results.jsonl"))
+        monkeypatch.setenv("WB_GAAR_RESULT_STATE_STORE", str(tmp_path/"states.jsonl"))
+        monkeypatch.setenv("WB_GAAR_QUALITY_GATE_STORE", str(tmp_path/"gates.jsonl"))
+        monkeypatch.setenv("WB_GAAR_QUALITY_EVIDENCE_THRESHOLD", "0.50")
+        monkeypatch.setattr(events, "state", lambda cid: _good_state())
+        monkeypatch.setattr(qg, "ReviewConductor", _Conductor)
+        out=persist_and_set_current(_result(), actor_id="human-1", decision_id="HD-1", cycle_id="C1")
+>       assert out["blocked"] is False
+E       assert True is False
+
+tests/test_wb116_quality_gate.py:114: AssertionError
+_________ test_waiver_does_not_fabricate_challenge_and_conductor_stops _________
+
+isolated = (PosixPath('/tmp/pytest-of-root/pytest-25/test_waiver_does_not_fabricate0'), PosixPath('/tmp/pytest-of-root/pytest-25/...0', 'approved_by': 'human-governance-lead', 'human_final_decision_required': True, 'quality_gate_required': True, ...})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13e02d4320>
+
+    def test_waiver_does_not_fabricate_challenge_and_conductor_stops(isolated,monkeypatch):
+        monkeypatch.setattr(cycle,'assert_contract_executable',lambda *_:None)
+        monkeypatch.setattr(cycle,'check_bundle_unchanged',lambda *_:None)
+        cid=_eligible(isolated,monkeypatch)
+        apply(cid)
+        from governance.ai_auditor.conductor import ReviewConductor
+        from governance.ai_auditor.schemas import EvidenceExaminerOutput
+        from governance.ai_auditor.skills import evidence_examiner
+        monkeypatch.setattr(evidence_examiner,'run',lambda *a,**k:EvidenceExaminerOutput(
+           sufficiency_score=1.,evidence_freshness='100%',open_evidence_gaps=[],
+           covered_elements=[],recommended_action='NONE',rationale='fixture preflight'))
+        decision=ReviewConductor().inspect(cid)
+>       assert decision.checkpoint=='CHALLENGE_REQUIRED'
+E       AssertionError: assert 'INVESTIGATION_REQUIRED' == 'CHALLENGE_REQUIRED'
+E         
+E         - CHALLENGE_REQUIRED
+E         + INVESTIGATION_REQUIRED
+
+tests/test_wb125_routine_waiver.py:127: AssertionError
+__________ test_conductor_auto_runs_clean_challenge_without_deciding ___________
+
+configured = ('S2-2-71f5907510', PosixPath('/tmp/pytest-of-root/pytest-25/test_conductor_auto_runs_clean0/policy.json'))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f13dfd58380>
+
+    def test_conductor_auto_runs_clean_challenge_without_deciding(configured,monkeypatch):
+        cid,_=configured
+        from governance.ai_auditor.conductor import ReviewConductor
+        from governance.ai_auditor.schemas import EvidenceExaminerOutput
+        from governance.ai_auditor.skills import evidence_examiner
+        monkeypatch.setenv('WB_GAAR_INDEPENDENT_CHALLENGE_ENABLED','1')
+        monkeypatch.setattr(evidence_examiner,'run',lambda *args,**kwargs:EvidenceExaminerOutput(
+            sufficiency_score=1.,evidence_freshness='100%',open_evidence_gaps=[],
+            covered_elements=[],recommended_action='NONE',rationale='lab fixture'))
+        from governance import independent_challenge
+        genuine_run=independent_challenge.run
+        monkeypatch.setattr(independent_challenge,'run',lambda cid:genuine_run(cid,invoke=lambda *_:responder()))
+        result=ReviewConductor().run_to_checkpoint(cid)
+>       assert result.checkpoint=='HUMAN_DECISION'
+E       AssertionError: assert 'INVESTIGATION_REQUIRED' == 'HUMAN_DECISION'
+E         
+E         - HUMAN_DECISION
+E         + INVESTIGATION_REQUIRED
+
+tests/test_wb126_independent_challenge.py:139: AssertionError
+=============================== warnings summary ===============================
+tests/test_auto_assess_workflow.py::test_stage_includes_ai_assessment_state
+  /root/.local/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function ZipFile.__del__ at 0x7f140ca228e0>
+  
+  Traceback (most recent call last):
+    File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/zipfile/__init__.py", line 1975, in __del__
+      def __del__(self):
+      
+    File "/root/.local/lib/python3.12/site-packages/pytest_timeout.py", line 317, in handler
+      timeout_sigalrm(item, settings)
+    File "/root/.local/lib/python3.12/site-packages/pytest_timeout.py", line 502, in timeout_sigalrm
+      pytest.fail(PYTEST_FAILURE_MESSAGE % settings.timeout)
+    File "/root/.local/lib/python3.12/site-packages/_pytest/outcomes.py", line 163, in __call__
+      raise Failed(msg=reason, pytrace=pytrace)
+  Failed: Timeout (>12.0s) from pytest-timeout.
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_g_integration.py::test_full_change_to_reassessment_to_conductor_checkpoint
+FAILED tests/test_reassessment_live_integration_wb110.py::test_human_decision_boundary_supersedes_r1_and_sets_r2_current
+FAILED tests/test_result_pipeline_integration.py::test_gaar_result_compiler_wires_human_decision_to_sealed_result
+FAILED tests/test_v04_governance.py::test_ticket_register_references_are_reconciled
+FAILED tests/test_wb115_ai_auditor.py::test_conductor_stops_at_human_decision_and_never_calls_decide
+FAILED tests/test_wb116_quality_gate.py::test_quality_gate_finalizable_when_four_dimensions_pass
+FAILED tests/test_wb116_quality_gate.py::test_quality_gate_log_is_hash_chained
+FAILED tests/test_wb116_quality_gate.py::test_persist_blocks_current_when_quality_gate_blocks
+FAILED tests/test_wb116_quality_gate.py::test_persist_sets_current_when_quality_gate_finalizable
+FAILED tests/test_wb125_routine_waiver.py::test_waiver_does_not_fabricate_challenge_and_conductor_stops
+FAILED tests/test_wb126_independent_challenge.py::test_conductor_auto_runs_clean_challenge_without_deciding
+11 failed, 1183 passed, 3 skipped, 1 warning in 289.43s (0:04:49)

@@ -1,0 +1,297 @@
+{
+  "status": "COMPLETED",
+  "framework": "INTERNAL",
+  "control_id": "CHANGE.MGMT",
+  "knowledge_version": "WB142.1",
+  "knowledge_sha256": "789946ac76ebb7b0d107483c0dc09ddc54ca78bd4a0fabf125f51348cbafaf44",
+  "edges": [
+    {
+      "framework": "INTERNAL",
+      "upstream": "CHANGE.MGMT",
+      "downstream": "ACCESS.PRIVILEGED",
+      "relation": "Actual credential use may differ from the identity and privilege approved for a change.",
+      "edge_id": "INTERNAL-003",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation.",
+      "discovery_depth": 1,
+      "investigation_direction": "DOWNSTREAM"
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "LOGGING.COVERAGE",
+      "downstream": "CHANGE.MGMT",
+      "relation": "Unobserved implementations cannot be reconciled using change tickets alone.",
+      "edge_id": "INTERNAL-004",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation.",
+      "discovery_depth": 1,
+      "investigation_direction": "UPSTREAM"
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "CHANGE.APPROVAL",
+      "downstream": "CHANGE.MGMT",
+      "relation": "Approvals must bind the executed target, content, actor, credential and implementation window.",
+      "edge_id": "INTERNAL-005",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation.",
+      "discovery_depth": 1,
+      "investigation_direction": "UPSTREAM"
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "CHANGE.FREEZE",
+      "downstream": "CHANGE.MGMT",
+      "relation": "A change inside a freeze needs a valid applicable exception under the governing policy.",
+      "edge_id": "INTERNAL-006",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation.",
+      "discovery_depth": 1,
+      "investigation_direction": "UPSTREAM"
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "INCIDENT.RESPONSE",
+      "downstream": "CHANGE.MGMT",
+      "relation": "Changes after incidents may be legitimate emergency remediation or may require further investigation.",
+      "edge_id": "INTERNAL-007",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation.",
+      "discovery_depth": 1,
+      "investigation_direction": "UPSTREAM"
+    },
+    {
+      "framework": "INTERNAL",
+      "upstream": "CHANGE.MGMT",
+      "downstream": "SERVICE.RECOVERY",
+      "relation": "Failed changes can leave services impaired unless rollback or authorized fix-forward is evidenced.",
+      "edge_id": "INTERNAL-008",
+      "version": "1",
+      "authority": "internal_investigation_hypothesis",
+      "review_status": "PROPOSED",
+      "owner_role": "control_knowledge_steward",
+      "provenance": [
+        "WB142 engineering interpretation of user investigation specification"
+      ],
+      "applicability": [
+        "Same investigated system, relevant assets and assessment period",
+        "Relationship must be corroborated with scoped evidence; framework mapping requires approval"
+      ],
+      "evidence_required": [
+        "Observed deployment/audit events, not tickets alone",
+        "Approved tickets with targets, actions, implementers, credentials, content hashes and approval times",
+        "Privilege grants and session identities",
+        "Timezone-aware freeze windows and exceptions",
+        "Incident and recovery records; collection completeness"
+      ],
+      "alternatives": [
+        "Timely authorized emergency exception",
+        "Approved delegated or service identity with a verified mapping",
+        "Clock normalization or incomplete logs",
+        "Approved fix-forward instead of rollback"
+      ],
+      "consequence_question": "If this dependency is ineffective, which downstream conclusion loses its evidential basis?",
+      "disproof_question": "What independent evidence or authorized exception would refute this explanation?",
+      "corroboration_rule": "Join observed event to its exact ticket, actual credential grant and policy interval. Check pre-execution authority and scoped exceptions. Verify incident context and recovery separately.",
+      "non_inference": "A dependency edge never proves a breach or propagates a failed verdict. Missing evidence is an assurance gap.",
+      "test_proposals": [
+        {
+          "tool": "change_reconciliation",
+          "version": "1",
+          "execution_status": "PROPOSED",
+          "decision_impact": "Distinguish an actual discrepancy from absence or a legitimate explanation"
+        }
+      ],
+      "procedure_status": "AVAILABLE_FOR_SCOPED_COMPARISON",
+      "escalation_rule": "Corroborated material risk requires disposition under authorized policy; speculation alone is not automatic escalation.",
+      "discovery_depth": 1,
+      "investigation_direction": "DOWNSTREAM"
+    }
+  ],
+  "edge_budget_exhausted": false,
+  "depth_boundary_remaining": false,
+  "max_depth": 2,
+  "max_edges": 40,
+  "changes_control_verdict": false,
+  "coverage_statement": "Bounded proposed catalogue search; no assertion of comprehensive control dependency coverage."
+}

@@ -1,0 +1,13 @@
+{
+  "source_id": "MAS-AI-CANDIDATE",
+  "issuer": "MAS",
+  "url": "https://www.mas.gov.sg/publications/consultations/2025/consultation-paper-on-guidelines-on-artificial-intelligence-risk-management",
+  "retrieved_at": "2026-09-20T09:36:32.902085+00:00",
+  "status": "QUARANTINED",
+  "authority": "UNAPPROVED",
+  "final_url": "https://www.mas.gov.sg/publications/consultations/2025/consultation-paper-on-guidelines-on-artificial-intelligence-risk-management",
+  "sha256": "bd18b53e70c59d6745e7ff5c5cc164f1e463439424489e6409410d00621acb5e",
+  "content_type": "text/html",
+  "byte_length": 853816,
+  "snapshot": "bd18b53e70c59d6745e7ff5c5cc164f1e463439424489e6409410d00621acb5e.snapshot"
+}

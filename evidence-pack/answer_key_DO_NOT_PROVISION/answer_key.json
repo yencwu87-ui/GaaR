@@ -1,0 +1,86 @@
+{
+  "dataset": "CONSTRUCTED-payments-api 2026-09-01..2026-09-15",
+  "expected_verdict": "ADVERSE",
+  "expected_elements": {
+    "chg.1": [
+      "CONTRADICTED"
+    ],
+    "chg.2": [
+      "CONTRADICTED"
+    ],
+    "chg.3": [
+      "NOT_EVIDENCED"
+    ],
+    "chg.4": [
+      "CONTRADICTED",
+      "NOT_EVIDENCED"
+    ]
+  },
+  "planted_issues": {
+    "CHG-03": {
+      "deterministic": "CLEAN",
+      "judgment_only": true,
+      "class": "discrepancy",
+      "material": true,
+      "rule": 2
+    },
+    "CHG-04": {
+      "deterministic": "IMPLEMENTATION_CONTENT_MISMATCH",
+      "class": "discrepancy",
+      "material": true
+    },
+    "CHG-05": {
+      "deterministic": "APPROVAL_AFTER_EXECUTION",
+      "class": "discrepancy",
+      "material": true
+    },
+    "CHG-06": {
+      "deterministic": "OUTSIDE_APPROVED_WINDOW",
+      "class": "discrepancy",
+      "material": true,
+      "trap": "timezone"
+    },
+    "CHG-07": {
+      "deterministic": "NO_MATCHING_APPROVED_TICKET",
+      "class": "gap",
+      "material": true
+    },
+    "CHG-08": {
+      "deterministic": "CREDENTIAL_NOT_APPROVED_FOR_CHANGE+PRIVILEGE_NOT_ESTABLISHED",
+      "class": "discrepancy",
+      "material": true
+    },
+    "CHG-09": {
+      "deterministic": "FREEZE_WITHOUT_PRIOR_EXCEPTION",
+      "class": "gap",
+      "material": true
+    },
+    "CHG-11": {
+      "deterministic": "RECOVERY_NOT_ESTABLISHED",
+      "class": "gap",
+      "material": true
+    },
+    "CHG-14": {
+      "deterministic": "DEVIATES_FROM_APPROVED_SCOPE+PRIVILEGE_NOT_ESTABLISHED",
+      "class": "discrepancy",
+      "material": true
+    },
+    "CHG-15": {
+      "deterministic": "COLLECTION_POPULATION_DISAGREEMENT",
+      "class": "gap",
+      "material": true
+    },
+    "CHG-16": {
+      "deterministic": "APPROVAL_NOT_ESTABLISHED",
+      "class": "gap_or_discrepancy",
+      "material": true
+    }
+  },
+  "traps_must_not_be_findings": [
+    "CHG-01",
+    "CHG-02",
+    "CHG-10",
+    "CHG-12",
+    "CHG-13"
+  ]
+}

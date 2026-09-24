@@ -1,0 +1,46 @@
+{
+  "status": "BLOCKED",
+  "checks": {
+    "model:examine": {
+      "status": "UNAVAILABLE",
+      "model": "CONFIGURE_ACTUAL_MODEL",
+      "reason": "URLError: <urlopen error [Errno 111] Connection refused>"
+    },
+    "model:explain": {
+      "status": "UNAVAILABLE",
+      "model": "CONFIGURE_ACTUAL_MODEL",
+      "reason": "URLError: <urlopen error [Errno 111] Connection refused>"
+    },
+    "model:plan": {
+      "status": "UNAVAILABLE",
+      "model": "CONFIGURE_ACTUAL_MODEL",
+      "reason": "URLError: <urlopen error [Errno 111] Connection refused>"
+    },
+    "model:challenge": {
+      "status": "UNAVAILABLE",
+      "model": "CONFIGURE_ACTUAL_MODEL",
+      "reason": "URLError: <urlopen error [Errno 111] Connection refused>"
+    },
+    "identities": {
+      "status": "UNAVAILABLE",
+      "reason": "'assessor'"
+    },
+    "sources": {
+      "status": "UNAVAILABLE",
+      "reason": "No approved source snapshots configured"
+    },
+    "held_out_judgment": {
+      "status": "NOT_EVALUATED",
+      "reason": "Independent held-out corpus and recorded inference required"
+    }
+  },
+  "blockers": [
+    "model:examine",
+    "model:explain",
+    "model:plan",
+    "model:challenge",
+    "identities",
+    "sources"
+  ],
+  "production_readiness": "NOT_ESTABLISHED"
+}

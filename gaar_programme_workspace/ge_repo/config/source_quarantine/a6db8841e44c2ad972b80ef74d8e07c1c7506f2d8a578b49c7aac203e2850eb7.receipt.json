@@ -1,0 +1,9 @@
+{
+  "source_id": "HKMA-INDEX-CANDIDATE",
+  "issuer": "HKMA",
+  "url": "https://www.hkma.gov.hk/eng/regulatory-resources/regulatory-guides/circulars/",
+  "retrieved_at": "2026-09-20T09:36:53.293617+00:00",
+  "status": "UNABLE_TO_CHECK",
+  "authority": "UNAPPROVED",
+  "error": "HTTPError: HTTP Error 404: Not Found"
+}

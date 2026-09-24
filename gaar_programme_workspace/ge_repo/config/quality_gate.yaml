@@ -1,0 +1,17 @@
+version: wb116.v1
+evidence:
+  sufficiency_threshold: 0.70
+  min_sources: 1
+reasoning:
+  require_assessment: true
+  require_rationale: true
+  require_maturity: true
+  require_sufficiency: true
+  require_comparison: true
+governance:
+  require_human_decision: true
+  block_on_validation_failure: true
+  block_on_unresolved_strong_challenge: true
+provenance:
+  require_valid_seal: true
+  require_lineage_links: true

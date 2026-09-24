@@ -1,0 +1,33 @@
+autopilot:
+  enabled: false
+  max_concurrent_reassessments: 3
+  scan_intervals:
+    regulatory: 3600
+    evidence_freshness: 86400
+    threat_intel: 300
+    model_updates: 3600
+  human_checkpoint_triggers:
+    - strong_unresolved_challenge
+    - material_regulatory_change
+    - evidence_contradiction
+    - quality_gate_failure
+    - high_risk_control
+    - model_disagreement
+    - provenance_failure
+    - ambiguous_requirement
+  reassessment:
+    max_evidence_age_days: 90
+    min_evidence_sources: 1
+    evidence_sufficiency_threshold: 0.70
+  colibri_escalation:
+    enabled: true
+    policy: governed-v1
+    triggers:
+      - ambiguity
+      - evidence_contradiction
+      - reviewer_assessor_disagreement
+      - unresolved_strong_challenge
+      - high_risk_control
+      - material_regulatory_change
+      - prior_validation_failure
+      - critical_complexity

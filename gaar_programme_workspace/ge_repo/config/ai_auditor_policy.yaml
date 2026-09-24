@@ -1,0 +1,29 @@
+version: wb115.v1
+mode: supervised_autopilot
+human_exception_policy:
+  evidence_sufficiency_threshold: 0.70
+  freshness_max_age_days: 365
+  require_human_on_strong_challenge: true
+  require_human_on_blocked_challenge: true
+  require_human_on_critical_control: true
+  final_decision_requires_human: true
+
+# The Conductor may run these skills without human intervention.
+automated_skills:
+  - evidence_examiner
+  - assessor
+  - control_narrative
+  - compare
+  - challenger
+  - challenge_auditor
+  - challenge_copilot
+  - provenance_auditor
+  - quality_auditor
+
+# These are explicit stop nodes. The Conductor cannot synthesize them.
+human_checkpoints:
+  - blind_read
+  - unresolved_strong_challenge
+  - blocked_challenge
+  - critical_control_exception
+  - final_decision

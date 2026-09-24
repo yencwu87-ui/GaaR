@@ -1,0 +1,10 @@
+{
+  "release": "WB141 operational candidate",
+  "live_agents": "BLOCKED_NO_CONFIGURED_ENDPOINT",
+  "judgment_quality": "NOT_EVALUATED_NO_APPROVED_CORPUS",
+  "production_configuration": "BLOCKED_NO_TRUSTED_IDENTITIES_OR_APPROVED_SNAPSHOTS",
+  "procedures": "FOUR_SUPPLIED_RECORD_COMPARISONS_IMPLEMENTED; NOT_FULL_M36_COVERAGE",
+  "operational_workflow": "ENTRY_POINT_IMPLEMENTED; REAL_END_TO_END_UNVERIFIED",
+  "regression": "FULL_RUN_1210_PASSED_3_SKIPPED_0_WARNINGS; FINAL_TARGETED_25_PASSED",
+  "production_readiness": "NOT_ESTABLISHED"
+}

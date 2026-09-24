@@ -1,0 +1,103 @@
+{
+  "$defs": {
+    "Expectation": {
+      "additionalProperties": false,
+      "properties": {
+        "element_id": {
+          "minLength": 1,
+          "title": "Element Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "source_version": {
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        },
+        "authority": {
+          "enum": [
+            "binding",
+            "guidance",
+            "consultation",
+            "internal",
+            "unverified"
+          ],
+          "title": "Authority",
+          "type": "string"
+        },
+        "purpose": {
+          "enum": [
+            "design",
+            "operating",
+            "outcome"
+          ],
+          "title": "Purpose",
+          "type": "string"
+        },
+        "applies": {
+          "title": "Applies",
+          "type": "boolean"
+        },
+        "applicability_reason": {
+          "minLength": 1,
+          "title": "Applicability Reason",
+          "type": "string"
+        },
+        "uncertainty": {
+          "default": "",
+          "title": "Uncertainty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "element_id",
+        "text",
+        "source_id",
+        "source_sha256",
+        "source_version",
+        "authority",
+        "purpose",
+        "applies",
+        "applicability_reason"
+      ],
+      "title": "Expectation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "requirement_version": {
+      "minLength": 1,
+      "title": "Requirement Version",
+      "type": "string"
+    },
+    "elements": {
+      "items": {
+        "$ref": "#/$defs/Expectation"
+      },
+      "minItems": 1,
+      "title": "Elements",
+      "type": "array"
+    }
+  },
+  "required": [
+    "requirement_version",
+    "elements"
+  ],
+  "title": "ApplicableExpectations",
+  "type": "object"
+}

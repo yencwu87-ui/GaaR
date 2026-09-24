@@ -1,0 +1,9 @@
+challenge.py
+challenge_copilot.py
+challenge_dossier.py
+core/cycle.py
+events.py
+app.py
+tests/test_wb113_disagreement_anchor_copilot.py
+WB113_RELEASE_NOTES.md
+WB113_CHANGED_FILES.txt

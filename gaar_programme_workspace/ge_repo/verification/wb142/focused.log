@@ -1,0 +1,78 @@
+....................................F.                                   [100%]
+=================================== FAILURES ===================================
+_____ test_07_adverse_finalizable_without_deployment_and_legacy_gate_wired _____
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_07_adverse_finalizable_wi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f3651eade50>
+
+    def test_07_adverse_finalizable_without_deployment_and_legacy_gate_wired(tmp_path, monkeypatch):
+        engine, signers = fixture_environment(tmp_path)
+        iid = prepare(engine, signers)
+        gate = finish(engine, signers, iid)
+        assert gate["assessment_finalizable"] and gate["verdict"] == "ADVERSE"
+        assert not gate["deployment_authorized"]
+        assert all(x["route"] == "policy_auto" for x in gate["escalation_decisions"])
+        from governance.investigation import bridge
+        _, v = engine.snapshot(iid)
+        state = {"control_id": "ASSET.INVENTORY", "framework": "INTERNAL-DEMO",
+            "evidence": {"text": "\n".join(x.text for x in v["examine"].evidence)},
+            "governance_context": {"investigation_id": iid, "investigation_head": gate["head"],
+               "requirement_version_id": "demo-v1", "assessment_scope": v["understand"].scope.model_dump()}}
+        monkeypatch.setenv("WB_INVESTIGATION_CONFIG", str(tmp_path / "public_config.json"))
+        assert bridge.cycle_gate(state)["assessment_finalizable"]
+        bad = copy.deepcopy(state)
+        bad["governance_context"]["investigation_head"] = "0" * 64
+        assert not bridge.cycle_gate(bad)["assessment_finalizable"]
+        bad = copy.deepcopy(state)
+        bad["evidence"] = {"text": "another system"}
+        assert not bridge.cycle_gate(bad)["assessment_finalizable"]
+        monkeypatch.setenv("WB_INVESTIGATION_REQUIRED", "0")
+        assert bridge.required(state)  # bound records cannot downgrade to legacy mode
+        # The existing persistence boundary blocks before appending a result, even
+        # when the legacy quality gate is disabled.
+        import governance.result_integration as integration
+        monkeypatch.setenv("WB_INVESTIGATION_REQUIRED", "1")
+        monkeypatch.setenv("WB_GAAR_QUALITY_GATE", "0")
+        monkeypatch.setenv("WB_GAAR_RESULT_STORE", str(tmp_path / "results.jsonl"))
+        blocked = integration.persist_and_set_current(object(), actor_id="fixture", decision_id="fixture", governance_context={})
+        assert blocked["blocked"] and blocked["state_event"] is None
+        # Real signed FAIL result through the existing quality/persistence path. The
+        # test isolates state lookup/control registry, not signatures or result logic.
+        from types import SimpleNamespace
+        import events
+>       import governance.quality_gate as qg
+
+tests/test_wb140_acceptance.py:224: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+governance/quality_gate.py:20: in <module>
+    from governance.ai_auditor.conductor import ReviewConductor
+governance/ai_auditor/conductor.py:16: in <module>
+    from .skills import evidence_examiner, challenge_auditor, control_narrative, quality_auditor
+governance/ai_auditor/skills/__init__.py:1: in <module>
+    from . import evidence_examiner, challenge_auditor, control_narrative, provenance_auditor, quality_auditor
+governance/ai_auditor/skills/control_narrative.py:8: in <module>
+    from inference.orchestrator import run_with_escalation
+inference/__init__.py:7: in <module>
+    from .orchestrator import run_with_escalation
+inference/orchestrator.py:9: in <module>
+    from llm.colibri import chat as call_colibri
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Colibri OpenAI-compatible transport.
+    
+    Colibri exposes a text-only OpenAI-compatible HTTP API (typically at http://127.0.0.1:8000/v1).
+    This adapter keeps the governance engine provider-neutral: the inference policy decides when to
+    use Colibri, while this module owns only transport, timeout and response-shape handling.
+    """
+    from __future__ import annotations
+    
+    import os
+    from urllib.parse import urljoin
+    
+>   import requests
+E   ModuleNotFoundError: No module named 'requests'
+
+llm/colibri.py:12: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_wb140_acceptance.py::test_07_adverse_finalizable_without_deployment_and_legacy_gate_wired
+1 failed, 37 passed in 0.76s

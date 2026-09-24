@@ -1,0 +1,29 @@
+..........................F...........                                   [100%]
+=================================== FAILURES ===================================
+___________ test_full_change_to_reassessment_to_conductor_checkpoint ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-26/test_full_change_to_reassessme0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f72a863f320>
+
+    def test_full_change_to_reassessment_to_conductor_checkpoint(tmp_path,monkeypatch):
+        monkeypatch.setenv('WB_GAAR_CHANGE_INTELLIGENCE','1'); monkeypatch.setenv('WB_GAAR_REASSESSMENT_WORKFLOW','1')
+        old=_result(); rs=ResultStore(tmp_path/'results.jsonl'); sl=ResultStateLog(tmp_path/'states.jsonl'); rs.append(old)
+        sl.append(approve_result(old,actor_id='human-old',decision_id='HD-OLD',reason='approved'))
+        _seed_source_cycle(tmp_path,old); ch,imp,candidate=_change(old)
+        trig_store=TriggerStore(tmp_path/'triggers.jsonl'); mon=ChangeMonitor(trig_store)
+        trig=mon.emit(trigger_type=TriggerType.GOVERNANCE_CHANGE,control_id='M3.6',framework='MAS',reason='material regulation change',material=True,
+            source_id=ch.source_id,change_id=ch.change_id,payload=ch.to_dict())
+        policy=AutopilotPolicy(enabled=True,max_concurrent_reassessments=2,evidence_sufficiency_threshold=0.5)
+        sched=AutopilotScheduler(tmp_path/'jobs.jsonl',policy=policy); queued=sched.enqueue(trig); running=sched.claim()[0]
+        loop=ContinuousGovernanceLoop(policy=policy,scheduler=sched,result_store=rs,state_log=sl)
+        out=loop.run_job(running,trig,change=ch,impact=imp,candidate_requirements=candidate)
+        assert out.state_events==1 and len(out.cycle_ids)==1
+        assert sl.current_state(old.result_id)==ValidityState.REASSESSING
+        assert out.human_attention_required is True
+>       assert out.checkpoints[-1] in {'HUMAN_READ','EVIDENCE_REQUIRED','HUMAN_DECISION','HUMAN_EXCEPTION'}
+E       AssertionError: assert 'INVESTIGATION_REQUIRED' in {'EVIDENCE_REQUIRED', 'HUMAN_DECISION', 'HUMAN_EXCEPTION', 'HUMAN_READ'}
+
+tests/test_g_integration.py:63: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_g_integration.py::test_full_change_to_reassessment_to_conductor_checkpoint
+1 failed, 37 passed in 1.80s

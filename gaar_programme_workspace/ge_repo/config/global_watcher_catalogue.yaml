@@ -1,0 +1,33 @@
+# WB-131: DISCOVERY CATALOGUE ONLY, NOT config/watcher_sources.yaml.
+# Entries here are NOT monitored, fetched, parsed, verified, or approved sources.
+# To operate a source, implement/verify a supported connector and add it to the
+# approved Watcher source registry with explicit domains and publication classes.
+# A regulator's domain is a ceiling for POSSIBLE authority, never a blanket rule.
+catalogue_version: gaar.global-watcher-reference.v1
+state: REFERENCE_ONLY_NOT_LIVE_COVERAGE
+sources:
+  - {jurisdiction: SG, issuer: MAS, lane: regulatory, publication_types: [notice, guideline, consultation, circular, announcement], url: 'https://www.mas.gov.sg/regulation', integration: QUARANTINE_ON_DEMAND_FETCHER_ONLY_NOT_LIVE_MONITORING}
+  - {jurisdiction: SG, issuer: Singapore Statutes Online, lane: legislation, publication_types: [act, subsidiary_legislation], url: 'https://sso.agc.gov.sg/', integration: NOT_CONFIGURED}
+  - {jurisdiction: SG, issuer: PDPC, lane: regulatory, publication_types: [guidance, model_framework], url: 'https://www.pdpc.gov.sg/', integration: NOT_CONFIGURED}
+  - {jurisdiction: SG, issuer: CSA, lane: threat, publication_types: [advisory, vulnerability_alert], url: 'https://www.csa.gov.sg/', integration: NOT_CONFIGURED}
+  - {jurisdiction: MY, issuer: Bank Negara Malaysia, lane: regulatory, publication_types: [policy_document, exposure_draft, guidance], url: 'https://www.bnm.gov.my/', integration: NOT_CONFIGURED}
+  - {jurisdiction: MY, issuer: Securities Commission Malaysia, lane: regulatory, publication_types: [guideline, consultation, rule], url: 'https://www.sc.com.my/', integration: NOT_CONFIGURED}
+  - {jurisdiction: HK, issuer: HKMA, lane: regulatory, publication_types: [circular, guideline, consultation, code_of_practice], url: 'https://brdr.hkma.gov.hk/eng/main', integration: WB136_OPT_IN_BRDR_INDEX_CONNECTOR}
+  - {jurisdiction: HK, issuer: SFC, lane: regulatory, publication_types: [code, guideline, consultation], url: 'https://www.sfc.hk/', integration: NOT_CONFIGURED}
+  - {jurisdiction: HK, issuer: PCPD, lane: regulatory, publication_types: [privacy_guidance], url: 'https://www.pcpd.org.hk/', integration: NOT_CONFIGURED}
+  - {jurisdiction: CN, issuer: NFRA, historical_issuer: CBIRC, lane: regulatory, publication_types: [rule, guidance, notice, consultation], url: 'https://www.nfra.gov.cn/', integration: WB136_OPT_IN_RULES_INDEX_PLUS_BILINGUAL_REVIEW}
+  - {jurisdiction: CN, issuer: PBOC, lane: regulatory, publication_types: [rule, guidance, consultation], url: 'https://www.pbc.gov.cn/', integration: NOT_CONFIGURED}
+  - {jurisdiction: CN, issuer: CAC, lane: regulatory, publication_types: [regulation, draft, guidance], url: 'https://www.cac.gov.cn/', integration: NOT_CONFIGURED}
+  - {jurisdiction: UK, issuer: FCA, lane: regulatory, publication_types: [handbook_rule, consultation_paper, policy_statement, guidance], url: 'https://www.fca.org.uk/publications', integration: QUARANTINE_ON_DEMAND_FETCHER_ONLY_NOT_LIVE_MONITORING}
+  - {jurisdiction: UK, issuer: PRA, lane: regulatory, publication_types: [rulebook_rule, consultation_paper, policy_statement, supervisory_statement], url: 'https://www.prarulebook.co.uk/', integration: NOT_CONFIGURED}
+  - {jurisdiction: UK, issuer: UK Legislation, lane: legislation, publication_types: [act, statutory_instrument], url: 'https://www.legislation.gov.uk/', integration: NOT_CONFIGURED}
+  - {jurisdiction: UK, issuer: ICO, lane: regulatory, publication_types: [data_protection_guidance], url: 'https://ico.org.uk/', integration: NOT_CONFIGURED}
+  - {jurisdiction: UK, issuer: NCSC, lane: threat, publication_types: [security_advisory], url: 'https://www.ncsc.gov.uk/', integration: NOT_CONFIGURED}
+  - {jurisdiction: US, issuer: SEC, lane: regulatory, publication_types: [proposed_rule, final_rule, guidance], url: 'https://www.sec.gov/rules-regulations', integration: NOT_CONFIGURED}
+  - {jurisdiction: US, issuer: Federal Register, lane: legislation, publication_types: [proposed_rule, final_rule, notice], url: 'https://www.federalregister.gov/', integration: NOT_CONFIGURED}
+  - {jurisdiction: US, issuer: OCC, lane: regulatory, publication_types: [bulletin, guidance], url: 'https://www.occ.gov/', integration: NOT_CONFIGURED}
+  - {jurisdiction: US, issuer: NIST, lane: standard, publication_types: [ai_rmf, standards, guidance], url: 'https://www.nist.gov/', integration: NOT_CONFIGURED}
+  - {jurisdiction: US, issuer: CISA, lane: threat, publication_types: [known_exploited_vulnerability], url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog', integration: SEE_SEPARATE_DISABLED_CISA_FEED_IN_WATCHER_SOURCES}
+  - {jurisdiction: GLOBAL, issuer: ISO/IEC, lane: standard, publication_types: [iso_iec_42001], url: 'https://www.iso.org/standard/42001', integration: NOT_CONFIGURED_LICENSE_REVIEW_REQUIRED}
+  - {jurisdiction: GLOBAL, issuer: IAPP, lane: professional_research, publication_types: [aigp_certification_content, research], url: 'https://iapp.org/', integration: NOT_CONFIGURED_NOT_REGULATORY_AUTHORITY}
+  - {jurisdiction: GLOBAL, issuer: OECD, lane: policy, publication_types: [ai_principles, research], url: 'https://oecd.ai/', integration: NOT_CONFIGURED}

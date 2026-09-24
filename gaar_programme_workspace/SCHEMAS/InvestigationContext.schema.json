@@ -1,0 +1,93 @@
+{
+  "$defs": {
+    "Scope": {
+      "additionalProperties": false,
+      "properties": {
+        "system_id": {
+          "minLength": 1,
+          "title": "System Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "period": {
+          "minLength": 1,
+          "title": "Period",
+          "type": "string"
+        }
+      },
+      "required": [
+        "system_id",
+        "version",
+        "period"
+      ],
+      "title": "Scope",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "investigation_id": {
+      "minLength": 1,
+      "title": "Investigation Id",
+      "type": "string"
+    },
+    "control_id": {
+      "minLength": 1,
+      "title": "Control Id",
+      "type": "string"
+    },
+    "framework": {
+      "minLength": 1,
+      "title": "Framework",
+      "type": "string"
+    },
+    "requirement_version": {
+      "minLength": 1,
+      "title": "Requirement Version",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/Scope"
+    },
+    "boundary": {
+      "minLength": 1,
+      "title": "Boundary",
+      "type": "string"
+    },
+    "owner": {
+      "minLength": 1,
+      "title": "Owner",
+      "type": "string"
+    },
+    "criticality": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Criticality",
+      "type": "string"
+    },
+    "synthetic": {
+      "default": false,
+      "title": "Synthetic",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "investigation_id",
+    "control_id",
+    "framework",
+    "requirement_version",
+    "scope",
+    "boundary",
+    "owner",
+    "criticality"
+  ],
+  "title": "InvestigationContext",
+  "type": "object"
+}

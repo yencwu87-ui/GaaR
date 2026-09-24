@@ -1,0 +1,13 @@
+{
+  "source_id": "NFRA-INDEX-CANDIDATE",
+  "issuer": "NFRA",
+  "url": "https://www.nfra.gov.cn/",
+  "retrieved_at": "2026-09-20T09:37:03.060716+00:00",
+  "status": "QUARANTINED",
+  "authority": "UNAPPROVED",
+  "final_url": "https://www.nfra.gov.cn/",
+  "sha256": "bf53f96b07fd8671804af243440ac4275f567a39b07a1c66ba8f6279ae72c7eb",
+  "content_type": "text/html",
+  "byte_length": 237,
+  "snapshot": "bf53f96b07fd8671804af243440ac4275f567a39b07a1c66ba8f6279ae72c7eb.snapshot"
+}

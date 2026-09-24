@@ -1,0 +1,9 @@
+{
+  "source": "Phase 0 run B on the user's Mac, 2026-09-22; signed receipt from run_B_qwen25_7b_20260922_173916.zip",
+  "model": "qwen2.5:7b",
+  "provider": "ollama",
+  "prompt_sha256": "ecf1cf9395739ab7b5901878b2082803360c6564bc56a611608a84075d948859",
+  "response_sha256": "7bd1f6bd6e8d209aeb71a12df84a1923aeeaa22742be7467a1d270c1e720eb05",
+  "response": "{\n  \"findings\": [\n    {\n      \"element_id\": \"chg.1\",\n      \"evidence_refs\": [\"CHANGES\"],\n      \"rationale\": \"All changes in the CHANGES record have a corresponding ticket with an approved_by field, indicating that each change was approved by an authorised approver who is not its implementer.\",\n      \"status\": \"SUPPORTED\"\n    },\n    {\n      \"element_id\": \"chg.2\",\n      \"evidence_refs\": [\"CHANGES\"],\n      \"rationale\": \"Each change in the CHANGES record has a ticket with fields that match the required window, targets, actions, implementer, credential, and a valid privilege grant.\",\n      \"status\": \"SUPPORTED\"\n    },\n    {\n      \"element_id\": \"chg.3\",\n      \"evidence_refs\": [\"CHANGES\", \"POPULATION\"],\n      \"rationale\": \"All changes in the CHANGES record are either outside of freezes or have a corresponding exception in the freeze_exceptions record. Additionally, all failed changes have a corresponding recovery record.\",\n      \"status\": \"SUPPORTED\"\n    },\n    {\n      \"element_id\": \"chg.4\",\n      \"evidence_refs\": [\"CHANGES\", \"POPULATION\"],\n      \"rationale\": \"The CHANGES record is complete, with all changes matching the event_ids in the independent record from the POPULATION evidence.\",\n      \"status\": \"SUPPORTED\"\n    }\n  ]\n}",
+  "finding": "J3: cited evidence, passed the examine validator, SUPPORTED on all four obligations; answer key says 0 of 4 correct"
+}

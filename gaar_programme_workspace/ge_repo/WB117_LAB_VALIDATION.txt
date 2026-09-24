@@ -1,0 +1,22 @@
+WB-117 LAB VALIDATION
+
+WB-116 acceptance reproduction:
+- compileall: PASS
+- WB-113/WB-115/WB-116 focused suite: 19 passed
+- positive integration: FINALIZABLE, blocked=False, state=CURRENT
+- blocked integration: BLOCKED, blocked=True, no CURRENT state event
+- blocker: reasoning:rationale_present
+- quality gate records: 2
+- quality gate hash chain: OK
+
+WB-117 governed Colibri policy:
+- dedicated WB-117 suite: 10 passed
+- critical combined stack: 101 passed
+- routine/complex-only control under governed mode: provider=ollama, deep_reasoning=false
+- reviewer disagreement + unresolved strong challenge: provider=colibri, deep_reasoning=true
+- escalation reasons are explicit in plan/telemetry
+- router-selected generation/context budgets preserved
+
+Environment limitation:
+- No real Mac-local Colibri/Ollama/Streamlit service was available in this lab.
+- Therefore this is LAB-GREEN, not Mac-live-green for provider transport/browser behavior.

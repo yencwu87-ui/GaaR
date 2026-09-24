@@ -1,0 +1,75 @@
+{
+  "store": "investigations.sqlite",
+  "trusted_keys": {
+    "synthetic-owner": {
+      "actor": "SYNTHETIC-owner",
+      "actor_type": "service",
+      "public_key": "CF+3ZVXadbprM2521G6CWBVGie7EaP404UfEI8E79ZM=",
+      "roles": [
+        "owner"
+      ],
+      "allow_auto_block": false
+    },
+    "synthetic-governance": {
+      "actor": "SYNTHETIC-governance",
+      "actor_type": "service",
+      "public_key": "gHrV5mcg1Wbu0v7kSSHBgt/0WyOITCJ4kXMAj7dLMOQ=",
+      "roles": [
+        "governance"
+      ],
+      "allow_auto_block": false
+    },
+    "synthetic-assessor": {
+      "actor": "SYNTHETIC-assessor",
+      "actor_type": "service",
+      "public_key": "/XEAhlpgneB1zfsYM+xhWT1c/ekKolqH1bl7k+K2f3E=",
+      "roles": [
+        "assessor"
+      ],
+      "allow_auto_block": false
+    },
+    "synthetic-test_planner": {
+      "actor": "SYNTHETIC-test_planner",
+      "actor_type": "service",
+      "public_key": "R/oO7q3b2eoqPxSeRuZmo2rEZAzAOGipFiY4GgFnU3w=",
+      "roles": [
+        "test_planner"
+      ],
+      "allow_auto_block": false
+    },
+    "synthetic-executor": {
+      "actor": "SYNTHETIC-executor",
+      "actor_type": "service",
+      "public_key": "WGXkjdgOK/r8KwcuBmzHYvqswM/7CvZSf8IvUd4gvKc=",
+      "roles": [
+        "executor"
+      ],
+      "allow_auto_block": false
+    },
+    "synthetic-challenger": {
+      "actor": "SYNTHETIC-challenger",
+      "actor_type": "service",
+      "public_key": "BXZ8bnzjZ4ETC5RskSTz6MFwjU8BrbSwQ005WeosaQs=",
+      "roles": [
+        "challenger"
+      ],
+      "allow_auto_block": false
+    },
+    "synthetic-decision": {
+      "actor": "SYNTHETIC-decision",
+      "actor_type": "service",
+      "public_key": "C0gk7she/h2PRgomnC4GhrYyXxxN8DXHOF5MxmZ21bY=",
+      "roles": [
+        "decision"
+      ],
+      "allow_auto_block": true
+    }
+  },
+  "sources": {
+    "INTERNAL-DEMO": {
+      "sha256": "7540377f73e2558368b1172b720c8a3b7bcefa841ad15f67a4cfd619de853649",
+      "version": "demo-v1",
+      "authority": "internal"
+    }
+  }
+}

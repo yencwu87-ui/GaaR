@@ -1,0 +1,41 @@
+{
+  "schema": "asset-reconciliation.1",
+  "status": "COMPUTED_ON_SUPPLIED_EXPORTS",
+  "synthetic": true,
+  "scope": "credit-platform-v2.3",
+  "as_of": "2026-09-20T00:00:00Z",
+  "population_basis": "unique asset IDs in discovery export; not guaranteed complete",
+  "discovered_count": 3,
+  "inventory_count": 3,
+  "unregistered_ids": [
+    "c"
+  ],
+  "inventory_not_discovered_ids": [
+    "retired"
+  ],
+  "unregistered_fraction": 0.3333333333333333,
+  "missing_configuration_records": [
+    "c"
+  ],
+  "missing_vulnerability_records": [
+    "c"
+  ],
+  "unregistered_and_missing_both": [
+    "c"
+  ],
+  "duplicate_rows": {
+    "inventory": 0,
+    "discovery": 0,
+    "configuration": 0,
+    "vulnerability": 0
+  },
+  "source_ids": {
+    "inventory": "inventory-SYNTHETIC",
+    "discovery": "discovery-SYNTHETIC",
+    "configuration": "configuration-SYNTHETIC",
+    "vulnerability": "vulnerability-SYNTHETIC"
+  },
+  "input_sha256": "64382b259c6e10a924e995098c6bc0b4f69f4ca726a0a82e14313ecba99bf521",
+  "limitation": "Missing export records do not establish misconfiguration or unpatched vulnerabilities. Validate collection, exceptions and actual technical results.",
+  "changes_control_verdict": false
+}
