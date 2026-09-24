@@ -176,7 +176,7 @@ def test_the_simple_view_has_no_execution_path():
     assert not _calls(source) & FORBIDDEN_CALLS and not JOURNAL_WRITE.search(source)
     labels = [n.args[0].value for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Call)
               and getattr(n.func, "attr", None) == "button" and n.args and isinstance(n.args[0], ast.Constant)]
-    assert labels == ["Open"]                                           # the only button opens an item
+    assert labels and set(labels) == {"Open"}                           # every button only opens an item
 
 
 def _simple_app(monkeypatch, config_path):

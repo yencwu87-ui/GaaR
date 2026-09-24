@@ -120,12 +120,46 @@ def _series_items(config, root, now) -> list[dict]:
     return items
 
 
+def _watch_items(now) -> list[dict]:
+    """Regulatory watch: failing sources are system work; untriaged P1/P2 intel is a person's work."""
+    from governance.watcher import intel
+    if not intel.configured():
+        return []
+    found = []
+    for h in intel.health(now=now):
+        if h["state"] in ("FAILING", "OVERDUE"):
+            found.append({"id": f"watch:{h['source_id']}", "who": SYSTEM, "kind": "watch_source",
+                          "title": f"Regulatory watch cannot check {h['source_id']}" if h["state"] == "FAILING"
+                                   else f"Regulatory watch has not checked {h['source_id']} on schedule",
+                          "why": (h["error"] or "no successful check within two intervals")
+                                 + f" · {h['consecutive_failures']} failed attempt(s) in a row"
+                                 + (f" · last success {h['last_success'][:16]}" if h["last_success"] else " · never succeeded"),
+                          "action": "Until this is fixed, 'no new publications' from this source means nothing. "
+                                    "Retries run automatically; if it keeps failing, check the source page or unsubscribe.",
+                          "origin": {"watch_source": h["source_id"]}})
+    rules = intel.subscriptions()["triage_due_days"]
+    for i in intel.needs_triage(now=now):
+        since = _when(i["first_seen"])
+        due = since + timedelta(days=rules[i["priority"]])
+        controls = ", ".join(f"{m['framework']} {m['control_id']}" for m in i.get("matched_controls") or [])
+        found.append({"id": f"intel:{i['item_id']}", "who": HUMAN, "kind": "triage", "intel_item_id": i["item_id"],
+                      "title": f"{i['priority']} · {i['title']}",
+                      "why": ("Likely touches " + controls + ". " if controls else "")
+                             + {"CONSULTATION": "Consultation: a future obligation.", "INSTRUMENT": "Instrument: may apply now.",
+                                "THREAT_DIGEST": "New actively exploited vulnerabilities."}.get(i["kind"], ""),
+                      "action": "Open it and mark it relevant, not relevant, or keep watching.",
+                      "since": i["first_seen"], "due": due.isoformat(),
+                      "due_rule": f"{i['priority']} triage within {rules[i['priority']]} day(s) (watch subscriptions)",
+                      "overdue": now > due, "origin": {"watch_item": i["item_id"], "source": i["source_id"]}})
+    return found
+
+
 def items(config_path, now: datetime | None = None) -> list[dict]:
     from governance.operations.runtime import load
     config_path = Path(config_path).expanduser().resolve()
     config, root = load(config_path)
     now = now or datetime.now().astimezone()
-    found = _system_items(config, root, now, config_path) + _series_items(config, root, now)
+    found = _system_items(config, root, now, config_path) + _series_items(config, root, now) + _watch_items(now)
     for item in found:
         if item.get("since"):
             item["age_days"] = round((now - _when(item["since"])).total_seconds() / 86400, 1)
@@ -154,10 +188,14 @@ def status_line(config_path, now: datetime | None = None, found: list[dict] | No
     overdue = sum(bool(i.get("overdue")) for i in human)
     parts.append(f"{len(human)} item(s) waiting" + (f" ({overdue} overdue)" if overdue else ""))
     health = scheduler.status(config, root, now)
+    covered = [name for name, outcome in health.get("jobs", {}).items() if outcome.get("status") != "NOT_CONFIGURED"]
     parts.append("scheduler has never run" if health["state"] == "NEVER_RAN" else
                  f"scheduler last ran {scheduler.since(health['age_seconds'])}"
-                 + (" — STALE" if health["state"] == "STALE" else ""))
-    help_text = ("This line reports gate state; it is not the gates. It is derived from the gate-status report the "
+                 + (" — STALE" if health["state"] == "STALE" else "")
+                 + (f" (covers {', '.join(covered)})" if covered else ""))
+    help_text = ("It covers only the jobs named; anything else (for example the classic workbench's own Watcher tab) "
+                 "is outside it. "
+                 "This line reports gate state; it is not the gates. It is derived from the gate-status report the "
                  "scheduler generates"
                  + (f" (content hash {report['body_sha256'][:12]}, as of {report['as_of'][:19]})" if report else "")
                  + " and from the signed journals, never typed in by hand. Verify a report with "

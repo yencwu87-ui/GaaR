@@ -1,0 +1,33 @@
+# Regulatory watch catalogue (kit v21): sources you can subscribe to, in addition to the official
+# publication indexes in official_publication_indexes.yaml. Subscribing is done in the watch home
+# (subscriptions.yaml), not here. A source's page structure is only proven by its first successful
+# scan on your network: until then it reads NEVER_CHECKED, and a failed scan is UNABLE_TO_CHECK,
+# never "no updates".
+indexes:
+  - source_id: mas-guidelines-index
+    jurisdiction: Singapore
+    authority: MAS
+    url: https://www.mas.gov.sg/regulation/guidelines
+    approved_hosts: [www.mas.gov.sg]
+    path_prefixes: [/regulation/guidelines/]
+    max_items: 100
+  - source_id: mas-circulars-index
+    jurisdiction: Singapore
+    authority: MAS
+    url: https://www.mas.gov.sg/regulation/circulars
+    approved_hosts: [www.mas.gov.sg]
+    path_prefixes: [/regulation/circulars/]
+    max_items: 100
+feeds:
+  - source_id: cisa-kev
+    jurisdiction: GLOBAL
+    authority: CISA
+    kind: threat
+    url: https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+    approved_hosts: [www.cisa.gov]
+    items_field: vulnerabilities
+    id_field: cveID
+    title_fields: [cveID, vulnerabilityName]
+    date_field: dateAdded
+    flag_field: knownRansomwareCampaignUse
+    flag_value: Known

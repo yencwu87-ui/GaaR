@@ -199,7 +199,17 @@ def summary(report, target, out, pack=None):
         differs += [g["gate"]] if mark else []
         lines.append(f"{g['gate']:<30} {g['state']:<9} {want:<9}{mark}")
         lines.append(f"    {g['evidence']}" + (f"  [{WHY_OPEN[g['gate']]}]" if g["gate"] in WHY_OPEN else ""))
-    lines += ["", f"guard register: {report['guard_register']['summary']}", "",
+    try:
+        from governance.watcher import intel
+        if intel.configured():
+            health = intel.health()
+            watch = (f"{len(health)} source(s): " + ", ".join(f"{h['source_id']} {h['state'].lower()}" for h in health)
+                     + f"; {len(intel.needs_triage())} item(s) to triage")
+        else:
+            watch = "not set up (optional: python tools/gaar_watch.py setup)"
+    except Exception as exc:
+        watch = f"unavailable ({type(exc).__name__}: {exc})"
+    lines += ["", f"guard register: {report['guard_register']['summary']}", f"regulatory watch: {watch}", "",
               "RESULT: " + ("ALL GATES AS EXPECTED" if not differs else "DIFFERS: " + ", ".join(differs))]
     text = "\n".join(lines) + "\n"
     path = ROOT / "reports" / f"milestone-{target.stem.removeprefix('gate_status-')}.txt"

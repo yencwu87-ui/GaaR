@@ -60,7 +60,18 @@ def job_gate_status(ctx: dict) -> dict:
             "gates": {g["gate"]: g["state"] for g in report["gates"]}}
 
 
-JOBS = [("series", job_series), ("gate_status", job_gate_status)]
+def job_watcher(ctx: dict) -> dict:
+    """Regulatory watch: each subscribed source is checked when due (every 8 hours by default)."""
+    from governance.watcher import intel
+    if not intel.configured():
+        return {"status": "NOT_CONFIGURED", "detail": "no watch subscriptions; run tools/gaar_watch.py setup"}
+    result = intel.run_due()
+    return {"status": "OK", "scanned": [s["source_id"] for s in result["scanned"]], "not_due": result["not_due"],
+            "sources_failing": [f["source_id"] for f in result["failed"]],
+            "new_publications": sum(s["new"] for s in result["scanned"])}
+
+
+JOBS = [("series", job_series), ("watcher", job_watcher), ("gate_status", job_gate_status)]
 
 
 # ---------------------------------------------------------------------------------------------------------

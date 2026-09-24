@@ -39,11 +39,13 @@ Jobs registered in v20:
 | Job | What it does |
 |---|---|
 | `series` | The standing-authorisation series: runs periods whose exports arrived; reruns a record blocked only by a software upgrade (runbook U1) |
+| `watcher` (kit v21) | Regulatory watch: checks each subscribed source when due, every 8 hours by default; does nothing until `tools/gaar_watch.py setup` |
 | `gate_status` | Regenerates the live gate-status report the status line reads |
 
-**Not yet in the scheduler:** Watcher polling, the AI Auditor, Autopilot and measurement runs keep their existing
-paths (their own launchd jobs, or manual). Each moves in as its own change, with a job test. On the pilot's
-deterministic path, model stages are disabled, so the AI Auditor and Autopilot have nothing to run there anyway.
+**Not yet in the scheduler:** the AI Auditor, Autopilot and measurement runs keep their existing paths (manual, or
+their own jobs). Each moves in as its own change, with a job test. On the pilot's deterministic path, model stages
+are disabled, so the AI Auditor and Autopilot have nothing to run there anyway. The status line names the jobs it
+covers, so a green line never implies coverage of anything outside them.
 
 ## The inbox
 

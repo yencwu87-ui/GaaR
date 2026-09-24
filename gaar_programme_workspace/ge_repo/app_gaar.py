@@ -867,6 +867,7 @@ def render_case(config, root, current, selected):
         if reconciled:
             render_reconciliation({**reconciled[-1]["payload"], "event_hash": reconciled[-1].get("event_hash")},
                                   models_disabled=bool(unavailable) and bool(unavailable[-1]["payload"].get("disabled_by_configuration")))
+            render_impact(current, reconciled[-1]["payload"])
         if deterministic:
             try:
                 from governance.investigation import InvestigationEngine, InvestigationStore
@@ -902,6 +903,34 @@ def render_case(config, root, current, selected):
 
 
 
+def render_impact(current, rec):
+    """What this record's findings imply for other controls, and where the cause likely sits. Read-only leads from the
+    dependency catalogue; nothing here changes any control's status."""
+    codes = sorted({i["code"] for i in rec.get("issues", [])})
+    if not codes:
+        return
+    try:
+        from governance.impact import ImpactGraph
+        key = f"INTERNAL:{current.get('control_id') or 'CHANGE.MGMT'}"
+        result = ImpactGraph().analyse({key: "ADVERSE"}, {key: codes})["lapses"][key]
+    except Exception as exc:
+        st.caption(f"Impact analysis unavailable: {type(exc).__name__}")
+        return
+    with st.expander(f"What these findings imply: {len(result['downstream'])} control(s) flagged downstream, "
+                     f"{sum(r['assessment'] == 'LIKELY_ROOT_CAUSE' for r in result['root_cause'])} likely root cause(s)"):
+        for f in result["downstream"]:
+            st.markdown(f"- **{f['control'].split(':')[1]}**: {f['flag'].replace('_', ' ').lower()}"
+                        + (f" (evidenced by {', '.join(f['evidenced_by'])})" if f["evidenced_by"] else "")
+                        + f". {f['because'][-1]}")
+        for r in result["root_cause"]:
+            if r["assessment"] in ("LIKELY_ROOT_CAUSE", "CONTRIBUTING", "UNVERIFIED_TEST_NEXT"):
+                st.markdown(f"- Upstream **{r['control'].split(':')[1]}**: {r['assessment'].replace('_', ' ').lower()}"
+                            + (f" (evidenced by {', '.join(r['evidenced_by'])})" if r["evidenced_by"] else "")
+                            + f". Test: {r['test']}")
+        st.caption("Leads from the proposed dependency catalogue, not findings about those controls. Nothing here "
+                   "changes what you are attesting.")
+
+
 def render_simple(config, root, rows):
     """GAAR_UI=simple: the inbox, then the item you open. No Run button: machine work runs in the scheduler only
     (UI invariant, docs/design/inbox_and_scheduler.md)."""
@@ -934,8 +963,16 @@ def render_simple(config, root, rows):
             if item.get("investigation_id"):
                 if st.button("Open", key=f"open-{item['id']}"):
                     st.session_state["inbox_selected"] = item["investigation_id"]
+                    st.session_state.pop("inbox_intel", None)
+            elif item.get("intel_item_id"):
+                if st.button("Open", key=f"open-{item['id']}"):
+                    st.session_state["inbox_intel"] = item["intel_item_id"]
+                    st.session_state.pop("inbox_selected", None)
             else:
                 st.caption(f"Next: {item['action']}")
+    if st.session_state.get("inbox_intel"):
+        render_intel_item(config, st.session_state["inbox_intel"])
+        return
     ids = [r["investigation_id"] for r in rows]
     chosen = st.session_state.get("inbox_selected")
     with st.expander("All periods", expanded=False):
@@ -949,6 +986,38 @@ def render_simple(config, root, rows):
     st.markdown(f"### {current['system_id'] or '?'} — {current['control_id'] or '?'}")
     st.markdown(status_chip(current) + f' <span class="mono">{current["investigation_id"]}</span>', unsafe_allow_html=True)
     render_case(config, root, current, chosen)
+
+
+def render_intel_item(config, item_id):
+    """One regulatory-watch item and its triage. Triage is a person's call, attributed to the reviewer named in the
+    signed trust policy; it writes only the triage record, never machine work."""
+    from governance.watcher import intel
+    found = next((i for i in intel.needs_triage() if i["item_id"] == item_id), None)
+    if found is None:
+        st.info("This item has been triaged, or is no longer waiting.")
+        return
+    reviewer = (config.get("trusted_keys", {}).get((config.get("signers", {}).get("result_approver") or {}).get("key_id"), {})
+                .get("actor")) or "reviewer"
+    st.markdown(f"### {found['priority']} · {found['title']}")
+    st.caption(f"{found['kind'].replace('_', ' ').lower()} · first seen {found['first_seen'][:10]} · source {found['source_id']}")
+    if str(found.get("url", "")).startswith("http"):
+        st.markdown(f"[Open the source]({found['url']})")
+    if found.get("matched_controls"):
+        st.markdown("Likely touches: " + ", ".join(f"**{m['framework']} {m['control_id']}** {m['title']}"
+                                                  for m in found["matched_controls"]))
+    if found.get("forecast"):
+        f = found["forecast"]
+        st.caption(f"Outlook: final rules expected between {f['final_expected_from']} and {f['final_expected_to']}. {f['basis']}")
+    st.caption(f"Triage is recorded with your name ({reviewer}). A match to a control is a lead, not a finding.")
+    cols = st.columns(3)
+    for col, decision, label in zip(cols, intel.TRIAGE, ("Relevant", "Not relevant", "Keep watching")):
+        if col.button(label, key=f"triage-{decision}", width="stretch"):
+            if found["kind"] == "THREAT_DIGEST":
+                intel.triage_digest(found["source_id"], decision, reviewer)
+            else:
+                intel.triage(found["item_id"], decision, reviewer)
+            st.session_state.pop("inbox_intel", None)
+            st.rerun()
 
 
 if __name__ == "__main__":

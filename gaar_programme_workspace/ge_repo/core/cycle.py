@@ -124,19 +124,39 @@ def _canonical_framework(framework: str) -> str:
     return _FRAMEWORK_ALIASES.get(raw, raw)
 
 
+_CONTROLS_CACHE: dict = {}
+
+
+def _library(workbook: str):
+    """The parsed playbook, cached on the workbook's and the overlay's path, mtime and size (kit v21).
+
+    Parsing the workbook takes ~0.4 s, and the decision queue asked for one control per cycle: 84 parses per page.
+    Editing either file changes the key, so the next call re-reads it.
+    """
+    from playbook import load_controls, overlay_path
+    import os
+    overlay = overlay_path()
+    key = (workbook, os.stat(workbook).st_mtime_ns, os.stat(workbook).st_size,
+           str(overlay) if overlay else None, os.stat(overlay).st_mtime_ns if overlay and os.path.exists(overlay) else None)
+    if key not in _CONTROLS_CACHE:
+        _CONTROLS_CACHE.clear()
+        _CONTROLS_CACHE[key] = load_controls(workbook)
+    return _CONTROLS_CACHE[key]
+
+
 def _control(control_id: str, framework: str = ""):
-    from playbook import load_controls
+    import copy
     import glob
     wb = sorted(glob.glob("data/*.xlsx"))
     if not wb:
         raise CycleError("no playbook workbook found in data/")
     canonical_framework = _canonical_framework(framework)
-    for lib, controls in load_controls(wb[0]).items():
+    for lib, controls in _library(wb[0]).items():
         if canonical_framework and lib != canonical_framework:
             continue
         for c in controls:
             if c.id == control_id:
-                return c
+                return copy.deepcopy(c)            # callers get their own copy; the cache is never mutated
     raise CycleError(f"control {control_id} not found"
                      + (f" in {canonical_framework}" if canonical_framework else ""))
 

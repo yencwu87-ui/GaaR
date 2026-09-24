@@ -123,18 +123,26 @@ def test_the_filename_carries_the_lineage(tmp_path):
 
 # ------------------------------------------------------------------ the projection
 
+def _measurement_block():
+    """Exactly the Measurement section's code (kit v21: the old split took everything to the end of the file, so
+    unrelated later sections counted against it)."""
+    import ast
+    src = (ROOT / "app.py").read_text(encoding="utf-8")
+    node = next(n for n in ast.parse(src).body if isinstance(n, ast.If)
+                and "tab_m.shown" in ast.get_source_segment(src, n.test))
+    return ast.get_source_segment(src, node)
+
+
 def test_the_measurement_tab_does_not_recompute_anything():
     """A UI that recalculates a metric can disagree with the record it claims to display."""
-    src = (ROOT / "app.py").read_text(encoding="utf-8")
-    tab = src.split("with tab_m:")[1]
+    tab = _measurement_block()
     for banned in ("measurement_run.run(", "characterise(", "topology(", "baselines(",
                    "sum(", "/ len("):
         assert banned not in tab, f"measurement tab recomputes: {banned}"
 
 
 def test_the_measurement_tab_reads_the_limitations_from_the_record():
-    src = (ROOT / "app.py").read_text(encoding="utf-8")
-    tab = src.split("with tab_m:")[1]
+    tab = _measurement_block()
     assert 'r.get("limitations")' in tab
     assert 'r.get("aggregate_not_computed")' in tab
     assert "baseline_population" in tab

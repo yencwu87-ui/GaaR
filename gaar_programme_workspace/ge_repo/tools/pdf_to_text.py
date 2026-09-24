@@ -28,6 +28,8 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 #: Repaired because they silently defeat a verbatim check: a quote copied by a model from
 #: rendered text will not contain the ligature or the line-break hyphen.
 _LIGATURES = {"\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi", "\ufb04": "ffl",
@@ -46,9 +48,11 @@ def clean(text: str) -> str:
 
 def convert(pdf: Path, out_dir: Path) -> dict:
     from pypdf import PdfReader
+    from governance.ocr import extract_pdf
     raw = pdf.read_bytes()
     reader = PdfReader(str(pdf))
-    pages = [(p.extract_text() or "") for p in reader.pages]
+    extracted = extract_pdf(raw)                                   # text layer, then local OCR for image-only pages
+    pages = [extracted["text"]]
     text = clean("\n\n".join(pages))
     target = out_dir / (pdf.stem.replace(" ", "_") + ".txt")
     target.write_text(text, encoding="utf-8")
@@ -62,7 +66,9 @@ def convert(pdf: Path, out_dir: Path) -> dict:
         "converted_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         # A scanned PDF extracts almost nothing and would silently produce a draft anchored in
         # whitespace. Say so here rather than letting it fail quietly downstream.
-        "usable": words > 500,
+        "ocr_engine": extracted["engine"], "ocr_pages": extracted["ocr_pages"],
+        "not_extracted_pages": extracted["not_extracted"],
+        "usable": words > 500 and not extracted["not_extracted"],
         "warning": None if words > 500 else
                    "little or no extractable text — this PDF is probably scanned and needs OCR "
                    "before it can anchor anything",

@@ -204,7 +204,7 @@ def test_the_history_tab_has_a_body():
     """It was declared in the tab strip and implemented nowhere — it rendered empty."""
     import re
     src = (ROOT / "app.py").read_text(encoding="utf-8")
-    assert len(re.findall(r"^with tab_h:", src, re.M)) == 1
+    assert len(re.findall(r"^\s*with tab_h:", src, re.M)) == 1       # kit v21: indented under `if tab_h.shown:`
 
 
 def test_the_history_tab_reads_the_ledger_not_the_session_cache():

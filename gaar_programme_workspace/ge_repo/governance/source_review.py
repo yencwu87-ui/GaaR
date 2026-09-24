@@ -11,10 +11,9 @@ import re
 def extract_text(data: bytes, name: str) -> str:
     ext = Path(name).suffix.lower()
     if ext == ".pdf":
-        from pypdf import PdfReader
-        import io
-        reader = PdfReader(io.BytesIO(data))
-        return "\n\n".join((p.extract_text() or "") for p in reader.pages)
+        # Text layer first; image-only pages go to a local OCR engine, or are marked as not extracted.
+        from governance.ocr import extract_pdf
+        return extract_pdf(data)["text"]
     if ext in {".docx", ".doc"}:
         from docx import Document
         import io
