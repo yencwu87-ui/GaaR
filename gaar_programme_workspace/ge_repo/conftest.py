@@ -13,11 +13,25 @@ temporary paths; until then, this keeps the shipped artefacts honest.
 """
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parent
+
+# Defect D21 (kit v22): the restore below ran at the END of a session. On an installed copy these ledgers are live
+# state (D19), so anything the app or scheduler wrote while the tests ran was erased by the restore. The ledgers are
+# now redirected before any module reads its path, so a test run never touches them; the restore stays as a backstop.
+_LEDGERS = tempfile.mkdtemp(prefix="gaar-test-ledgers-")
+for _env, _name in {
+    "WB_EVENT_LOG": "events.jsonl", "WB_GOV_CHANGE_LOG": "governance_change_events.jsonl",
+    "WB_REASSESSMENT_STORE": "reassessment_cases.jsonl", "WB_KNOWLEDGE_MONITOR": "knowledge_usage.jsonl",
+    "WB_LLM_METRICS": "llm_metrics.jsonl", "WB_INFERENCE_TASK_METRICS": "inference_tasks.jsonl",
+    "WB_RUN_LOG": "runs.jsonl",
+}.items():
+    os.environ[_env] = os.path.join(_LEDGERS, _name)          # override: a shell that exports these must not leak in
 GUARDED = (ROOT / "governance", ROOT / ".cache")
 _touched: list[str] = []
 

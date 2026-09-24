@@ -199,17 +199,23 @@ def summary(report, target, out, pack=None):
         differs += [g["gate"]] if mark else []
         lines.append(f"{g['gate']:<30} {g['state']:<9} {want:<9}{mark}")
         lines.append(f"    {g['evidence']}" + (f"  [{WHY_OPEN[g['gate']]}]" if g["gate"] in WHY_OPEN else ""))
+    watch_rows = []
     try:
         from governance.watcher import intel
         if intel.configured():
             health = intel.health()
-            watch = (f"{len(health)} source(s): " + ", ".join(f"{h['source_id']} {h['state'].lower()}" for h in health)
-                     + f"; {len(intel.needs_triage())} item(s) to triage")
+            watch = (f"{len(health)} source(s), {sum(h['state'] == 'OK' for h in health)} OK; "
+                     f"{len(intel.needs_triage())} item(s) to triage")
+            watch_rows = [f"    {h['source_id']:<26} {(h.get('jurisdiction') or ''):<10} {h['state']:<13} "
+                          + ("verified" if h.get("address_verified") else "NOT YET VERIFIED")
+                          + (f"  last success {h['last_success'][:16]}" if h["last_success"] else "")
+                          + (f"  error: {str(h['error'])[:90]}" if h["state"] == "FAILING" and h.get("error") else "")
+                          for h in health]
         else:
             watch = "not set up (optional: python tools/gaar_watch.py setup)"
     except Exception as exc:
         watch = f"unavailable ({type(exc).__name__}: {exc})"
-    lines += ["", f"guard register: {report['guard_register']['summary']}", f"regulatory watch: {watch}", "",
+    lines += ["", f"guard register: {report['guard_register']['summary']}", f"regulatory watch: {watch}", *watch_rows, "",
               "RESULT: " + ("ALL GATES AS EXPECTED" if not differs else "DIFFERS: " + ", ".join(differs))]
     text = "\n".join(lines) + "\n"
     path = ROOT / "reports" / f"milestone-{target.stem.removeprefix('gate_status-')}.txt"

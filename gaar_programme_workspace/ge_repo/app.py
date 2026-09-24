@@ -51,12 +51,17 @@ from governance.source_review import extract_text as extract_source_text, best_e
 import folder_picker as fp
 import tour
 
-DATA = Path("data")
+from governance.paths import workbench_data
+DATA = workbench_data()          # absolute, never relative to where the app is started (kit v22)
+from governance.paths import shared_state_warning as _shared_state_warning
 DATA.mkdir(exist_ok=True)
 STATE_FILE = DATA / "assessments.json"
 DEFAULT_PLAYBOOK = next(DATA.glob("*.xlsx"), None)
 
 st.set_page_config(page_title="GaaR governance workbench", page_icon="🛡️", layout="wide")
+_shared = _shared_state_warning(DATA)
+if _shared:
+    st.warning(_shared)
 
 
 # ---------- uploaded source review ----------
@@ -467,12 +472,13 @@ VIEWS = {
     "review": ("Review", ":material/fact_check:", "Bring in evidence, give your own reading, then decide.",
                [("scan", "1 · Add evidence"), ("assess", "2 · Review controls"), ("decide", "3 · Decisions ready")]),
     "results": ("Results", ":material/verified:", "Where every control stands, and how it got there.",
-                [("live", "Current results"), ("impact", "Impact & root cause"), ("outcomes", "Outcomes"),
-                 ("history", "History"), ("lifecycle", "Lifecycle")]),
+                [("live", "Current results"), ("impact", "Impact & root cause"), ("basis", "Requirement basis"),
+                 ("outcomes", "Outcomes"), ("history", "History"), ("lifecycle", "Lifecycle")]),
     "watch": ("Regulatory watch", ":material/radar:", "New regulation and threats, matched to your controls.",
               [("intel", "Intel feed"), ("change", "Change reviews"), ("sources", "Watcher internals")]),
     "reports": ("Reports", ":material/summarize:", "What you hand to an auditor.",
-                [("report", "Readiness report"), ("audit", "Audit trail"), ("measure", "Measurement")]),
+                [("report", "Readiness report"), ("audit", "Audit trail"), ("measure", "Measurement"),
+                 ("arena", "Model arena")]),
     "settings": ("Settings", ":material/tune:", "Library, scope, models, and the automation engine room.",
                  [("general", "General"), ("ai", "AI Auditor"), ("autopilot", "Autopilot"), ("engine", "Engine"),
                   ("ops", "Operations")]),
@@ -3622,6 +3628,8 @@ def _render_watch_intel():
             if item.get("url", "").startswith("http"):
                 meta.append(f"[open the source]({item['url']})")
             st.caption(" · ".join(meta))
+            if item.get("language_label"):
+                st.warning(item["language_label"])
             if item.get("matched_controls"):
                 st.markdown("Likely touches: " + ", ".join(
                     f"**{m['framework']} {m['control_id']}** {m['title']}" for m in item["matched_controls"]))
@@ -3629,6 +3637,11 @@ def _render_watch_intel():
                 f = item["forecast"]
                 st.caption(f"Outlook: final rules expected between {f['final_expected_from']} and "
                            f"{f['final_expected_to']}. {f['basis']}")
+            if item["kind"] != "THREAT_DIGEST" and st.button("Draft a new control from this", key=f"propose-{item['item_id']}",
+                                                             disabled=not reviewer,
+                                                             help="Creates a draft in your watch home. It joins the assessment suite only after a named approval with a change ticket."):
+                made = intel.propose_control(item["item_id"], reviewer)
+                st.success(f"Drafted {made['proposed_control']} in `{made['draft']}`. Next: {made['next'][:160]}…")
             b1, b2, b3, _ = st.columns([1.2, 1.2, 1.3, 3])
             for col, decision, label in ((b1, "RELEVANT", "Relevant"), (b2, "NOT_RELEVANT", "Not relevant"),
                                          (b3, "WATCH", "Keep watching")):
@@ -3702,6 +3715,9 @@ def _render_impact():
             statuses.setdefault(c, "partial")
         for c in st.multiselect("Known effective controls (rule them out)", known, key="impact-effective"):
             statuses.setdefault(c, "full")
+    if source == "What if…":
+        st.warning("**Simulation.** These results come from controls you marked, not from recorded decisions. "
+                   "Do not present them as the state of any control.")
     result = graph.analyse(statuses)
     if not result["lapses"]:
         st.info("No lapsed or weak control " + ("recorded yet." if source == "Recorded decisions" else "selected yet.")
@@ -3742,3 +3758,36 @@ def _render_impact():
 
 if _shown("results/impact"):
     _render_impact()
+
+
+def _render_arena():
+    """Read-only arena leaderboard. Runs happen in tools/gaar_arena.py, never from this page."""
+    from governance.arena import arena
+    runs = arena.runs()
+    if not runs:
+        st.info("No arena run yet. Run one on this machine, for example:\n\n"
+                "`python tools/gaar_arena.py run ollama:qwen2.5:14b ollama:mistral-nemo:12b baseline:rules --cases 40`")
+        return
+    picked = st.selectbox("Run", [r["run_id"] for r in reversed(runs)], key="arena-run",
+                          format_func=lambda rid: next(f"{rid} · {r['cases']} cases · {r['started_at'][:16]}"
+                                                       for r in runs if r["run_id"] == rid))
+    board = arena.leaderboard(picked)
+    st.warning(board["provenance"])
+    st.dataframe([{"Contestant": r["contestant"], "Cost per case": r["cost_per_case"], "Precision": r["precision"],
+                   "Recall": r["recall"], "False 'authorised'": r["false_assurance"], "False alarms": r["false_alarms"],
+                   "Holds": r["holds"], "Errors": r["errors"], "Seconds per case": r["median_seconds"],
+                   "Elo": r["elo"]} for r in board["table"]], hide_index=True, width="stretch")
+    seat = board["advisory_seat"]
+    st.markdown("**Advisory seat:** " + (", ".join(seat) if seat else "nobody qualifies on this run."))
+    st.caption(f"Costs: false 'authorised' {board['params']['false_assurance']}, false alarm "
+               f"{board['params']['false_alarm']}, hold {board['params']['hold']} (config/arena.yaml). "
+               "Ranked by cost; Elo counts wins, not their size. " + board["qualification_note"])
+
+
+if _shown("reports/arena"):
+    _render_arena()
+
+
+if _shown("results/basis"):
+    from ui import basis_view
+    basis_view.render()

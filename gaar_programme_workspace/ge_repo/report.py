@@ -335,7 +335,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--control", help="restrict to one control id")
-    ap.add_argument("--out", type=Path, default=Path("reports/assurance-workpaper.docx"))
+    ap.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "reports" / "assurance-workpaper.docx")
     ap.add_argument("--markdown", action="store_true", help="emit markdown instead of docx")
     a = ap.parse_args()
 

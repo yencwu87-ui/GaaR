@@ -22,8 +22,8 @@ PREFIX = "ge_repo"
 RUNTIME_STATE = [
     "governance/*.jsonl", "governance/*.lock", "governance/*.jsonl.lock",
     "governance/watcher_blobs/*", "governance/evidence_blobs/*", "governance/dossiers/*",
-    "data/assessments.json", "data/backups/*",
-    "docs/quality/approvals/*",
+    "data/assessments.json", "data/backups/*", "data/*.jsonl", "data/*.jsonl.lock", "data/.gaar_checkout",
+    "docs/quality/approvals/*", "requirements/releases/*",
     ".test_runs/*", "reports/*", "packs/*", ".milestone_state.json", ".coverage*",
     "*/__pycache__/*", "__pycache__/*", ".pytest_cache/*", "*.pyc",
 ]

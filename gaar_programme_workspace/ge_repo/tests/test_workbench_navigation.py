@@ -1,6 +1,7 @@
 """The workbench (app.py) after kit v21: six destinations instead of sixteen tabs, only the open section runs."""
 import ast
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,7 @@ def test_every_classic_tab_has_exactly_one_home_in_the_new_navigation():
     assert len(tabs) == 16 and set(tabs.values()) <= sections
     for tab in tabs:
         assert f"if {tab}.shown:\n    with {tab}:" in source, tab
-    custom = {"review/decide", "watch/intel", "settings/general", "results/impact"}
+    custom = {"review/decide", "watch/intel", "settings/general", "results/impact", "reports/arena", "results/basis"}
     assert sections == set(tabs.values()) | custom          # nothing unreachable, nothing without a body
 
 
@@ -71,10 +72,13 @@ def workbench(tmp_path_factory):
     if ledger.exists():
         shutil.copy(ledger, home / "events.jsonl")
     patch = pytest.MonkeyPatch()
-    patch.chdir(home)
+    patch.chdir(home)                                   # belt and braces: nothing should be cwd-relative any more
+    patch.setenv("GAAR_WORKBENCH_DATA", str(home / "data"))
     patch.setenv("WB_EVENT_LOG", str(home / "events.jsonl"))
     import events
+    from core import cycle
     patch.setattr(events, "LOG", home / "events.jsonl")
+    cycle._CONTROLS_CACHE.clear()
     yield AppTest.from_file(str(APP), default_timeout=300)
     patch.undo()
 
@@ -109,9 +113,9 @@ def test_the_next_step_button_opens_the_right_place(workbench):
 
 
 @pytest.mark.parametrize("view, section", [
-    ("review", "scan"), ("review", "assess"), ("review", "decide"), ("results", "live"), ("results", "impact"), ("results", "outcomes"),
+    ("review", "scan"), ("review", "assess"), ("review", "decide"), ("results", "live"), ("results", "impact"), ("results", "basis"), ("results", "outcomes"),
     ("results", "history"), ("results", "lifecycle"), ("watch", "intel"), ("watch", "change"), ("watch", "sources"),
-    ("reports", "report"), ("reports", "audit"), ("reports", "measure"), ("settings", "general"), ("settings", "ai"),
+    ("reports", "report"), ("reports", "audit"), ("reports", "measure"), ("reports", "arena"), ("settings", "general"), ("settings", "ai"),
     ("settings", "autopilot"), ("settings", "engine"), ("settings", "ops")])
 def test_every_section_renders(workbench, view, section):
     workbench.session_state["nav"] = view
@@ -133,3 +137,51 @@ def test_what_if_shows_what_a_lapse_would_flag_and_where_its_cause_may_sit(workb
     assert any("likely common cause" in w.value for w in workbench.warning)
     tables = [t.value for t in workbench.dataframe]
     assert any("Before relying, corroborate" in t.columns for t in tables)
+
+
+def test_workbench_state_resolves_to_one_absolute_place(tmp_path, monkeypatch):
+    """D19's root cause: state resolved relative to the working directory. It never is now."""
+    from governance.paths import workbench_data
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("GAAR_WORKBENCH_DATA", raising=False)
+    assert workbench_data() == (ROOT / "data").resolve() and workbench_data().is_absolute()
+    monkeypatch.setenv("GAAR_WORKBENCH_DATA", str(tmp_path / "elsewhere"))
+    assert workbench_data() == (tmp_path / "elsewhere").resolve()
+    source = APP.read_text(encoding="utf-8")
+    assert 'DATA = Path("data")' not in source and "DATA = workbench_data()" in source
+
+
+# Paths that may legitimately follow the working directory, each with its reason. Anything else that resolves
+# state relative to where a program was started fails this test (D19's root cause, enforced).
+CWD_ALLOWED = {
+    "governance_stress_demo.py": "--repo names the repository to analyse; the current one is the natural default",
+    "governance/operations/runtime.py": "signing keys named relative to the caller's own root; no state is written",
+}
+CWD_STATE = re.compile(r"(Path|open)\(f?[\"'](\./)?(data|governance|reports|packs|runs|var|\.test_runs|\.cache)[/\"']"
+                       r"|os\.getcwd\(\)|Path\.cwd\(\)")
+
+
+def test_no_runtime_state_is_resolved_relative_to_the_working_directory():
+    offenders = []
+    for path in ROOT.rglob("*.py"):
+        rel = path.relative_to(ROOT).as_posix()
+        if rel.startswith(("tests/", ".", "venv")) or "/." in rel or rel.split("/")[-1].startswith("test_"):
+            continue
+        for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if CWD_STATE.search(line) and rel not in CWD_ALLOWED:
+                offenders.append(f"{rel}:{n}: {line.strip()}")
+    assert offenders == []
+
+
+def test_two_installed_copies_sharing_one_state_folder_are_reported(tmp_path, monkeypatch):
+    from governance import paths
+    data = tmp_path / "shared-state"
+    data.mkdir()
+    assert paths.shared_state_warning(data) is None                        # first use claims the folder
+    assert (data / paths.MARKER).read_text().strip() == str(paths.PACKAGE)
+    other = tmp_path / "another-copy"
+    other.mkdir()
+    (data / paths.MARKER).write_text(str(other))
+    assert "also used by another installed copy at " + str(other) in paths.shared_state_warning(data)
+    other.rmdir()                                                          # that copy was removed or replaced in place
+    assert paths.shared_state_warning(data) is None and (data / paths.MARKER).read_text().strip() == str(paths.PACKAGE)

@@ -18,7 +18,75 @@ indexes:
     approved_hosts: [www.mas.gov.sg]
     path_prefixes: [/regulation/circulars/]
     max_items: 100
+  # Kit v22 additions. "verified: false" means the address and page structure are from public documentation and have
+  # not yet been checked from a machine that can reach them; the first successful scan verifies them.
+  - source_id: fed-sr-letters-index
+    jurisdiction: US
+    authority: Federal Reserve
+    url: https://www.federalreserve.gov/supervisionreg/srletters/srletters.htm
+    approved_hosts: [www.federalreserve.gov]
+    path_prefixes: [/supervisionreg/srletters/]
+    max_items: 100
+    verified: false
+  - source_id: pboc-en-news-index
+    jurisdiction: China
+    authority: PBOC
+    url: https://www.pbc.gov.cn/en/3688110/3688172/index.html
+    approved_hosts: [www.pbc.gov.cn]
+    path_prefixes: [/en/3688110/3688172/]
+    max_items: 100
+    verified: false
 feeds:
+  - source_id: fed-press-rss
+    jurisdiction: US
+    authority: Federal Reserve
+    format: rss
+    url: https://www.federalreserve.gov/feeds/press_all.xml
+    approved_hosts: [www.federalreserve.gov]
+    verified: false
+  - source_id: sec-press-rss
+    jurisdiction: US
+    authority: SEC
+    format: rss
+    url: https://www.sec.gov/news/pressreleases.rss
+    approved_hosts: [www.sec.gov]
+    verified: false
+    note: The SEC refuses anonymous clients; set user_agent in subscriptions.yaml to include a contact email.
+  - source_id: nist-news-rss
+    jurisdiction: US
+    authority: NIST
+    format: rss
+    url: https://www.nist.gov/news-events/news/rss.xml
+    approved_hosts: [www.nist.gov]
+    verified: false
+  - source_id: boe-news-rss
+    jurisdiction: UK
+    authority: Bank of England / PRA
+    format: rss
+    url: https://www.bankofengland.co.uk/rss/news
+    approved_hosts: [www.bankofengland.co.uk]
+    verified: false
+  - source_id: boe-publications-rss
+    jurisdiction: UK
+    authority: Bank of England / PRA
+    format: rss
+    url: https://www.bankofengland.co.uk/rss/publications
+    approved_hosts: [www.bankofengland.co.uk]
+    verified: false
+  - source_id: fca-news-rss
+    jurisdiction: UK
+    authority: FCA
+    format: rss
+    url: https://www.fca.org.uk/news/rss.xml
+    approved_hosts: [www.fca.org.uk]
+    verified: false
+  - source_id: hkma-press-rss
+    jurisdiction: Hong Kong
+    authority: HKMA
+    format: rss
+    url: https://www.hkma.gov.hk/eng/other-information/rss/rss_press-release.xml
+    approved_hosts: [www.hkma.gov.hk]
+    verified: false
   - source_id: cisa-kev
     jurisdiction: GLOBAL
     authority: CISA

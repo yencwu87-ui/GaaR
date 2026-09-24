@@ -1,0 +1,5 @@
+# Requirement-basis confirmation priority (kit v22). Tier 1 is the pilot's critical path: these controls get a
+# person's confirmation first. Every other control stays visible as a proposal (tier 2) until its turn.
+# Add a control here when it enters a pilot.
+tier1:
+  - {framework: MAS, control_id: M3.12, why: "the control the weekly change-management series tests"}

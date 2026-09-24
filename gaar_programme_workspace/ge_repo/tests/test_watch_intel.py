@@ -276,3 +276,110 @@ def test_the_pilot_inbox_opens_an_intel_item_and_records_triage_by_the_named_rev
     source = inspect.getsource(app_gaar.render_intel_item)
     calls = {getattr(n.func, "attr", getattr(n.func, "id", None)) for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Call)}
     assert not calls & {"tick", "run", "run_due", "scan_feed", "append", "attest", "set_subscribed"}
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Kit v22: RSS feeds, regions, drafting a control from a watch item
+# ---------------------------------------------------------------------------------------------------------
+
+RSS = """<?xml version="1.0"?><rss version="2.0"><channel><title>Press</title>
+<item><title>Board issues guidance on model risk management for AI</title><link>https://www.federalreserve.gov/newsevents/pressreleases/a1.htm</link><pubDate>Tue, 22 Sep 2026 10:00:00 GMT</pubDate></item>
+<item><title>Offsite link that must be ignored</title><link>https://evil.example/x</link></item>
+</channel></rss>"""
+
+
+def _fed_row():
+    return dict(intel.catalogue()["fed-press-rss"])
+
+
+def test_an_rss_feed_is_read_and_only_approved_hosts_count():
+    result = intel.scan_feed(_fed_row(), get=lambda url, **k: Response(RSS, "application/rss+xml"))
+    assert result["status"] == "BASELINE_ESTABLISHED"
+    assert list(result["inventory"]) == ["https://www.federalreserve.gov/newsevents/pressreleases/a1.htm"]
+
+
+def test_an_atom_feed_is_read_too():
+    atom = ('<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>New PRA statement on AI</title>'
+            '<link href="https://www.bankofengland.co.uk/prudential-regulation/x"/><updated>2026-09-22</updated></entry></feed>')
+    row = dict(intel.catalogue()["boe-news-rss"])
+    result = intel.scan_feed(row, get=lambda url, **k: Response(atom, "application/atom+xml"))
+    assert list(result["inventory"]) == ["https://www.bankofengland.co.uk/prudential-regulation/x"]
+
+
+@pytest.mark.parametrize("body, message", [
+    ('<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "b">]><rss></rss>', "IndexErrorSafe: feed declares XML entities; refused"),
+    ("<rss><channel><item>", None),
+    ("x" * (5 * 1024 * 1024 + 1), "IndexErrorSafe: feed larger than 5 MB; refused"),
+])
+def test_a_hostile_or_broken_feed_is_unable_to_check(body, message):
+    result = intel.scan_feed(_fed_row(), get=lambda url, **k: Response(body, "application/rss+xml"))
+    assert result["status"] == "UNABLE_TO_CHECK"
+    if message:
+        assert result["error"] == message
+    else:
+        assert result["error"].startswith("IndexErrorSafe: feed is not valid XML (")
+
+
+def test_regions_subscribe_every_source_in_them_and_unknown_regions_are_refused():
+    intel.subscriptions()
+    data = intel.subscribe_regions(["hk", "cn"], by="Test Owner")
+    assert {"hkma-brdr-whats-new", "hkma-press-rss", "nfra-rules-en-index", "pboc-en-news-index"} <= set(data["sources"])
+    with pytest.raises(ValueError, match=exactly("unknown region(s): mars; use sg, us, uk, hk, cn, global")):
+        intel.subscribe_regions(["mars"])
+
+
+def test_the_catalogue_covers_singapore_us_uk_hong_kong_china_and_global():
+    regions = {row.get("jurisdiction") for row in intel.catalogue().values()}
+    assert {"Singapore", "US", "UK", "Hong Kong", "China", "GLOBAL"} <= regions
+
+
+def test_one_click_drafts_a_control_that_is_not_live_until_promoted(web):
+    from governance.regulatory_change import LIVE, load_requirements
+    _setup(web)
+    web.consultations.append(CONSULTATION)
+    intel.run_due(get=web, force=True)
+    item = intel.needs_triage()[0]
+    live_before = Path(LIVE).read_bytes()
+    made = intel.propose_control(item["item_id"], "Test Owner")
+    draft = load_requirements(made["draft"])
+    new = draft["controls"][made["proposed_control"]]
+    assert draft["status"] == "draft" and new["status"] == "proposed" and new["source"][0]["url"] == item["url"]
+    assert "M3.15" in new["rationale"] and Path(made["draft"]).is_relative_to(intel.home_path())
+    assert Path(LIVE).read_bytes() == live_before                          # the live library is untouched
+    assert intel.items()[0]["triage"]["decision"] == "RELEVANT"
+    with pytest.raises(ValueError, match=exactly("a draft needs the name of the person proposing it")):
+        intel.propose_control(item["item_id"], " ")
+    with pytest.raises(ValueError, match=exactly("unknown intel item")):
+        intel.propose_control("0" * 16, "Test Owner")
+
+
+def test_a_dead_source_is_one_aging_item_not_one_per_check(web, monkeypatch):
+    import requests
+    from tests.test_guards_exercised import _cli
+    from governance.production import inbox
+    monkeypatch.setattr(requests, "get", web)
+    web.blocked.add("guidelines")
+    intel.subscriptions()
+    intel.run_due(get=web, force=True)
+    since = {x["source_id"]: x for x in intel.health()}["mas-guidelines-index"]["last_checked"]
+    for _ in range(2):
+        intel.run_due(get=web, force=True)
+    h = {x["source_id"]: x for x in intel.health()}["mas-guidelines-index"]
+    assert h["state"] == "FAILING" and h["consecutive_failures"] == 3 and h["failing_since"] == since
+    home = intel.home_path().parent / "home"
+    home.mkdir()
+    assert _cli(home, "authorise", "--constructed-demo", "--workspace", home / "demo").returncode == 0
+    found = [i for i in inbox.items(home / "demo/operations.json") if i["kind"] == "watch_source"]
+    assert len(found) == 1 and f"3 failed attempt(s) in a row since {since[:16]}" in found[0]["why"]
+
+
+def test_chinese_items_arrive_labelled_and_are_never_silently_translated(web):
+    zh = intel._language({"jurisdiction": "China"}, "中国人民银行发布人工智能风险管理指引")
+    assert zh == {"language": "zh", "language_label": "Chinese: not translated (read the original, or use a review aid)"}
+    assert intel._language({"language": "zh-CN"}, "Notice 12")["language"] == "zh"
+    assert intel._language({"language": "English"}, "PBOC issues guideline")["language"] == "en"
+    _setup(web)
+    web.consultations.append(CONSULTATION)
+    intel.run_due(get=web, force=True)
+    item = intel.items()[0]
+    assert item["language"] == "en" and item["language_label"] is None

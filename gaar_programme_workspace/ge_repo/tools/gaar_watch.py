@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regulatory watch: subscribed intel on regulator publications and exploited vulnerabilities.
 
-    python tools/gaar_watch.py setup                      subscribe to the defaults and run the first check now
+    python tools/gaar_watch.py setup [--regions sg,us,uk,hk,cn,global]   subscribe and run the first check now
     python tools/gaar_watch.py status                     each source: OK / FAILING / OVERDUE / NEVER_CHECKED
     python tools/gaar_watch.py feed [--all]               what's new (untriaged P1/P2 by default)
     python tools/gaar_watch.py outlook                    labelled forecast: trends, controls likely to need reassessment
@@ -26,7 +26,8 @@ from governance.watcher import intel  # noqa: E402
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("setup")
+    su = sub.add_parser("setup")
+    su.add_argument("--regions", default="sg,global", help="comma-separated: sg, us, uk, hk, cn, global")
     sub.add_parser("status")
     sub.add_parser("outlook")
     f = sub.add_parser("feed")
@@ -37,6 +38,9 @@ def main():
         s = sub.add_parser(name)
         s.add_argument("--source", required=True)
         s.add_argument("--by", default="")
+    pr = sub.add_parser("propose", help="draft a new control from a watch item (never live until promoted)")
+    pr.add_argument("--item", required=True)
+    pr.add_argument("--by", required=True)
     t = sub.add_parser("triage")
     t.add_argument("--item", required=True)
     t.add_argument("--decision", required=True, choices=intel.TRIAGE)
@@ -45,7 +49,8 @@ def main():
     args = parser.parse_args()
 
     if args.command == "setup":
-        subs = intel.subscriptions()
+        intel.subscriptions()
+        subs = intel.subscribe_regions([r.strip() for r in args.regions.split(",") if r.strip()], by="setup")
         result = intel.run_due(force=True)
         out = {"status": "WATCH_READY", "home": str(intel.home_path()), "interval_hours": subs["interval_minutes"] / 60,
                "subscribed": subs["sources"], "first_check": result["scanned"],
@@ -60,6 +65,8 @@ def main():
                                       "forecast", "triage", "members") if i.get(k) is not None} for i in found]
     elif args.command == "run":
         out = intel.run_due(force=args.force)
+    elif args.command == "propose":
+        out = intel.propose_control(args.item, args.by)
     elif args.command in ("subscribe", "unsubscribe"):
         out = intel.set_subscribed(args.source, args.command == "subscribe", by=args.by)
     else:

@@ -30,7 +30,7 @@ from requirements_overlay import apply_overlay, load_overlay  # noqa: E402
 from playbook import load_controls  # noqa: E402
 
 CORPUS = Path(__file__).resolve().parent / "corpus"
-WORKBOOK = Path("data/AI_Governance_Playbook_MGF_SAFR_FINAL_v3_CSA_backref.xlsx")
+WORKBOOK = Path(__file__).resolve().parent.parent / "data" / "AI_Governance_Playbook_MGF_SAFR_FINAL_v3_CSA_backref.xlsx"
 ORDER = {"none": 0, "partial": 1, "full": 2}
 
 

@@ -20,3 +20,9 @@ governance/result_state_events.jsonl.lock
 reports/
 .milestone_state.json
 packs/
+
+# Kit v22 runtime state
+data/.gaar_checkout
+data/*.jsonl
+data/*.jsonl.lock
+governance/*.jsonl.lock

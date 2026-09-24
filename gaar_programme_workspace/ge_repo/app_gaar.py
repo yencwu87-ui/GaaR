@@ -927,8 +927,10 @@ def render_impact(current, rec):
                 st.markdown(f"- Upstream **{r['control'].split(':')[1]}**: {r['assessment'].replace('_', ' ').lower()}"
                             + (f" (evidenced by {', '.join(r['evidenced_by'])})" if r["evidenced_by"] else "")
                             + f". Test: {r['test']}")
-        st.caption("Leads from the proposed dependency catalogue, not findings about those controls. Nothing here "
-                   "changes what you are attesting.")
+        st.caption("Two layers, read them apart. **Fact:** the finding codes above come from the deterministic tests "
+                   "on this record. **Proposal:** which other controls they touch comes from dependency edges and a "
+                   "crosswalk that no one has reviewed yet. These are leads about other controls, not findings, and "
+                   "nothing here changes what you are attesting.")
 
 
 def render_simple(config, root, rows):

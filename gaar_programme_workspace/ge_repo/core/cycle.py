@@ -147,7 +147,8 @@ def _library(workbook: str):
 def _control(control_id: str, framework: str = ""):
     import copy
     import glob
-    wb = sorted(glob.glob("data/*.xlsx"))
+    from governance.paths import workbench_data
+    wb = sorted(glob.glob(str(workbench_data() / "*.xlsx")))
     if not wb:
         raise CycleError("no playbook workbook found in data/")
     canonical_framework = _canonical_framework(framework)

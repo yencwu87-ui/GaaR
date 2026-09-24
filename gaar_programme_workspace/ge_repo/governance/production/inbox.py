@@ -133,6 +133,7 @@ def _watch_items(now) -> list[dict]:
                                    else f"Regulatory watch has not checked {h['source_id']} on schedule",
                           "why": (h["error"] or "no successful check within two intervals")
                                  + f" · {h['consecutive_failures']} failed attempt(s) in a row"
+                                 + (f" since {h['failing_since'][:16]}" if h.get("failing_since") else "")
                                  + (f" · last success {h['last_success'][:16]}" if h["last_success"] else " · never succeeded"),
                           "action": "Until this is fixed, 'no new publications' from this source means nothing. "
                                     "Retries run automatically; if it keeps failing, check the source page or unsubscribe.",

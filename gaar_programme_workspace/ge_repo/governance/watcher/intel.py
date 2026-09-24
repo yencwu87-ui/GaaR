@@ -106,6 +106,22 @@ def subscriptions(home=None) -> dict:
     return merged
 
 
+REGIONS = {"sg": "Singapore", "us": "US", "uk": "UK", "hk": "Hong Kong", "cn": "China", "global": "GLOBAL"}
+
+
+def subscribe_regions(regions: list[str], home=None, by: str = "") -> dict:
+    """Subscribe every catalogue source in the named regions (sg, us, uk, hk, cn, global)."""
+    unknown = sorted(set(regions) - set(REGIONS))
+    if unknown:
+        raise ValueError(f"unknown region(s): {', '.join(unknown)}; use {', '.join(REGIONS)}")
+    wanted = {REGIONS[r] for r in regions}
+    data = subscriptions(home)
+    for sid, row in sorted(catalogue().items()):
+        if row.get("jurisdiction") in wanted and sid not in data["sources"]:
+            data = set_subscribed(sid, True, home, by)
+    return data
+
+
 def set_subscribed(source_id: str, subscribed: bool, home=None, by: str = "") -> dict:
     """A subscription change is a configuration change: written, and logged with who made it."""
     if source_id not in catalogue():
@@ -145,6 +161,42 @@ def _last(home, source_id, successful=False):
     return rows[-1] if rows else None
 
 
+def _json_feed(data, row) -> dict:
+    items = data.get(row["items_field"]) if isinstance(data, dict) else None
+    inventory = {}
+    for item in items if isinstance(items, list) else []:
+        key = str(item.get(row["id_field"]) or "")
+        if key:
+            inventory[key] = {"title": " — ".join(str(item.get(f, "")) for f in row["title_fields"] if item.get(f)),
+                              "date": item.get(row.get("date_field", "")),
+                              "flagged": item.get(row.get("flag_field", "")) == row.get("flag_value")}
+    return inventory
+
+
+def _rss(body: bytes, row) -> dict:
+    """RSS 2.0 or Atom. Only links on the source's approved hosts count; anything else is ignored."""
+    import xml.etree.ElementTree as ET
+    if b"<!ENTITY" in body[:4096]:
+        raise IndexErrorSafe("feed declares XML entities; refused")
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError as exc:
+        raise IndexErrorSafe(f"feed is not valid XML ({exc})")
+    atom = "{http://www.w3.org/2005/Atom}"
+    inventory = {}
+    for item in root.iter("item"):
+        link, title = (item.findtext("link") or "").strip(), (item.findtext("title") or "").strip()
+        if link and title and safe_url(link, row["approved_hosts"]):
+            inventory[link] = {"title": title[:400], "date": (item.findtext("pubDate") or "").strip(), "flagged": False}
+    for entry in root.iter(f"{atom}entry"):
+        node = entry.find(f"{atom}link")
+        link = (node.get("href") if node is not None else "") or ""
+        title = (entry.findtext(f"{atom}title") or "").strip()
+        if link and title and safe_url(link, row["approved_hosts"]):
+            inventory[link] = {"title": title[:400], "date": (entry.findtext(f"{atom}updated") or "").strip(), "flagged": False}
+    return inventory
+
+
 def scan_feed(row: dict, home=None, get=None) -> dict:
     """One JSON feed (e.g. CISA KEV): same baseline and failure rules as the index monitor."""
     import requests
@@ -154,22 +206,16 @@ def scan_feed(row: dict, home=None, get=None) -> dict:
     try:
         if not safe_url(row["url"], row["approved_hosts"]):
             raise IndexErrorSafe("unapproved feed URL")
-        response = get(row["url"], timeout=30, allow_redirects=False,
-                       headers={"User-Agent": "GaaR-RegulatoryWatch/1.0"})
+        agent = (subscriptions(home).get("user_agent") if configured(home) else None) or "GaaR-RegulatoryWatch/1.0"
+        response = get(row["url"], timeout=30, allow_redirects=False, headers={"User-Agent": agent})
         if response.status_code in (301, 302, 303, 307, 308):
             raise IndexErrorSafe("feed redirected; redirects are not followed for feeds")
         response.raise_for_status()
-        data = response.json()
-        items = data.get(row["items_field"]) if isinstance(data, dict) else None
-        if not isinstance(items, list) or not items:
+        if len(response.content) > 5 * 1024 * 1024:
+            raise IndexErrorSafe("feed larger than 5 MB; refused")
+        inventory = _rss(response.content, row) if row.get("format") == "rss" else _json_feed(response.json(), row)
+        if not inventory:
             raise IndexErrorSafe("feed returned no items; coverage unverified")
-        inventory = {}
-        for item in items:
-            key = str(item.get(row["id_field"]) or "")
-            if key:
-                inventory[key] = {"title": " — ".join(str(item.get(f, "")) for f in row["title_fields"] if item.get(f)),
-                                  "date": item.get(row.get("date_field", "")),
-                                  "flagged": item.get(row.get("flag_field", "")) == row.get("flag_value")}
         previous = (before or {}).get("inventory") or {}
         new = [] if before is None else [{"url": k, **v} for k, v in inventory.items() if k not in previous]
         payload = {"source_id": sid, "status": "BASELINE_ESTABLISHED" if before is None else
@@ -271,6 +317,14 @@ def _kind(source: dict, title: str, url: str) -> str:
     return "OTHER"
 
 
+def _language(source: dict, title: str) -> dict:
+    """Say what language an item is in. Chinese items arrive labelled and are never silently translated: the
+    bilingual review workflow is deferred, so the label is the interim truth."""
+    if re.search(r"[\u3400-\u9fff]", title) or str(source.get("language", "")).lower().startswith(("zh", "chinese")):
+        return {"language": "zh", "language_label": "Chinese: not translated (read the original, or use a review aid)"}
+    return {"language": "en", "language_label": None}
+
+
 def items(home=None, now=None) -> list[dict]:
     """Every new publication seen after each source's baseline, as intel items. Derived, never stored."""
     subs, cat = subscriptions(home), catalogue()
@@ -309,7 +363,7 @@ def items(home=None, now=None) -> list[dict]:
                         "jurisdiction": source.get("jurisdiction"), "title": title, "url": url, "kind": kind,
                         "priority": priority, "first_seen": first_seen.isoformat(), "topics": topics,
                         "matched_controls": matches, "forecast": forecast, "flagged": bool(entry.get("flagged")),
-                        "triage": triaged.get(item_id)})
+                        "triage": triaged.get(item_id), **_language(source, title)})
     order = {"P1": 0, "P2": 1, "P3": 2}
     return sorted(out, key=lambda i: (order[i["priority"]], -_when(i["first_seen"]).timestamp()))
 
@@ -355,11 +409,11 @@ def health(home=None, now=None) -> list[dict]:
         rows = [p for p in _scans(home) if p["source_id"] == sid]
         last = rows[-1] if rows else None
         ok = [p for p in rows if p["status"] != "UNABLE_TO_CHECK"]
-        fails = 0
+        fails, failing_since = 0, None
         for p in reversed(rows):
             if p["status"] != "UNABLE_TO_CHECK":
                 break
-            fails += 1
+            fails, failing_since = fails + 1, p["checked_at"]
         if last is None:
             state = "NEVER_CHECKED"
         elif last["status"] == "UNABLE_TO_CHECK":
@@ -371,10 +425,13 @@ def health(home=None, now=None) -> list[dict]:
         next_due = (_when(last["checked_at"]) + timedelta(minutes=RETRY_FAILED_AFTER_MINUTES if state == "FAILING"
                                                           else subs["interval_minutes"])).isoformat() if last else None
         out.append({"source_id": sid, "authority": cat[sid].get("authority"), "state": state,
+                    "jurisdiction": cat[sid].get("jurisdiction"),
+                    # a source from public documentation is unverified until its first successful scan here
+                    "address_verified": bool(ok) or cat[sid].get("verified", True) is not False,
                     "last_checked": last["checked_at"] if last else None,
                     "last_success": ok[-1]["checked_at"] if ok else None,
                     "last_status": last["status"] if last else None, "error": (last or {}).get("error"),
-                    "consecutive_failures": fails, "next_due": next_due,
+                    "consecutive_failures": fails, "failing_since": failing_since, "next_due": next_due,
                     "baseline": bool(ok), "tracked": len((ok[-1] if ok else {}).get("inventory") or {})})
     return out
 
@@ -413,3 +470,39 @@ def outlook(home=None, now=None) -> dict:
     return {"history_days": history_days, "trends": trends, "controls_likely_to_need_reassessment": controls,
             "label": "Outlook: forecasts from publication patterns and a stated planning assumption. "
                      "Not a finding, not legal applicability."}
+
+
+def propose_control(item_id: str, by: str, home=None) -> dict:
+    """One click from a watch item to a DRAFT control in the governed requirements-draft format (kit v22).
+
+    The draft is the whole MAS library plus one proposed control carrying the source, the publication's title and the
+    controls it most likely overlaps. It lands in the watch home, never in the live library. Admitting it into the
+    assessment suite stays a named approval with a change ticket (governance/regulatory_change.promote_draft)."""
+    from governance.regulatory_change import build_draft, load_requirements, save_draft
+    item = next((i for i in items(home) if i["item_id"] == item_id), None)
+    if item is None:
+        raise ValueError("unknown intel item")
+    if not by.strip():
+        raise ValueError("a draft needs the name of the person proposing it")
+    controls = dict(load_requirements().get("controls") or {})
+    new_id = f"MX-{item_id[:6].upper()}"
+    overlaps = ", ".join(f"{m['framework']} {m['control_id']}" for m in item["matched_controls"]) or "none found"
+    controls[new_id] = {
+        "requirement": f"[DRAFT - the control owner writes the requirement] Obligations arising from: {item['title']}",
+        "elements": [], "boundary": {}, "assurance_mode": "human_only", "severity": "medium", "status": "proposed",
+        "source": [{"title": item["title"], "url": item["url"], "authority": item.get("authority"),
+                    "first_seen": item["first_seen"], "watch_item": item_id}],
+        "rationale": f"Proposed by {by.strip()} from regulatory watch item {item_id}. Overlaps with existing controls: "
+                     f"{overlaps}. Decide whether this is a new control or an amendment to one of those.",
+    }
+    draft = build_draft(controls, source_title=item["title"], source_reference=item["url"],
+                        notes=f"Drafted from regulatory watch by {by.strip()}; not in force until promoted.")
+    drafts = home_dir(home) / "drafts"
+    drafts.mkdir(parents=True, exist_ok=True)
+    target = save_draft(draft, drafts / f"mas-watch-{item_id}-draft.yaml")
+    if not item["triage"]:
+        triage(item_id, "RELEVANT", by, f"control drafted: {target.name}", home)
+    return {"status": "CONTROL_DRAFTED", "draft": str(target), "proposed_control": new_id, "overlaps": overlaps,
+            "next": "the control owner writes the requirement and elements; then a governance approver promotes it: "
+                    "python -c \"from governance.regulatory_change import promote_draft; "
+                    f"print(promote_draft('{target}', approved_by='NAME', change_ticket='TICKET'))\""}

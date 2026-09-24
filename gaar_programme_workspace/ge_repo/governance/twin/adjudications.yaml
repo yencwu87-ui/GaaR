@@ -1,0 +1,60 @@
+# Twin adjudication log (kit v22). When the answer key and the checks disagree, this is how truth is settled.
+#
+# The rule (docs/design/twin_and_arena.md):
+#   1. A discrepancy is found: the key and the checks disagree on a change.
+#   2. Someone reads the generated week itself, never the check's rationale, and decides what really happened.
+#   3. It is classified as exactly one of: key_error, check_error, generator_artifact.
+#   4. The fix lands on the side that was wrong, and only that side. Never both sides "to make it match".
+#   5. Every adjudication is recorded here, with a regression test that fails if the error returns.
+#
+# Why: if disagreements were settled by accepting the checks' verdict, the checks would define the truth and then
+# score perfectly against it. The benchmark is only non-circular because the week is read, not the check.
+#
+# Entries record who read the data. The first two were read by the build agent; each needs a named person's
+# confirmation (python tools/gaar_twin.py adjudication --confirm A-001 --by "Your Name") before it counts as
+# human-adjudicated.
+rule_version: 1
+classifications: [key_error, check_error, generator_artifact]
+entries:
+  - id: A-001
+    found: "2026-09-24, bench of 1,000 weeks (seeds 0-999, period ends alternating 29 Sep / 6 Oct 2026)"
+    discrepancy: >-
+      10 changes flagged FREEZE_WITHOUT_PRIOR_EXCEPTION that the key did not list (seeds 54, 117, 273, 401, 625,
+      673, 793, 911, 962, 969). An earlier run with a different seed layout reported 7 of these; the reproduction
+      with the bench's own layout gives 10, all of the same form.
+    reading_of_the_data: >-
+      Each is an OUTSIDE_APPROVED_WINDOW plant of form "95 min late": the window closed at 23:00, the change ran at
+      00:35 the next day, and that day was the freeze day for its target (for example seed 54: change at
+      2026-09-23T00:35+08:00 on payments-api-prod, freeze 2026-09-23T00:00 to 2026-09-24T00:00 on payments-api-prod
+      and payments-db-prod, no exception). The change really did run inside a freeze without an exception.
+    classification: key_error
+    fix_side: key
+    what_changed: >-
+      The key now lists the freeze breach as an incidental violation and REQUIRES it (expected), so the check must
+      raise it to count as a detection. The first attempted fix only tolerated it (listed it as permitted), which
+      would have left 10 real violations neither counted nor required; that was replaced. The planted change count
+      is unchanged; the count of required codes grows by the incidentals (1,000-week bench: 2,440 changes, 2,450
+      required codes, 10 incidental). Nothing in the checks changed.
+    regression_test: tests/test_twin.py::test_a_change_that_slides_into_a_freeze_must_be_caught_for_both
+    read_by: build agent (Claude Code); awaiting confirmation by a named person
+  - id: A-002
+    found: "2026-09-24, same bench"
+    discrepancy: >-
+      3 PRIVILEGE_NOT_ESTABLISHED plants (form "grant expired 2 h before") raised nothing (seeds 368, 629, 781).
+    reading_of_the_data: >-
+      In each week two plants used the same actor name, temp.contractor. The change's own grant had expired 2 hours
+      before, but the other plant's grant under the same name was still valid (seed 368: change at
+      2026-09-25T21:11+08:00; grants PG-CHG-368-0929-04 valid until 19:11 the same day and PG-CHG-368-0929-01 valid
+      until 2026-09-27T20:00). The checks resolve identity by name, so on these records a valid grant does exist for
+      "temp.contractor". The check was not wrong on the data it can see; it is blind to two people sharing a name.
+    classification: generator_artifact
+    fix_side: generator
+    what_changed: >-
+      The PRIVILEGE_NOT_ESTABLISHED plant now uses a unique name per plant, so that class measures what it says
+      (an expired grant) and nothing else. That makes that class easier, and the collision is not fixed away: it is
+      promoted to its own planted class, IDENTITY_COLLISION (known blind), which plants two people with one name on
+      purpose and is scored apart from the headline. On the 1,000-week bench it is planted 218 times and detected 0
+      times. That figure is the measured blind spot. The real-data collector requirement records it: unique actor
+      IDs are needed, or the limit comes with the data.
+    regression_test: tests/test_twin.py::test_a_namesake_grant_is_a_measured_blind_spot_not_a_detection
+    read_by: build agent (Claude Code); awaiting confirmation by a named person
