@@ -23,6 +23,7 @@ import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import yaml
 
@@ -87,6 +88,10 @@ def catalogue() -> dict[str, dict]:
         rows[r["source_id"]] = {**r, "type": "index"}
     for r in extra.get("feeds") or []:
         rows[r["source_id"]] = {**r, "type": "feed"}
+    for r in extra.get("mailboxes") or []:                 # kit v24: official email alerts
+        rows[r["source_id"]] = {**r, "type": "mailbox"}
+    for r in extra.get("searches") or []:                  # kit v24: web-search leads, never coverage
+        rows[r["source_id"]] = {**r, "type": "search"}
     return rows
 
 
@@ -152,6 +157,7 @@ def _monitor(home) -> OfficialIndexMonitor:
 def _scans(home) -> list[dict]:
     """Every scan attempt, indexes and feeds alike, oldest first."""
     rows = [r["payload"] for r in _monitor(home).store.read()] + [r["payload"] for r in _store(home, "feeds").read()]
+    rows += [r["payload"] for r in _store(home, "mail").read()] + [r["payload"] for r in _store(home, "search").read()]
     return sorted(rows, key=lambda p: _when(p["checked_at"]))
 
 
@@ -230,6 +236,92 @@ def scan_feed(row: dict, home=None, get=None) -> dict:
     return payload
 
 
+def _failed(sid: str, exc: Exception, before: dict | None, now=None) -> dict:
+    return {"source_id": sid, "status": "UNABLE_TO_CHECK", "checked_at": _now(now).isoformat(),
+            "error": f"{type(exc).__name__}: {exc}"[:400] if not isinstance(exc, IndexErrorSafe) else str(exc)[:400],
+            "coverage": "unverified", "last_successful_check": (before or {}).get("checked_at")}
+
+
+def scan_mailbox(row: dict, home=None, now=None, imap_factory=None) -> dict:
+    """Official email alerts (governance/watcher/mailbox.py)."""
+    from . import mailbox
+    before = _last(home, row["source_id"], successful=True)
+    try:
+        payload = mailbox.read(row, home_dir(home), before, _now(now), subscriptions(home).get("mail"), imap_factory)
+    except Exception as exc:
+        payload = _failed(row["source_id"], exc, before, now)
+    _store(home, "mail").append("MailboxScan", payload)
+    return payload
+
+
+def scan_search(row: dict, home=None, now=None, search=None) -> dict:
+    """Web-search leads: candidate publication pages on a regulator's own site, found by a search engine.
+
+    A lead source never proves coverage. It finds pages a regulator has published that a search engine has indexed,
+    however late or incomplete; every item says so, and its priority is capped at P2 until a person triages it."""
+    before = _last(home, row["source_id"], successful=True)
+    try:
+        if search is None:
+            import sys
+            sys.path.insert(0, str(PACKAGE))
+            from ollama_search import search_web_checked as search
+        inventory = {}
+        for query in row["queries"]:
+            results, error = search(query, max_results=int(row.get("max_results", 10)))
+            if error:
+                raise IndexErrorSafe(f"search did not run: {error}")
+            for r in results:
+                url = str(r.get("url", "")).split("#", 1)[0]
+                if safe_url(url, row["approved_hosts"]) and any(
+                        urlparse(url).path.startswith(p) for p in row["path_prefixes"]):
+                    inventory.setdefault(url, {"title": str(r.get("title", ""))[:400], "date": "", "flagged": False,
+                                               "lead": True, "query": query})
+        if not inventory:
+            raise IndexErrorSafe("the searches found no pages on the regulator's publication paths; coverage unverified")
+        previous = (before or {}).get("inventory") or {}
+        new = [] if before is None else [{"url": k, **v} for k, v in inventory.items() if k not in previous]
+        payload = {"source_id": row["source_id"], "status": "BASELINE_ESTABLISHED" if before is None else
+                   ("UPDATES_AVAILABLE" if new else "UP_TO_DATE"), "checked_at": _now(now).isoformat(),
+                   "inventory": {**previous, **inventory}, "new": new, "error": None,
+                   "coverage": "search_leads_only_not_coverage"}
+    except Exception as exc:
+        payload = _failed(row["source_id"], exc, before, now)
+    _store(home, "search").append("SearchScan", payload)
+    return payload
+
+
+def capture(source_id: str, file: str | Path, by: str, home=None) -> dict:
+    """A page a named person saved from their own browser, read as that index's scan.
+
+    For regulators whose sites refuse automated clients. The person opened the page themselves; the watch parses what
+    they saved and records who captured it. Nothing is fetched and no challenge is bypassed."""
+    from governance.names import require_person
+    from .official_index import parse_index
+    row = catalogue().get(source_id)
+    if not row or row["type"] != "index":
+        raise ValueError(f"capture works for index sources only; {source_id} is not one")
+    by = require_person(by, "a capture needs the name of the person who saved the page")
+    path = Path(file).expanduser()
+    if not path.is_file():
+        raise ValueError(f"no saved page at {path}")
+    body = path.read_bytes()
+    monitor = _monitor(home)
+    before = monitor.latest(source_id, successful_only=True)
+    items = parse_index(body, page_url=row["url"], approved_hosts=row["approved_hosts"],
+                        path_prefixes=row["path_prefixes"], limit=int(row.get("max_items", 100)))
+    current = {r["url"]: r["title"] for r in items}
+    previous = before["inventory"] if before else {}
+    new = [] if before is None else [r for r in items if r["url"] not in previous]
+    payload = {"source_id": source_id, "status": "BASELINE_ESTABLISHED" if before is None else
+               ("UPDATES_AVAILABLE" if new else "UP_TO_DATE"), "checked_at": _now().isoformat(),
+               "final_url": row["url"], "index_sha256": hashlib.sha256(body).hexdigest(), "inventory": current,
+               "new": new, "changed_listing": [], "not_seen_on_current_page": [],
+               "coverage": "browser_capture_by_named_person", "captured_by": by, "captured_file": path.name,
+               "error": None}
+    monitor.store.append("OfficialIndexScan", payload)
+    return payload
+
+
 def due(source_id: str, interval_minutes: int, home=None, now=None) -> bool:
     last = _last(home, source_id)
     if last is None:
@@ -238,7 +330,7 @@ def due(source_id: str, interval_minutes: int, home=None, now=None) -> bool:
     return _now(now) - _when(last["checked_at"]) >= timedelta(minutes=wait)
 
 
-def run_due(home=None, now=None, get=None, force=False) -> dict:
+def run_due(home=None, now=None, get=None, force=False, imap_factory=None, search=None) -> dict:
     """Check every subscribed source that is due. Called by the scheduler every tick."""
     subs, cat = subscriptions(home), catalogue()
     scanned, not_due, failed = [], [], []
@@ -249,6 +341,10 @@ def run_due(home=None, now=None, get=None, force=False) -> dict:
             continue
         if row["type"] == "feed":
             result = scan_feed(row, home, get=get)
+        elif row["type"] == "mailbox":
+            result = scan_mailbox(row, home, now=now, imap_factory=imap_factory)
+        elif row["type"] == "search":
+            result = scan_search(row, home, now=now, search=search)
         else:
             agent = subscriptions(home).get("user_agent")        # kit v23: indexes honour it too, like feeds
             result = _monitor(home).scan({**row, "enabled": True, **({"user_agent": agent} if agent else {})}, get=get)
@@ -354,6 +450,8 @@ def items(home=None, now=None) -> list[dict]:
                 priority = "P2" if (matches or topics) else "P3"
             else:
                 priority = "P3"
+            if entry.get("lead") and priority == "P1":
+                priority = "P2"                          # a search lead is never top priority until a person looks
             first_seen = _when(scan["checked_at"])
             forecast = None
             if kind == "CONSULTATION":
@@ -364,7 +462,9 @@ def items(home=None, now=None) -> list[dict]:
                         "jurisdiction": source.get("jurisdiction"), "title": title, "url": url, "kind": kind,
                         "priority": priority, "first_seen": first_seen.isoformat(), "topics": topics,
                         "matched_controls": matches, "forecast": forecast, "flagged": bool(entry.get("flagged")),
-                        "triage": triaged.get(item_id), **_language(source, title)})
+                        "triage": triaged.get(item_id), **_language(source, title),
+                        **({"lead": "found by web search; not proof of coverage"} if entry.get("lead") else {}),
+                        **({"sender_dkim": entry["sender_dkim"]} if entry.get("sender_dkim") else {})})
     order = {"P1": 0, "P2": 1, "P3": 2}
     return sorted(out, key=lambda i: (order[i["priority"]], -_when(i["first_seen"]).timestamp()))
 

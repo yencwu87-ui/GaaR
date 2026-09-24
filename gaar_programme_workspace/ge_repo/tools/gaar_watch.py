@@ -8,6 +8,8 @@
     python tools/gaar_watch.py run [--force]              check every subscribed source that is due
     python tools/gaar_watch.py subscribe --source mas-circulars-index      (unsubscribe likewise)
     python tools/gaar_watch.py triage --item <id> --decision RELEVANT --by "Your Name"
+    python tools/gaar_watch.py capture --source mas-circulars-index --file ~/Downloads/Circulars.html --by "Your Name"
+                                                          a page you saved from your own browser, read as that scan
 
 The scheduler (tools/gaar_scheduler.py) runs `run` on every tick; each source is checked every 8 hours by default
 (interval_minutes in ~/gaar-watch/subscriptions.yaml). State lives in ~/gaar-watch (or GAAR_WATCH_HOME).
@@ -38,6 +40,10 @@ def main():
         s = sub.add_parser(name)
         s.add_argument("--source", required=True)
         s.add_argument("--by", default="")
+    ca = sub.add_parser("capture", help="read a page you saved from your own browser as that index's scan")
+    ca.add_argument("--source", required=True)
+    ca.add_argument("--file", required=True)
+    ca.add_argument("--by", required=True)
     pr = sub.add_parser("propose", help="draft a new control from a watch item (never live until promoted)")
     pr.add_argument("--item", required=True)
     pr.add_argument("--by", required=True)
@@ -65,6 +71,10 @@ def main():
                                       "forecast", "triage", "members") if i.get(k) is not None} for i in found]
     elif args.command == "run":
         out = intel.run_due(force=args.force)
+    elif args.command == "capture":
+        out = intel.capture(args.source, args.file, args.by)
+        out = {k: out[k] for k in ("source_id", "status", "coverage", "captured_by", "captured_file")} | {
+            "links": len(out["inventory"]), "new": len(out["new"])}
     elif args.command == "propose":
         out = intel.propose_control(args.item, args.by)
     elif args.command in ("subscribe", "unsubscribe"):

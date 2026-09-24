@@ -99,3 +99,57 @@ feeds:
     date_field: dateAdded
     flag_field: knownRansomwareCampaignUse
     flag_value: Known
+  # Kit v24. Replaces hkma-brdr-whats-new, whose page builds its list with JavaScript (the v22 Mac round found no
+  # links in it). Same host as the HKMA press feed, which scans successfully.
+  - source_id: hkma-circulars-index
+    jurisdiction: Hong Kong
+    authority: HKMA
+    url: https://www.hkma.gov.hk/eng/regulatory-resources/regulatory-guides/circulars/
+    approved_hosts: [www.hkma.gov.hk]
+    path_prefixes: [/media/eng/doc/key-information/guidelines-and-circular/]
+    max_items: 100
+    verified: false
+# Kit v24: official email alerts, for regulators whose websites refuse automated clients (MAS: challenge page; FCA:
+# HTTP 403 on the v22 Mac round). Put alert emails in ~/gaar-watch/mail/<source_id>/ or configure `mail:` (IMAP) in
+# subscriptions.yaml. Sender domains and link paths are from public documentation: the first alert verifies them.
+mailboxes:
+  - source_id: mas-email-alerts
+    jurisdiction: Singapore
+    authority: MAS
+    subscribe_url: https://www.mas.gov.sg/subscription-services
+    sender_domains: [mas.gov.sg]
+    approved_hosts: [www.mas.gov.sg]
+    path_prefixes: [/regulation/, /publications/, /news/]
+    redirect_hosts: []
+    stale_after_days: 21
+    verified: false
+  - source_id: fca-email-alerts
+    jurisdiction: UK
+    authority: FCA
+    subscribe_url: https://www.fca.org.uk/news-and-publications-email-alerts
+    sender_domains: [fca.org.uk, govdelivery.com]
+    approved_hosts: [www.fca.org.uk]
+    path_prefixes: [/publications/, /news/]
+    redirect_hosts: [links-1.govdelivery.com, links-2.govdelivery.com, lnks.gd]
+    stale_after_days: 7
+    verified: false
+# Kit v24: web-search leads (ollama_search.py, DuckDuckGo, no key). They find pages a search engine has indexed on the
+# regulator's own site. Never coverage: items are labelled leads and capped at P2 until a person triages them.
+searches:
+  - source_id: mas-search-leads
+    jurisdiction: Singapore
+    authority: MAS
+    queries: ["site:mas.gov.sg circular", "site:mas.gov.sg notice", "site:mas.gov.sg consultation paper",
+              "site:mas.gov.sg guidelines"]
+    approved_hosts: [www.mas.gov.sg]
+    path_prefixes: [/regulation/, /publications/consultations/, /news/media-releases/]
+    max_results: 10
+    verified: false
+  - source_id: fca-search-leads
+    jurisdiction: UK
+    authority: FCA
+    queries: ["site:fca.org.uk consultation paper", "site:fca.org.uk policy statement"]
+    approved_hosts: [www.fca.org.uk]
+    path_prefixes: [/publications/]
+    max_results: 10
+    verified: false

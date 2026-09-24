@@ -400,3 +400,210 @@ def test_the_contact_user_agent_reaches_index_pages_as_well_as_feeds(web, tmp_pa
     path.write_text(yaml.safe_dump(subs))
     intel.run_due(get=spy, force=True)
     assert seen and set(seen) == {"GaaR-watch/1.0 (contact: owner@example.com)"}
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Kit v24: official email alerts, web-search leads, browser capture, HKMA circulars
+# ---------------------------------------------------------------------------------------------------------
+
+from email.message import EmailMessage  # noqa: E402
+
+
+def _alert(sender, links, when="Wed, 23 Sep 2026 10:00:00 +0800", dkim=None, subject="MAS alert"):
+    m = EmailMessage()
+    m["From"], m["To"], m["Subject"], m["Date"] = sender, "owner@example.com", subject, when
+    if dkim:
+        m["Authentication-Results"] = f"mx.example.com; dkim=pass header.i=@{dkim}"
+    m.set_content("Plain part " + " ".join(u for u, _ in links))
+    m.add_alternative("<html><body>" + "".join(f'<a href="{u}">{t}</a>' for u, t in links) + "</body></html>",
+                      subtype="html")
+    return bytes(m)
+
+
+def _drop(sid, name, raw):
+    folder = intel.home_dir() / "mail" / sid
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / name).write_bytes(raw)
+
+
+NOW = datetime(2026, 9, 25, 9, tzinfo=timezone.utc)
+
+
+def _row(sid):
+    return intel.catalogue()[sid]
+
+
+def test_mas_email_alerts_become_items_with_their_sender_check_on_record():
+    intel.subscriptions()
+    circular = "https://www.mas.gov.sg/regulation/circulars/circular-on-ai-model-risk"
+    _drop("mas-email-alerts", "a.eml", _alert("MAS <alerts@mas.gov.sg>", [(circular, "Circular on AI model risk")],
+                                              dkim="mas.gov.sg"))
+    first = intel.scan_mailbox(_row("mas-email-alerts"), now=NOW)
+    assert first["status"] == "BASELINE_ESTABLISHED" and first["sender_dkim_pass"] == 1
+    notice = "https://www.mas.gov.sg/regulation/notices/notice-on-generative-ai"
+    _drop("mas-email-alerts", "b.eml", _alert("alerts@mas.gov.sg", [(notice, "Notice on generative AI"),
+                                                                    ("https://evil.example/x", "phish"),
+                                                                    ("https://www.mas.gov.sg/about-us", "About")]))
+    _drop("mas-email-alerts", "c.eml", _alert("someone@spoof.example", [(notice + "-fake", "Fake")]))
+    second = intel.scan_mailbox(_row("mas-email-alerts"), now=NOW)
+    assert second["status"] == "UPDATES_AVAILABLE" and [n["url"] for n in second["new"]] == [notice]
+    assert second["messages_ignored"] == [{"file": "c.eml", "why": "sender someone@spoof.example is not on the allowlist"}]
+    item = next(i for i in intel.items() if i["url"] == notice)
+    assert item["sender_dkim"] == "not verified" and item["authority"] == "MAS"
+
+
+def test_a_govdelivery_tracking_link_is_decoded_not_followed():
+    from governance.watcher.mailbox import unwrap
+    wrapped = ("https://links-1.govdelivery.com/CL0/https:%2F%2Fwww.fca.org.uk%2Fpublications%2Fconsultation-papers"
+               "%2Fcp26-12-ai/1/0101019a2b3c4d5e-6f7a8b9c-aaaa-bbbb-cccc-000000000000-000000/abcdef=")
+    assert unwrap(wrapped, ["links-1.govdelivery.com"]) == "https://www.fca.org.uk/publications/consultation-papers/cp26-12-ai"
+    assert unwrap("https://lnks.gd/l/x?url=https%3A%2F%2Fwww.fca.org.uk%2Fnews%2Fa", ["lnks.gd"]) == "https://www.fca.org.uk/news/a"
+    assert unwrap("https://www.fca.org.uk/news/a", ["lnks.gd"]) == "https://www.fca.org.uk/news/a"
+    intel.subscriptions()
+    _drop("fca-email-alerts", "d.eml", _alert("FCA <fca@public.govdelivery.com>", [(wrapped, "CP26/12 AI")]))
+    scan = intel.scan_mailbox(_row("fca-email-alerts"), now=NOW)
+    assert list(scan["inventory"]) == ["https://www.fca.org.uk/publications/consultation-papers/cp26-12-ai"]
+
+
+@pytest.mark.parametrize("setup, message", [
+    (lambda: None, "no alert emails from mas.gov.sg yet; subscribe at https://www.mas.gov.sg/subscription-services and put the alerts in "),
+    (lambda: _drop("mas-email-alerts", "old.eml", _alert("alerts@mas.gov.sg",
+                   [("https://www.mas.gov.sg/regulation/circulars/x", "X")], when="Mon, 01 Jun 2026 10:00:00 +0800")),
+     "no alert received in 21 days (latest 2026-06-01); the subscription may have lapsed"),
+    (lambda: _drop("mas-email-alerts", "nolinks.eml", _alert("alerts@mas.gov.sg", [("https://www.mas.gov.sg/about", "About")])),
+     "the alert emails contain no links to the regulator's publication pages; coverage unverified"),
+])
+def test_a_silent_or_stale_mailbox_is_unable_to_check_never_no_updates(setup, message):
+    intel.subscriptions()
+    setup()
+    scan = intel.scan_mailbox(_row("mas-email-alerts"), now=NOW)
+    assert scan["status"] == "UNABLE_TO_CHECK" and scan["error"].startswith(message)
+
+
+class _Imap:
+    """A stand-in mailbox server."""
+    def __init__(self, messages, search_status="OK"):
+        self.messages, self.search_status, self.calls = messages, search_status, []
+
+    def __call__(self, host):
+        self.calls.append(("connect", host))
+        return self
+
+    def login(self, user, password):
+        self.calls.append(("login", user, password))
+
+    def select(self, folder, readonly):
+        assert readonly is True                                      # the watch never changes the mailbox
+
+    def search(self, charset, *criteria):
+        return self.search_status, [b" ".join(str(i + 1).encode() for i in range(len(self.messages)))]
+
+    def fetch(self, num, what):
+        return "OK", [(b"1 (RFC822)", self.messages[int(num) - 1])]
+
+    def logout(self):
+        pass
+
+
+def test_imap_alerts_are_copied_into_the_folder_and_the_password_is_never_written(monkeypatch):
+    import yaml
+    intel.subscriptions()
+    path = intel.home_path() / "subscriptions.yaml"
+    subs = yaml.safe_load(path.read_text())
+    subs["mail"] = {"imap_host": "imap.example.com", "imap_user": "owner@example.com", "password_env": "GAAR_MAIL_PW"}
+    path.write_text(yaml.safe_dump(subs))
+    monkeypatch.setenv("GAAR_MAIL_PW", "s3cret-app-password")
+    server = _Imap([_alert("alerts@mas.gov.sg", [("https://www.mas.gov.sg/regulation/circulars/y", "Y")])])
+    scan = intel.scan_mailbox(_row("mas-email-alerts"), now=NOW, imap_factory=server)
+    assert scan["status"] == "BASELINE_ESTABLISHED" and scan["fetched_from_mailbox"] == 1
+    assert ("login", "owner@example.com", "s3cret-app-password") in server.calls
+    written = "".join(p.read_text(errors="replace") for p in intel.home_path().rglob("*") if p.is_file())
+    assert "s3cret-app-password" not in written
+    monkeypatch.delenv("GAAR_MAIL_PW")
+    refused = intel.scan_mailbox(_row("mas-email-alerts"), now=NOW, imap_factory=server)
+    assert refused["error"] == ("mail is not configured: set imap_host, imap_user and password_env in "
+                                "subscriptions.yaml, and put the password in the environment variable GAAR_MAIL_PW")
+    monkeypatch.setenv("GAAR_MAIL_PW", "x")
+    failing = intel.scan_mailbox(_row("mas-email-alerts"), now=NOW, imap_factory=_Imap([], search_status="NO"))
+    assert failing["error"] == "mailbox search failed for mas.gov.sg"
+
+
+def test_search_leads_count_only_regulator_pages_and_are_labelled_leads():
+    intel.subscriptions()
+    rows = [{"title": "MAS Notice 655 on cyber hygiene", "url": "https://www.mas.gov.sg/regulation/notices/notice-655"},
+            {"title": "Blog about MAS", "url": "https://blog.example/mas"},
+            {"title": "MAS careers", "url": "https://www.mas.gov.sg/careers"}]
+    batches = iter([rows] + [[]] * 3 + [rows + [{"title": "Guidelines on AI risk management",
+                                                  "url": "https://www.mas.gov.sg/regulation/guidelines/ai-risk"}]] + [[]] * 3)
+    search = lambda q, max_results: (next(batches), None)
+    assert intel.scan_search(_row("mas-search-leads"), now=NOW, search=search)["status"] == "BASELINE_ESTABLISHED"
+    second = intel.scan_search(_row("mas-search-leads"), now=NOW, search=search)
+    assert [n["url"] for n in second["new"]] == ["https://www.mas.gov.sg/regulation/guidelines/ai-risk"]
+    assert second["coverage"] == "search_leads_only_not_coverage"
+    item = intel.items()[0]
+    assert item["lead"] == "found by web search; not proof of coverage" and item["priority"] in ("P2", "P3")
+
+
+@pytest.mark.parametrize("search, message", [
+    (lambda q, max_results: ([], "the ddgs package is not installed"), "search did not run: the ddgs package is not installed"),
+    (lambda q, max_results: ([{"title": "x", "url": "https://blog.example/"}], None),
+     "the searches found no pages on the regulator's publication paths; coverage unverified"),
+])
+def test_a_search_that_did_not_run_or_found_nothing_official_is_unable_to_check(search, message):
+    intel.subscriptions()
+    scan = intel.scan_search(_row("mas-search-leads"), now=NOW, search=search)
+    assert scan["status"] == "UNABLE_TO_CHECK" and scan["error"] == message
+
+
+def test_run_due_dispatches_the_new_source_types(monkeypatch):
+    intel.subscriptions()
+    for sid in ("mas-email-alerts", "mas-search-leads"):
+        intel.set_subscribed(sid, True, by="test")
+    result = intel.run_due(force=True, get=Web(), search=lambda q, max_results: ([], "offline"),
+                           imap_factory=_Imap([]))
+    states = {s["source_id"]: s["status"] for s in result["scanned"]}
+    assert states["mas-email-alerts"] == "UNABLE_TO_CHECK" and states["mas-search-leads"] == "UNABLE_TO_CHECK"
+    health = {h["source_id"]: h for h in intel.health()}
+    assert health["mas-email-alerts"]["state"] == "FAILING" and health["mas-search-leads"]["address_verified"] is False
+
+
+MAS_PAGE = (b"<html><head><title>Circulars</title></head><body>"
+            b'<a href="/regulation/circulars/circular-on-ai">Circular on AI</a>'
+            b'<a href="/regulation/circulars/circular-on-cyber">Circular on cyber</a></body></html>')
+
+
+def test_a_page_saved_in_your_own_browser_becomes_a_named_capture(tmp_path):
+    intel.subscriptions()
+    intel.set_subscribed("mas-circulars-index", True, by="test")
+    saved = tmp_path / "Circulars.html"
+    saved.write_bytes(MAS_PAGE)
+    first = intel.capture("mas-circulars-index", saved, "Wu Yenching")
+    assert first["status"] == "BASELINE_ESTABLISHED" and first["captured_by"] == "Wu Yenching"
+    assert first["coverage"] == "browser_capture_by_named_person" and len(first["inventory"]) == 2
+    saved.write_bytes(MAS_PAGE.replace(b"</body>", b'<a href="/regulation/circulars/circular-new">New one</a></body>'))
+    second = intel.capture("mas-circulars-index", saved, "Wu Yenching")
+    assert [n["url"] for n in second["new"]] == ["https://www.mas.gov.sg/regulation/circulars/circular-new"]
+    assert {h["source_id"]: h for h in intel.health()}["mas-circulars-index"]["state"] == "OK"
+
+
+@pytest.mark.parametrize("source, file, by, message", [
+    ("cisa-kev", "x.html", "Wu Yenching", "capture works for index sources only; cisa-kev is not one"),
+    ("mas-circulars-index", "x.html", "Your Name", "'Your Name' is a placeholder, not a name: record the person's own name"),
+    ("mas-circulars-index", "x.html", " ", "a capture needs the name of the person who saved the page"),
+    ("mas-circulars-index", "missing.html", "Wu Yenching", "no saved page at "),
+])
+def test_a_capture_that_cannot_be_attributed_or_read_is_refused(tmp_path, source, file, by, message):
+    intel.subscriptions()
+    (tmp_path / "x.html").write_bytes(MAS_PAGE)
+    with pytest.raises(ValueError, match="^" + re.escape(message)):
+        intel.capture(source, tmp_path / file, by)
+
+
+def test_hkma_circulars_replace_the_javascript_only_brdr_page():
+    row = _row("hkma-circulars-index")
+    assert row["approved_hosts"] == ["www.hkma.gov.hk"] and row["verified"] is False
+    page = (b'<html><body><a href="/media/eng/doc/key-information/guidelines-and-circular/2026/20260920e1.pdf">'
+            b"Artificial intelligence risk management</a></body></html>")
+    from governance.watcher.official_index import parse_index
+    found = parse_index(page, page_url=row["url"], approved_hosts=row["approved_hosts"], path_prefixes=row["path_prefixes"])
+    assert found[0]["title"] == "Artificial intelligence risk management"

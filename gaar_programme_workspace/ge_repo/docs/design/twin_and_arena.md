@@ -147,6 +147,22 @@ check of all 18 is visible in the round report.
 
       python tools/gaar_watch.py setup --regions sg,us,uk,hk,cn,global
 
+## Regulators that refuse automated clients (kit v24)
+
+The v22 Mac round found MAS answering every automated request with a challenge page and the FCA with HTTP 403, even
+to an identified client. The watch does not get around either. Three sanctioned routes replace the blocked scans:
+
+| Route | Source ids | What it is | What it proves |
+|---|---|---|---|
+| Official email alerts | `mas-email-alerts`, `fca-email-alerts` | The regulator's own alerts (MAS subscription services; FCA daily news and publications alert), read from a folder of .eml files or by IMAP (read-only; the password comes from an environment variable named in `mail.password_env`, never written) | Coverage of what the alert lists. Stale for longer than `stale_after_days` means UNABLE_TO_CHECK, never "no updates" |
+| Browser capture | any index, e.g. `mas-circulars-index` | `gaar_watch.py capture --source … --file … --by "<name>"` reads a page you saved in your own browser | That page, on that day, as captured by a named person |
+| Search leads | `mas-search-leads`, `fca-search-leads` | `ollama_search.py` (DuckDuckGo, no key) finding pages on the regulator's own site | Nothing about coverage: items are labelled leads and capped at P2 |
+
+Links count only on the regulator's approved hosts and publication paths. A tracking redirect (GovDelivery) is decoded
+locally, never followed. The sender check is recorded as it is: an allowlisted From domain, and DKIM only where the
+mailbox recorded a pass. HKMA's BRDR "what's new" page builds its list with JavaScript; `hkma-circulars-index`
+(www.hkma.gov.hk, the host whose press feed already scans) replaces it.
+
 ## One click from watch item to draft control
 
 "Draft a new control from this" (in the workbench) or `gaar_watch.py propose --item <id> --by "<name>"` writes a
