@@ -18,3 +18,4 @@ governance/result_state_events.jsonl
 governance/result_state_events.jsonl.lock
 .test_runs/
 reports/
+.milestone_state.json

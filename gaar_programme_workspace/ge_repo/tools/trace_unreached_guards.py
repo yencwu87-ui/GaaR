@@ -22,7 +22,7 @@ MODULES = ["governance/production/reconciliation.py", "governance/production/com
 TESTS = ["tests/test_decisions.py", "tests/test_reconciliation.py", "tests/test_completion.py",
          "tests/test_recurring.py", "tests/test_mapping.py", "tests/test_wb143_149_programme.py",
          "tests/test_guards_exercised.py", "tests/test_governance_events.py", "tests/test_policy_consistency.py",
-         "tests/test_gate_status.py"]
+         "tests/test_gate_status.py", "tests/test_core_guards_exercised.py"]
 REGISTER = ROOT / "docs/quality/unexercised_guards.md"
 
 

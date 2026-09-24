@@ -149,7 +149,10 @@ def _render_markdown(document, text):
             flush()
             number = re.match(r"^\s*(\d+)\. ", line)
             item = [re.sub(r"^\s*(- |\d+\. )", "", line)]
-            while i + 1 < len(lines) and lines[i + 1].startswith("   ") and lines[i + 1].strip():
+            # A continuation is any indented, non-blank line that does not start a new item. Bullets indent
+            # continuations by two spaces, numbered items by three; requiring three split every wrapped bullet.
+            while (i + 1 < len(lines) and lines[i + 1].startswith("  ") and lines[i + 1].strip()
+                   and not re.match(r"^\s*(- |\d+\. )", lines[i + 1])):
                 i += 1
                 item.append(lines[i].strip())
             if number:
@@ -214,6 +217,17 @@ def build(report_path: Path, out: Path) -> dict:
     _table(document, ["Input", "Path", "Hash or head"],
            [[i["kind"], f"`{i['path']}`", (i.get("sha256") or i.get("head") or "—")[:24]] for i in receipt["inputs"]],
            widths=[3.6, 8.4, 4.6])
+
+    # Word requires a paragraph after a final table. At normal size it spills onto a blank last page whenever the
+    # table ends at the foot of a page (seen on the Mac rendering of v18), so it is made 1 pt with no spacing.
+    closing = document.add_paragraph()
+    closing.paragraph_format.space_before = closing.paragraph_format.space_after = Pt(0)
+    closing.paragraph_format.line_spacing = Pt(1)
+    mark = OxmlElement("w:rPr")                               # the paragraph mark's own size sets the line
+    size = OxmlElement("w:sz")
+    size.set(qn("w:val"), "2")
+    mark.append(size)
+    closing._p.get_or_add_pPr().append(mark)
 
     footer = document.sections[0].footer.paragraphs[0]
     _runs(footer, f"GaaR quality policy {identity['policy_version']} · {identity['policy_sha256'][:12]} · "

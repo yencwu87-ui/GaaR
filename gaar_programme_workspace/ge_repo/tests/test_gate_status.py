@@ -153,3 +153,54 @@ def test_the_workpaper_renders_only_a_verified_report_about_this_exact_policy(is
     pa.POLICY.write_text(pa.POLICY.read_text() + "\nA later edit.\n")
     with pytest.raises(ValueError):
         tool.build(path, isolated / "refused2.docx")
+
+
+def test_the_refusal_gate_is_held_only_when_no_guard_is_unreached(isolated):
+    from governance.production import gate_status as gs
+    gs.RUNS.mkdir()
+    now = datetime.now().astimezone()
+    (gs.RUNS / "trace-x.json").write_text(json.dumps({"at": now.isoformat(), "verdict": "PASS", "unreached": 0,
+                                                      "registered": 0}))
+    assert _states(gs.generate())["A refusal or integrity rule"] == "HELD"
+    (gs.RUNS / "trace-y.json").write_text(json.dumps({"at": (now + timedelta(seconds=1)).isoformat(),
+                                                      "verdict": "FAIL", "unreached": 1, "registered": 0}))
+    assert _states(gs.generate(as_of=(now + timedelta(seconds=2)).isoformat()))["A refusal or integrity rule"] == "OPEN"
+
+
+def test_a_series_assessed_on_a_simulated_clock_says_so(isolated):
+    """Seen on the Mac: live report 2026-09-24 read '3 period(s) assessed, 2 due' with no reason given."""
+    from governance.production import gate_status as gs
+    config_path, _ = _governed_series(isolated)
+    evidence = next(g["evidence"] for g in gs.generate(str(config_path))["gates"] if g["gate"] == "Collection completeness")
+    assert "simulated clock (latest 2026-10-01T09:00:00+08:00)" in evidence
+
+
+def test_the_workpaper_keeps_each_wrapped_bullet_whole_and_ends_without_a_blank_page(isolated):
+    """Seen on the Mac rendering of v18: a bullet wrapped in the source became a bullet plus a stray paragraph
+    (§2, §5, §11), and a 10th blank page followed the receipt table."""
+    import importlib
+    import re
+    from docx import Document
+    from docx.oxml.ns import qn
+    from governance.production import gate_status as gs, policy_approval as pa
+    tool = importlib.import_module("tools.gaar_workpaper")
+    report = gs.generate()
+    path = isolated / "report.json"
+    path.write_text(json.dumps(report))
+    doc = Document(tool.build(path, isolated / "workpaper.docx")["workpaper"])
+    paragraphs = [p.text for p in doc.paragraphs]
+    source = pa.POLICY.read_text().splitlines()
+    bullets = 0
+    for n, line in enumerate(source):
+        if line.startswith("- "):
+            item = [line[2:]]
+            while n + 1 < len(source) and source[n + 1].startswith("  ") and source[n + 1].strip():
+                n += 1
+                item.append(source[n].strip())
+            expected = re.sub(r"\*\*|`", "", " ".join(item))
+            assert expected in paragraphs, expected
+            bullets += 1
+    assert bullets >= 10
+    assert not any(p.startswith("the canonical test and trace records") for p in paragraphs)
+    last = doc.paragraphs[-1]
+    assert last.text == "" and last._p.pPr.find(qn("w:rPr")).find(qn("w:sz")).get(qn("w:val")) == "2"

@@ -151,6 +151,7 @@ def generate(config_path=None, as_of=None) -> dict:
             payload = recurring.load(config, root)["payload"]
             series_id = payload["authorisation_id"]
             due = assessed = warned = attested = 0
+            simulated = []
             grace_days = config["periodic_evidence"].get("grace_days", 2)
             from datetime import timedelta
             for period in payload["periods"]:
@@ -159,13 +160,17 @@ def generate(config_path=None, as_of=None) -> dict:
                     due += 1
                 if any(e["event_key"] == "deterministic_run_report" for e in events):
                     assessed += 1
+                simulated += [e["payload"]["clock_simulated"] for e in events
+                              if isinstance(e.get("payload"), dict) and e["payload"].get("clock_simulated")]
                 for e in events:
                     if e["kind"] == "pilot_attestation":
                         attested += 1
                         warned += bool(e["payload"]["attestation"].get("rationale_warnings"))
             gates["Collection completeness"] = (
                 ("HELD" if assessed >= due else "PARTIAL"),
-                f"{assessed} period(s) assessed, {due} due (grace {grace_days} day(s)); shown, not enforced")
+                f"{assessed} period(s) assessed, {due} due (grace {grace_days} day(s)); shown, not enforced"
+                + (f"; constructed demonstration: periods assessed on a simulated clock (latest {max(simulated, key=_when)}), "
+                   "so a period can be assessed before it is due by the report's own time" if simulated else ""))
             gates["Attestation quality"] = ("HELD" if attested else "OPEN",
                                             f"{attested} attestation(s), {warned} carrying a rationale warning; "
                                             "warnings recorded, their review is a procedure")
