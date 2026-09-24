@@ -388,7 +388,9 @@ def local_time(stamp: str) -> str:
     return local.strftime("%Y-%m-%d %H:%M:%S ") + (local.tzname() or "") + local.strftime(" (UTC%z)")
 
 
-def _decision_form(st, report: dict, key: str, confirm_text: str = CONFIRM_FULL):
+def _decision_form(st, report: dict, key: str, confirm_text: str = CONFIRM_FULL, read: str | None = None):
+    """`read` names the record on screen. The confirmation is keyed to it, so if the record is replaced while the
+    reviewer reads (a U1 rerun by the scheduler), the confirmation resets and must be given again."""
     labels = {DECISION_LABEL.get((c["decision"], c["assurance_only_fail"]),
                                  f"{c['decision']}{' (assurance only)' if c['assurance_only_fail'] else ''}"): c
               for c in report["choices"]}
@@ -402,7 +404,7 @@ def _decision_form(st, report: dict, key: str, confirm_text: str = CONFIRM_FULL)
                                          "happen next. Write it for a reader in a year.")
     for warning in rationale_warnings(chosen["decision"], rationale):
         st.warning(warning + " You can still sign; the rationale is yours.")
-    confirm = st.checkbox(confirm_text, key=f"{key}-confirm")
+    confirm = st.checkbox(confirm_text, key=f"{key}-confirm" + (f"-{read[:16]}" if read else ""))
     return chosen, rationale, confirm
 
 
@@ -638,7 +640,8 @@ def _render_attest_deterministic(st, config, root, investigation_id, engine, jou
     if report["verdict"] == "NO_EXCEPTIONS_FOUND":
         st.info("The tests found no exceptions in the checked, corroborated population for this period. You can note "
                 "that; it is not a conclusion that the control is designed and operating effectively, and it is never PASS.")
-    form = _decision_form(st, report, "deterministic", deterministic_confirm_text(journal))
+    form = _decision_form(st, report, "deterministic", deterministic_confirm_text(journal),
+                          read=report["record"].get("reconciliation_event_hash"))
     if not form:
         return
     chosen, rationale, confirm = form

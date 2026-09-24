@@ -11,10 +11,12 @@ It runs, in this order, and stops only where a person must act:
 2. the policy approval check. If no approval covers the current policy text, it stops and prints the approve
    command (approval is a human act; this tool never signs);
 3. the series check: signatures, pinned policy and mapping, configuration drift;
-4. the attestation check. If no period is attested yet, it stops and prints the command that opens the app.
-   You sign there, then rerun this command, and it continues from here;
-5. generate the gate-status report, verify it, render the workpaper;
-6. a summary of every gate against the state this milestone expects, written to reports/milestone-<time>.txt.
+4. one scheduler tick: arrived periods run, and a record blocked only by a software upgrade is rerun under this
+   version (runbook U1), keeping the old one intact;
+5. the attestation check. If no period is attested yet, it stops and prints the command that opens the app in its
+   inbox view. You sign there, then rerun this command, and it continues from here;
+6. generate the gate-status report, verify it, render the workpaper, freeze the pack;
+7. a summary of every gate against the state this milestone expects, written to reports/milestone-<time>.txt.
    That file is the one thing to send back.
 
 Exit codes: 0 all expected, 1 a gate differs from expectation or a check failed, 3 waiting on a human step.
@@ -40,7 +42,7 @@ WHY_OPEN = {"Procedure completeness": "no adversarial pack yet: needs the extern
 def tree_sha256() -> str:
     """The code and governing text the tests ran against. Local working state is excluded."""
     h = hashlib.sha256()
-    skip = {".test_runs", "reports", "__pycache__", ".pytest_cache", "runs", "var"}
+    skip = {".test_runs", "reports", "packs", "__pycache__", ".pytest_cache", "runs", "var"}
     for path in sorted(ROOT.rglob("*")):
         rel = path.relative_to(ROOT)
         if rel.parts[:3] == ("docs", "quality", "approvals") or path == STATE:   # events and own state, not code
@@ -128,16 +130,39 @@ def series_ok(config_path):
     return config, root, states
 
 
+def scheduler_tick(config_path):
+    """One tick of the one scheduler: runs arrived periods and reruns records blocked only by an upgrade (U1)."""
+    from governance.production import recurring, scheduler
+    try:
+        result = scheduler.tick(config_path)
+    except scheduler.SchedulerBusy as exc:
+        say(f"   scheduler: {exc}; using the state it last recorded")
+        result = None
+    if result:
+        for name, outcome in result["jobs"].items():
+            extra = ""
+            if name == "series":
+                reran = [p["label"] for p in outcome.get("periods", []) if p.get("superseded")]
+                extra = (f"; reran under this software (runbook U1): {', '.join(reran)}" if reran else "")
+            say(f"   scheduler job {name}: {outcome['status']}{extra}"
+                + (f" — {outcome['error']}" if outcome.get("error") else ""))
+    from governance.operations.runtime import load
+    config, root = load(config_path)
+    periods = recurring.load(config, root)["payload"]["periods"]
+    return [recurring.period_state(config, root, p) for p in periods], (result or {}).get("jobs", {})
+
+
 def attested(config_path, states):
     if any(s["state"] == "ATTESTED" for s in states):
         say("4. attestation: " + ", ".join(s["label"] for s in states if s["state"] == "ATTESTED") + " attested")
         return True
     waiting = [s["label"] for s in states if s["state"] == "AWAITING_ATTESTATION"]
     say("4. attestation: none yet. This is the one step that must be yours. Open the app:")
-    say(f"     GAAR_REVIEWER_TOKEN=gaar-test-123 WB_INVESTIGATION_CONFIG={config_path} "
+    say(f"     GAAR_UI=simple GAAR_REVIEWER_TOKEN=gaar-test-123 WB_INVESTIGATION_CONFIG={config_path} "
         f"python -m streamlit run app_gaar.py --server.port 8502")
-    say(f"   sign {waiting[-1] if waiting else 'the latest period'} (\"No exceptions noted for this period (assurance only)\"),"
-        " take the screenshot, stop the app with Ctrl-C, and rerun this command.")
+    say(f"   The inbox lists what needs you. Open {waiting[-1] if waiting else 'the latest period'}, sign "
+        "\"No exceptions noted for this period (assurance only)\", take the screenshot, stop the app with Ctrl-C, "
+        "and rerun this command.")
     return False
 
 
@@ -161,10 +186,11 @@ def report_and_workpaper(config_path, out):
     return report, target
 
 
-def summary(report, target, out):
+def summary(report, target, out, pack=None):
     lines = [f"GaaR milestone check — {datetime.now().astimezone().isoformat(timespec='seconds')}",
              f"policy {report['policy']['policy_version']} ({report['policy']['policy_sha256'][:12]}), "
-             f"series {report['series']}, report {target.name} (verified), workpaper {out}", "",
+             f"series {report['series']}, report {target.name} (verified), workpaper {out}",
+             f"frozen pack (what to share): {pack}", "",
              f"{'Gate':<30} {'State':<9} {'Expected':<9}"]
     differs = []
     for g in report["gates"]:
@@ -180,7 +206,7 @@ def summary(report, target, out):
     path.write_text(text)
     say("")
     say(text)
-    say(f"summary written to {path}  <- send this file back, with the screenshot")
+    say(f"summary written to {path}  <- send this file back, with the screenshot of the inbox and the signed item")
     return not differs
 
 
@@ -198,12 +224,24 @@ def main():
     series = series_ok(config_path)
     if series is None:
         raise SystemExit(1)
-    if not attested(config_path, series[2]):
+    say("3b. scheduler tick")
+    states, jobs = scheduler_tick(config_path)
+    if jobs.get("series", {}).get("status") == "FAILED":
+        say("   the series job failed; see the inbox: python tools/gaar_scheduler.py inbox --config " + str(config_path))
+        raise SystemExit(1)
+    if not attested(config_path, states):
         raise SystemExit(3)
     report, target = report_and_workpaper(config_path, out)
     if report is None:
         raise SystemExit(1)
-    raise SystemExit(0 if summary(report, target, out) else 1)
+    sys.path.insert(0, str(ROOT / "tools"))
+    import gaar_pack
+    pack = gaar_pack.freeze(target, out)
+    check = gaar_pack.verify(pack["pack"])
+    say(f"   frozen pack: {pack['pack']} (verify: valid={check['valid']})")
+    from governance.production import inbox
+    say(f"   status line: {inbox.status_line(config_path)['text']}")
+    raise SystemExit(0 if summary(report, target, out, pack["pack"]) and check["valid"] else 1)
 
 
 if __name__ == "__main__":

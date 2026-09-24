@@ -16,13 +16,15 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 MODULES = ["governance/production/reconciliation.py", "governance/production/completion.py",
            "governance/production/recurring.py", "governance/production/procedures.py", "governance/decisions.py",
            "governance/operations/runtime.py", "governance/production/lifecycle.py",
-           "governance/production/policy_approval.py", "governance/production/gate_status.py"]
+           "governance/production/policy_approval.py", "governance/production/gate_status.py",
+           "governance/production/scheduler.py", "governance/production/inbox.py"]
 # The command-line tools are exercised by tests through separate processes, which this in-process tracer
 # cannot see. They are excluded here and the gap is recorded in the register, rather than reported as passing.
 TESTS = ["tests/test_decisions.py", "tests/test_reconciliation.py", "tests/test_completion.py",
          "tests/test_recurring.py", "tests/test_mapping.py", "tests/test_wb143_149_programme.py",
          "tests/test_guards_exercised.py", "tests/test_governance_events.py", "tests/test_policy_consistency.py",
-         "tests/test_gate_status.py", "tests/test_core_guards_exercised.py"]
+         "tests/test_gate_status.py", "tests/test_core_guards_exercised.py", "tests/test_upgrade_rerun.py",
+         "tests/test_inbox_and_scheduler.py"]
 REGISTER = ROOT / "docs/quality/unexercised_guards.md"
 
 
