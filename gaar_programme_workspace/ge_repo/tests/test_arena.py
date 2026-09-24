@@ -59,10 +59,15 @@ def test_scores_come_from_the_attempted_receipts_including_failed_calls(monkeypa
     def down(url, **k):
         raise requests.ConnectionError("refused")
     monkeypatch.setattr(requests, "post", down)
-    board = arena.run(["ollama:qwen2.5:14b"], n_cases=6, seed=9)
-    row = board["table"][0]
-    assert row["cases"] == 6 and row["holds"] == 6 and row["errors"] == 6       # every attempt counted, none dropped
-    attempts = [r["payload"] for r in arena.store().read() if r["record_type"] == "ArenaAttempt"]
+    board = arena.run(["ollama:qwen2.5:14b", "baseline:rules"], n_cases=12, seed=9)
+    rows = {r["contestant"]: r for r in board["table"]}
+    row = rows["ollama:qwen2.5:14b"]
+    assert row["cases"] == 5 and row["holds"] == 5 and row["errors"] == 5       # every attempt counted, none dropped
+    assert row["stopped"] == "after 5 attempts: 5 consecutive failed calls"      # server down: stopped, not asked 12x
+    assert rows["baseline:rules"]["cases"] == 12 and "stopped" not in rows["baseline:rules"]
+    attempts = [r["payload"] for r in arena.store().read() if r["record_type"] == "ArenaAttempt"
+                and r["payload"]["contestant"] == "ollama:qwen2.5:14b"]
+    assert len(attempts) == 5
     assert all(a["error"].startswith("ConnectionError") and a["parsed"]["answer"] == "HOLD" for a in attempts)
 
 
@@ -174,6 +179,8 @@ def test_a_blind_vote_hides_identities_until_cast_and_records_the_voter():
         arena.vote(pair, "MAYBE", "Test Owner")
     with pytest.raises(ValueError, match="^a vote needs the name of the person casting it$"):
         arena.vote(pair, "A", "  ")
+    with pytest.raises(ValueError, match="^'Your Name' is a placeholder, not a name: record the person's own name$"):
+        arena.vote(pair, "A", "Your Name")
 
 
 def test_a_run_refuses_duplicates_and_a_board_refuses_an_unknown_run():

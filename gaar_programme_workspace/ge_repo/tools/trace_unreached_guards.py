@@ -20,7 +20,7 @@ MODULES = ["governance/production/reconciliation.py", "governance/production/com
            "governance/production/scheduler.py", "governance/production/inbox.py", "governance/watcher/intel.py",
            "governance/twin/generator.py", "governance/arena/arena.py", "governance/arena/contestants.py",
            "governance/arena/cases.py", "governance/arena/judge.py", "governance/twin/adjudication.py",
-           "governance/basis.py", "governance/paths.py"]
+           "governance/basis.py", "governance/paths.py", "governance/names.py"]
 # The command-line tools are exercised by tests through separate processes, which this in-process tracer
 # cannot see. They are excluded here and the gap is recorded in the register, rather than reported as passing.
 TESTS = ["tests/test_decisions.py", "tests/test_reconciliation.py", "tests/test_completion.py",

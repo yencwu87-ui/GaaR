@@ -383,3 +383,20 @@ def test_chinese_items_arrive_labelled_and_are_never_silently_translated(web):
     intel.run_due(get=web, force=True)
     item = intel.items()[0]
     assert item["language"] == "en" and item["language_label"] is None
+
+
+def test_the_contact_user_agent_reaches_index_pages_as_well_as_feeds(web, tmp_path):
+    """Kit v23: some regulators refuse anonymous clients; the configured user agent now goes to indexes too."""
+    import yaml
+    seen = []
+
+    def spy(url, **kwargs):
+        seen.append(kwargs.get("headers", {}).get("User-Agent"))
+        return web(url, **kwargs)
+    intel.subscriptions()
+    path = intel.home_path() / "subscriptions.yaml"
+    subs = yaml.safe_load(path.read_text())
+    subs["user_agent"] = "GaaR-watch/1.0 (contact: owner@example.com)"
+    path.write_text(yaml.safe_dump(subs))
+    intel.run_due(get=spy, force=True)
+    assert seen and set(seen) == {"GaaR-watch/1.0 (contact: owner@example.com)"}

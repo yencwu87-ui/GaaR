@@ -59,6 +59,7 @@ def test_a_basis_is_confirmed_one_control_at_a_time_by_a_named_person():
 @pytest.mark.parametrize("args, message", [
     (("MAS", "M3.12", 1, "LOOKS_FINE", "A"), "decision must be one of CONFIRMED, REJECTED, NO_BASIS_IN_INSTRUMENT"),
     (("MAS", "M3.12", 1, "CONFIRMED", " "), "a basis decision needs the name of the person making it"),
+    (("MAS", "M3.12", 1, "CONFIRMED", "Your Name"), "'Your Name' is a placeholder, not a name: record the person's own name"),
     (("ISO 42001", "A.2.2", 1, "CONFIRMED", "A"), "ISO 42001: instrument unavailable, so there is no passage to confirm"),
     (("MAS", "M9.99", 1, "CONFIRMED", "A"), "no control MAS M9.99"),
     (("MAS", "M3.12", 7, "CONFIRMED", "A"), "MAS M3.12 has candidates 1 to 2"),

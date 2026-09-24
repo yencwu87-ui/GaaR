@@ -7,6 +7,7 @@ from pathlib import Path
 
 import yaml
 
+from governance.names import is_placeholder, require_person
 from governance.watcher.store import HashChainStore
 
 LOG = Path(__file__).resolve().parent / "adjudications.yaml"
@@ -41,19 +42,19 @@ def confirm(entry_id: str, by: str, note: str = "", path=None, log: Path = LOG) 
     known = {e["id"]: e for e in entries(log)}
     if entry_id not in known:
         raise ValueError(f"unknown adjudication {entry_id}")
-    if not by.strip():
-        raise ValueError("a confirmation needs the name of the person who read the data")
+    by = require_person(by, "a confirmation needs the name of the person who read the data")
     e = known[entry_id]
     return _store(path).append("TwinAdjudicationConfirmed", {
-        "id": entry_id, "classification": e["classification"], "fix_side": e["fix_side"], "by": by.strip(),
+        "id": entry_id, "classification": e["classification"], "fix_side": e["fix_side"], "by": by,
         "note": note, "at": datetime.now(timezone.utc).isoformat()})["payload"]
 
 
 def status(path=None, log: Path = LOG) -> list[dict]:
-    confirmed = {}
+    confirmed, ignored = {}, {}
     for r in _store(path).read():
-        confirmed.setdefault(r["payload"]["id"], []).append(r["payload"]["by"])
+        by = r["payload"]["by"]           # records made before D22 may carry a placeholder: kept, never counted
+        (ignored if is_placeholder(by) else confirmed).setdefault(r["payload"]["id"], []).append(by)
     return [{"id": e["id"], "classification": e["classification"], "fix_side": e["fix_side"],
-             "confirmed_by": confirmed.get(e["id"], []),
+             "confirmed_by": confirmed.get(e["id"], []), "ignored_placeholders": ignored.get(e["id"], []),
              "state": "HUMAN_ADJUDICATED" if confirmed.get(e["id"]) else "AWAITING_A_NAMED_PERSON"}
             for e in entries(log)]

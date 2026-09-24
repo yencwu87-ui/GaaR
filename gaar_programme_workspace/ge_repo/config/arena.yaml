@@ -22,6 +22,8 @@ qualification:
 egress:
   # Cases sent to an endpoint that is not on this machine must be constructed. Real evidence never leaves.
   hosted_endpoints_accept: [constructed]
+# A contestant whose calls fail this many times in a row is stopped for the run (its model server is down).
+stop_after_consecutive_errors: 5
 elo:
   start: 1000
   k: 16

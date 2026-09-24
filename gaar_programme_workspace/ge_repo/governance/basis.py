@@ -27,6 +27,8 @@ from pathlib import Path
 
 import yaml
 
+from governance.names import require_person
+
 ROOT = Path(__file__).resolve().parents[1]
 INSTRUMENTS = {
     "MAS": "Final_Consultation_Paper_on_Guidelines_on_AI_Risk_Management_ForRelease.txt",
@@ -166,8 +168,7 @@ def confirm(framework: str, control_id: str, candidate: int, decision: str, by: 
     """One person, one control, one recorded decision, on a quote re-verified against the instrument now."""
     if decision not in DECISIONS:
         raise ValueError(f"decision must be one of {', '.join(DECISIONS)}")
-    if not by.strip():
-        raise ValueError("a basis decision needs the name of the person making it")
+    by = require_person(by, "a basis decision needs the name of the person making it")
     if framework not in INSTRUMENTS:
         raise ValueError(f"{framework}: instrument unavailable, so there is no passage to confirm")
     hit = [c for c in report([framework])["controls"] if c["control_id"] == control_id]
@@ -182,7 +183,7 @@ def confirm(framework: str, control_id: str, candidate: int, decision: str, by: 
         if not verify_quote(chosen, framework):
             raise ValueError("the quote no longer matches the instrument; re-run the report")
     return _store().append("RequirementBasisDecided", {
-        "framework": framework, "control_id": control_id, "decision": decision, "by": by.strip(), "note": note,
+        "framework": framework, "control_id": control_id, "decision": decision, "by": by, "note": note,
         "tier": hit[0]["tier"], "candidate": chosen, "instrument": hit[0]["instrument"],
         "instrument_sha256": hit[0]["instrument_sha256"], "authority": AUTHORITY[framework], "rigor": "per-control",
         "at": datetime.now(timezone.utc).isoformat()})["payload"]

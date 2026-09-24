@@ -250,7 +250,8 @@ def run_due(home=None, now=None, get=None, force=False) -> dict:
         if row["type"] == "feed":
             result = scan_feed(row, home, get=get)
         else:
-            result = _monitor(home).scan({**row, "enabled": True}, get=get)
+            agent = subscriptions(home).get("user_agent")        # kit v23: indexes honour it too, like feeds
+            result = _monitor(home).scan({**row, "enabled": True, **({"user_agent": agent} if agent else {})}, get=get)
         scanned.append({"source_id": sid, "status": result["status"], "new": len(result.get("new") or [])})
         if result["status"] == "UNABLE_TO_CHECK":
             failed.append({"source_id": sid, "error": result.get("error")})

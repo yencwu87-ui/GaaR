@@ -99,6 +99,21 @@ Contestants:
   variable holding the key, never the key.
 - the three `baseline:*` fixtures.
 
+### First run on the Mac (v22 round, 25 Sep 2026)
+
+Standard round, 100 constructed cases, scorer calibrated (rules fixture cost 0; always-authorised cost 5.0, worst).
+
+| Contestant | Cost per case | Precision | Recall | False assurances | Seconds per case (median) |
+|---|---|---|---|---|---|
+| ollama:qwen2.5:14b | 1.60 | 1.00 | 0.68 | 16 | 6.0 |
+| ollama:mistral-nemo:12b | 4.21 | 1.00 | 0.14 | 42 | 8.8 |
+
+No advisory seat. Both models raise no false alarms but say "authorised" about changes that broke the rules, which is
+the error the cost policy weights ten times. mistral-nemo repeats its Phase 0 result as a false assurer. Judge test:
+llama3.1:8b judged 20 qwen-versus-mistral battles; 17 flipped when the order was swapped and were discarded; the 3
+consistent verdicts all picked mistral-nemo, and none matched the truth-derived winner (0 of 3). A small local model is not fit to
+judge, and the order-swap rule caught it.
+
 ## Requirement basis
 
 `governance/basis.py`, `tools/gaar_basis.py`, and the workbench page Results → Requirement basis. This is the response

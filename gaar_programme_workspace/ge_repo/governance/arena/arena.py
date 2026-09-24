@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 
+from governance.names import require_person
 from governance.watcher.store import HashChainStore
 
 from .cases import draw
@@ -62,17 +63,29 @@ def run(specs: list[str], n_cases: int = 40, seed: int = 7, path=None, progress=
                                  "params": p, "provenance": PROVENANCE,
                                  "started_at": datetime.now(timezone.utc).isoformat()})
     rng = random.Random(seed)
+    stop_after = p.get("stop_after_consecutive_errors", 5)
     for contestant in contestants:
         order = list(cases)
         rng.shuffle(order)
+        failing = 0
         for i, case in enumerate(order, 1):
             result = contestant.ask(case)
+            failing = failing + 1 if result.get("error") else 0
             s.append("ArenaAttempt", {"run_id": run_id, "contestant": contestant.name, "family": contestant.family,
                                       "local": contestant.local, "case_id": case["case_id"], "truth": case["truth"],
                                       "violation": case["violation"], "form": case["form"],
                                       "prompt_sha256": hashlib.sha256(case["prompt"].encode()).hexdigest(), **result})
             if progress:
                 progress(contestant.name, i, len(order), result["parsed"]["answer"])
+            if failing >= stop_after:
+                # Kit v23: a contestant that cannot be reached is stopped, not asked 100 times. The failed attempts
+                # stay on record; the board shows it stopped, and too few cases can never earn a seat.
+                s.append("ArenaContestantStopped", {"run_id": run_id, "contestant": contestant.name,
+                                                    "after_attempts": i, "last_error": result["error"],
+                                                    "reason": f"{stop_after} consecutive failed calls"})
+                if progress:
+                    progress(contestant.name, i, len(order), f"STOPPED: {stop_after} failed calls in a row")
+                break
     s.append("ArenaRunFinished", {"run_id": run_id, "finished_at": datetime.now(timezone.utc).isoformat()})
     return leaderboard(run_id, path)
 
@@ -84,6 +97,10 @@ def _rows(run_id, path=None):
         raise ValueError(f"no arena run {run_id}")
     attempts = [r for r in rows if r.get("run_id") == run_id and "case_id" in r and "parsed" in r]
     return started, attempts
+
+
+def rows_all(path=None) -> list[dict]:
+    return [r["payload"] for r in store(path).read()]
 
 
 def runs(path=None) -> list[dict]:
@@ -128,6 +145,10 @@ def leaderboard(run_id: str, path=None) -> dict:
                       "errors": sum(1 for a in answers.values() if a.get("error")),
                       "median_seconds": sorted(a["seconds"] for a in answers.values())[n // 2] if n else None,
                       "meets_numeric_thresholds": meets})
+    stopped = {r["contestant"]: r for r in rows_all(path) if r.get("run_id") == run_id and "after_attempts" in r}
+    for row in table:
+        if row["contestant"] in stopped:
+            row["stopped"] = f"after {stopped[row['contestant']]['after_attempts']} attempts: {stopped[row['contestant']]['reason']}"
     elo = _elo(by, p)
     for row in table:
         row["elo"] = elo.get(row["contestant"])
@@ -205,9 +226,8 @@ def vote(pair: dict, choice: str, voter: str, path=None) -> dict:
     """A person's blind preference. It becomes a labelled judgement with the voter as its provenance."""
     if choice not in ("A", "B", "TIE", "NEITHER"):
         raise ValueError("vote A, B, TIE or NEITHER")
-    if not voter.strip():
-        raise ValueError("a vote needs the name of the person casting it")
+    voter = require_person(voter, "a vote needs the name of the person casting it")
     return store(path).append("ArenaHumanVote", {
-        "run_id": pair["run_id"], "case_id": pair["case_id"], "choice": choice, "voter": voter.strip(),
+        "run_id": pair["run_id"], "case_id": pair["case_id"], "choice": choice, "voter": voter,
         "revealed_after_vote": pair["_sealed"], "provenance": "governance owner (blind); not an independent labeller",
         "at": datetime.now(timezone.utc).isoformat()})["payload"]

@@ -72,6 +72,23 @@ def test_the_adjudication_log_follows_the_rule_and_needs_a_named_person():
         adjudication.confirm("A-002", " ")
 
 
+def test_a_placeholder_is_not_a_name_and_old_placeholder_records_never_count():
+    """Defect D22: the first confirmations on the Mac were signed "Your Name"."""
+    from governance.names import is_placeholder
+    from governance.twin import adjudication
+    for placeholder in ("Your Name", "your  name", "<your full name>", "TBD", "Test"):
+        with pytest.raises(ValueError, match="is a placeholder, not a name: record the person's own name$"):
+            adjudication.confirm("A-001", placeholder)
+    adjudication._store().append("TwinAdjudicationConfirmed", {"id": "A-001", "classification": "key_error",
+                                                               "fix_side": "key", "by": "Your Name", "note": "", "at": "x"})
+    first = adjudication.status()[0]
+    assert first["state"] == "AWAITING_A_NAMED_PERSON" and first["ignored_placeholders"] == ["Your Name"]
+    adjudication.confirm("A-001", "Wu Yenching")
+    first = adjudication.status()[0]
+    assert first["state"] == "HUMAN_ADJUDICATED" and first["confirmed_by"] == ["Wu Yenching"]
+    assert not is_placeholder("Wu Yenching") and is_placeholder("")
+
+
 @pytest.mark.parametrize("change, message", [
     ({"classification": "both"}, "A-001: classification must be one of key_error, check_error, generator_artifact"),
     ({"fix_side": "check"}, "A-001: a key_error is fixed on the key side only"),
