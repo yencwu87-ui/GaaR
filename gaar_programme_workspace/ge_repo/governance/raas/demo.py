@@ -69,9 +69,9 @@ def run(path=None, as_of: str = "2026-12-24") -> dict:
                               note="read against the quoted passage", path=path)
     signed = reg_to_control.control_set(prop["proposal_id"], path=path)
 
-    # M2: both vendor agents answer the same 100 sealed cases.
-    careful = verifier.verify(careful_agent, "vendor-a:careful", 100, seed=11, sponsor="AI vendor A", path=path)
-    hasty = verifier.verify(hasty_agent, "vendor-b:hasty", 100, seed=11, sponsor="AI vendor B", path=path)
+    # M2: both vendor agents answer the same 1,000 sealed cases: 500 planted, which tolerates exactly one miss.
+    careful = verifier.verify(careful_agent, "vendor-a:careful", 1000, seed=11, sponsor="AI vendor A", path=path)
+    hasty = verifier.verify(hasty_agent, "vendor-b:hasty", 1000, seed=11, sponsor="AI vendor B", path=path)
 
     # M3: six exceptions from the careful agent's flags go through the desk.
     flagged = careful["flagged_cases"][:6]

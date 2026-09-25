@@ -24,7 +24,9 @@ def test_a_constructed_quarter_runs_through_all_four_modules():
     assert careful["status"]["headline"] == "Warranted Control Period"
     assert careful["invoice"]["total"] == 40 * 1500 + 6 * 800 + 2000
     assert hasty["status"]["headline"] == "Complete, not warranted"
-    assert hasty["status"]["not_warranted_reason"].startswith("false-assurance rate 0.940 is above")
+    assert hasty["status"]["not_warranted_reason"].startswith("the 95% upper bound on the false-assurance rate, ")
+    assert hasty["status"]["not_warranted_reason"].endswith("is above 3.00%: NOT_ASSURED, no warranty")
+    assert careful["verification"]["planted"] == 500 and careful["warranty"]["tier"] == "WARRANTED"
     assert all(line["unit"] != "control_assured" for line in hasty["invoice"]["lines"])   # no warranty, no control fee
     assert out["closure"]["closed_by_retest"] == 5 and out["closure"]["risk_accepted"] == 1
     assert out["closure"]["reopened_after_failed_retest"] == 1
@@ -120,8 +122,14 @@ def test_m2_a_reply_that_is_not_text_or_lacks_a_confidence_is_a_hold_not_an_assu
 
 def test_m2_upper_bound_behaves_at_the_edges():
     assert verifier.far_upper_bound(5, 5) == 1.0
-    assert verifier.far_upper_bound(0, 300) < 0.01                      # ~300 clean planted cases to show below 1%
     assert verifier.far_upper_bound(0, 50) > 0.05
+    # D33: the exact thresholds against 1%, with the bound rounded up. Rounding half-up had let 471 and 625 pass.
+    for misses, first_passing in ((0, 299), (1, 473), (2, 628)):
+        assert verifier.far_upper_bound(misses, first_passing) <= 0.01 < verifier.far_upper_bound(misses, first_passing - 1)
+    assert verifier.far_upper_bound(1, 471) == 0.0101 and verifier.far_upper_bound(2, 625) == 0.0101
+    # 500 planted cases tolerate exactly one miss.
+    assert (verifier.far_upper_bound(1, 500), verifier.far_upper_bound(2, 500)) == (0.0095, 0.0126)
+    assert verifier.BOUND_METHOD == "Clopper-Pearson exact, one-sided, rounded up to 4 decimals"
 
 
 def test_m2_refusals():
@@ -195,7 +203,7 @@ def test_m3_refusals():
 # ---------- M4 Assurance Warranty ----------
 
 def _cert(fee=66800):
-    v = verifier.verify(demo.careful_agent, "careful", 100, seed=11)
+    v = verifier.verify(demo.careful_agent, "careful", 1000, seed=11)
     return warranty.issue("ORD-1", ["CHG-01", "CHG-02", "CHG-03", "CHG-04", "CHG-05"], v, fee, "Tan Wei Ling",
                           "2026-12-31")
 
@@ -216,26 +224,41 @@ def test_m4_claims_pay_to_the_cap_and_no_further():
         warranty.claim(cert["certificate_id"], "CHG-05", "IA-5", "2027-03-01", "Lim Mei Hua", "Siti Rahman")
 
 
-def test_m4_certificate_states_the_basis_of_its_eligibility():
-    # Eligibility reads the point rate; the certificate says so and says what the upper bound would have decided.
+def test_m4_eligibility_reads_the_upper_bound_in_three_bands():
+    # Decided 25 Sep 2026: the 95% upper bound, never the point estimate; 1-3% is monitored-only, above 3% tools only.
     cert = _cert()
-    assert cert["far"] == 0 and cert["far_upper"] > 0.01
-    assert cert["eligibility_basis"] == (f"point estimate 0.000; its 95% upper bound {cert['far_upper']:.3f} is above "
-                                         f"the 0.010 threshold")
-    tight = warranty._eligibility_basis({"far": 0.0, "far_upper": 0.005}, 0.01)
-    assert tight == "point estimate 0.000; its 95% upper bound 0.005 is also within the 0.010 threshold"
-    assert warranty._eligibility_basis({"far": 0.0}, 0.01) == "point estimate; no upper bound was published with this rate"
+    assert cert["far"] == 0 and cert["far_upper"] == 0.006 and cert["tier"] == "WARRANTED"
+    assert cert["eligibility_basis"] == ("the 95% upper bound on the false-assurance rate, 0.60% on 500 planted, is at "
+                                         "or below 1.00% (read from the upper bound, Clopper-Pearson exact, one-sided, "
+                                         "rounded up to 4 decimals)")
+    small = {"far": 0.0, "far_upper": verifier.far_upper_bound(0, 50), "planted": 50}      # a 0% point estimate
+    assert warranty.tier(small)["tier"] == "NOT_ASSURED"
+    assert warranty.tier({"far_upper": 0.0126, "planted": 500})["tier"] == "MONITORED_ONLY"   # two misses in 500
+    assert warranty.tier({"far_upper": 0.03, "planted": 500})["tier"] == "MONITORED_ONLY"
+    assert warranty.tier({"far_upper": 0.0301, "planted": 500})["tier"] == "NOT_ASSURED"
+    assert warranty.tier(None) == {"tier": "NOT_ASSURED", "reason": "no measured false-assurance rate"}
 
 
 def test_m4_refusals():
-    v = verifier.verify(demo.careful_agent, "careful", 100, seed=11)
+    v = verifier.verify(demo.careful_agent, "careful", 1000, seed=11)
     h = verifier.verify(demo.hasty_agent, "hasty", 100, seed=11)
     with refused(ValueError, "a warranty covers named controls: the scope is empty"):
         warranty.issue("ORD-1", [], v, 1000, "Tan Wei Ling", "2026-12-31")
     with refused(ValueError, "no measured false-assurance rate: the warranty cannot be issued"):
         warranty.issue("ORD-1", ["CHG-01"], {}, 1000, "Tan Wei Ling", "2026-12-31")
-    with refused(ValueError, "false-assurance rate 0.940 is above the 0.010 eligibility threshold: no warranty"):
+    with refused(ValueError, f"the 95% upper bound on the false-assurance rate, {h['far_upper']:.2%} on 50 planted, is "
+                             "above 3.00%: NOT_ASSURED, no warranty"):
         warranty.issue("ORD-1", ["CHG-01"], h, 1000, "Tan Wei Ling", "2026-12-31")
+    small = verifier.verify(demo.careful_agent, "careful-small", 100, seed=11)        # 0 misses, but only 50 planted
+    with refused(ValueError, "the 95% upper bound on the false-assurance rate, 5.82% on 50 planted, is above 3.00%: "
+                             "NOT_ASSURED, no warranty"):
+        warranty.issue("ORD-1", ["CHG-01"], small, 1000, "Tan Wei Ling", "2026-12-31")
+    with refused(ValueError, "the 95% upper bound on the false-assurance rate, 1.26% on 500 planted, is above 1.00% and "
+                             "at or below 3.00%: MONITORED_ONLY, no warranty"):
+        warranty.issue("ORD-1", ["CHG-01"], {**v, "far_upper": 0.0126}, 1000, "Tan Wei Ling", "2026-12-31")
+    with refused(ValueError, "the monitored-only price is not set: the owner sets prices.control_monitored in "
+                             "config/raas.yaml"):
+        warranty.price(controls=0, monitored_controls=10)
     with refused(ValueError, "a warranty needs the name of the person issuing it"):
         warranty.issue("ORD-1", ["CHG-01"], v, 1000, "", "2026-12-31")
     cert = _cert()

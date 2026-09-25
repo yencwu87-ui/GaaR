@@ -378,7 +378,7 @@ def test_os_metadata_the_retrieval_cache_and_the_owners_data_do_not_stop_a_round
     (root / "requirements" / "drafts" / "a.yaml").write_text("the owner edited a shipped draft")
     row = doctor.install_integrity(root)
     assert row["state"] == "WARN" and row["detail"] == (
-        "the 2 shipped code files are as shipped; 1 file(s) no kit shipped that are not code: requirements/drafts/b.yaml; "
+        "no code differs from the 2 files the kit shipped; 1 file(s) no kit shipped that are not code: requirements/drafts/b.yaml; "
         "1 shipped file(s) that are not code, changed: requirements/drafts/a.yaml (left in place)")
     assert round_tool.quarantine(root, tmp_path / "q", "t")["status"] == "NOTHING_TO_QUARANTINE"
     assert (root / "requirements" / "drafts" / "b.yaml").exists()           # the owner's file is never moved

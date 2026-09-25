@@ -208,7 +208,7 @@ def install_integrity(root: Path = ROOT) -> dict:
     if not (found["extra"] or found["changed"] or found["missing"]):
         if not other:
             return _row("install integrity", "OK", f"exactly the {found['shipped']} files the kit shipped")
-        return _row("install integrity", "WARN", f"the {found['shipped']} shipped code files are as shipped; "
+        return _row("install integrity", "WARN", f"no code differs from the {found['shipped']} files the kit shipped; "
                     + "; ".join(other) + " (left in place)",
                     "nothing to do if these are yours (drafts, workbooks, converted instruments); they cannot run")
     return _row("install integrity", "FAIL", "; ".join(parts((("extra", "code file(s) no kit shipped"),

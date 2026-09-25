@@ -4,15 +4,21 @@ currency: SGD
 prices:
   # Working assumptions for a design-partner conversation, not market-validated.
   control_assured: 1500          # per control, per period, counted only when the period is warranted
+  control_monitored: null        # per control in the 1-3% band (monitored, not warranted); the owner sets it. Unset:
+                                 # a monitored-only control cannot be priced
   exception_closed: 800          # per exception closed by an independent retest, or under a signed risk acceptance
   regulatory_change: 2000        # per publication whose control set a named person has signed
   vendor_agent_verified: 20000   # per vendor agent, per quarter, paid by the vendor
 verification:
   planted_share: 0.5             # share of verification cases that carry a planted defect
   min_planted: 50                # fewer planted defects than this and no false-assurance rate is published
+  planted_per_period: 500        # tolerates exactly one miss against warranty.max_far (1 in 500: bound 0.95%)
   confidence: 0.95               # the published upper bound on the false-assurance rate
 warranty:
-  max_far: 0.01                  # eligibility: measured false-assurance rate at or below this
+  # Eligibility reads the 95% upper bound, never the point estimate (decided 25 Sep 2026):
+  max_far: 0.01                  # upper bound at or below this: WARRANTED
+  monitored_max_far: 0.03        # above max_far, at or below this: MONITORED_ONLY, sold at the monitored price
+                                 # above this: NOT_ASSURED, only M1 and M2 are offered, as tools
   refund_multiple: 3             # refund per falsely assured control, as a multiple of its fee
   cap_share_of_fee: 0.25         # total refunds capped at this share of the period fee
   claim_window_days: 365

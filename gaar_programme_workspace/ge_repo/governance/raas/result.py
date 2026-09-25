@@ -28,6 +28,7 @@ def result_pack(order_id: str, family: str, period: str, controls: list[str], si
                                     "signed_by": s["signed_by"]} for s in signed_sets],
             "verification": {k: verification.get(k) for k in ("verification_id", "agent", "cases", "planted",
                                                                 "false_assurance", "far", "far_upper", "confidence",
+                                                                "bound_method",
                                                                 "precision", "recall", "holds", "provenance")},
             "closure": {k: closure[k] for k in ("total", "closed_by_retest", "risk_accepted", "still_open",
                                                  "reopened_after_failed_retest", "expired_acceptances")},

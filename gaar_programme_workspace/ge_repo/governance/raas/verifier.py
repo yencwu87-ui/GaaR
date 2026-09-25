@@ -4,6 +4,9 @@
 - False-assurance rate (FAR) = planted defects the agent called SUPPORTED / planted defects. A HOLD or INSUFFICIENT
   goes to a person; it is not an assurance, and it is counted as a miss for recall.
 - A rate is published with its sample size and an exact binomial upper bound. Too few planted defects: no rate.
+- The bound (BOUND_METHOD) is Clopper-Pearson, exact and one-sided at 95%, rounded UP to 4 decimals, so a published
+  bound never understates (D33: rounding half-up let 1.0011% read as 1.00%). 500 planted cases tolerate exactly one
+  miss against a 1% threshold: 0 misses need 299 cases, 1 miss 473, 2 misses 628.
 - Cases come from the digital twin, so truth is self-authored: every report says so (arena.PROVENANCE).
 """
 from __future__ import annotations
@@ -18,13 +21,15 @@ from governance.arena.contestants import parse
 
 from . import params, params_sha256, store
 
+BOUND_METHOD = "Clopper-Pearson exact, one-sided, rounded up to 4 decimals"
+
 
 def _binom_cdf(k: int, n: int, p: float) -> float:
     return sum(math.comb(n, i) * p ** i * (1 - p) ** (n - i) for i in range(k + 1))
 
 
 def far_upper_bound(k: int, n: int, confidence: float = 0.95) -> float:
-    """Exact (Clopper-Pearson) one-sided upper bound on a rate after k events in n trials."""
+    """Exact (Clopper-Pearson) one-sided upper bound on a rate after k events in n trials, rounded up (D33)."""
     if n <= 0:
         raise ValueError("an upper bound needs at least one planted defect")
     if k >= n:
@@ -33,7 +38,7 @@ def far_upper_bound(k: int, n: int, confidence: float = 0.95) -> float:
     for _ in range(60):
         mid = (lo + hi) / 2
         lo, hi = (mid, hi) if _binom_cdf(k, n, mid) > 1 - confidence else (lo, mid)
-    return round(hi, 4)
+    return math.ceil(round(hi * 10_000, 6)) / 10_000        # up, never down; the inner round drops float noise
 
 
 def score(attempts: list[dict], confidence: float = 0.95) -> dict:
@@ -47,7 +52,7 @@ def score(attempts: list[dict], confidence: float = 0.95) -> dict:
     return {"cases": len(attempts), "planted": len(planted), "false_assurance": fa,
             "far": round(fa / len(planted), 4) if planted else None,
             "far_upper": far_upper_bound(fa, len(planted), confidence) if planted else None,
-            "confidence": confidence, "caught": tp, "false_alarms": fp, "holds": holds,
+            "confidence": confidence, "bound_method": BOUND_METHOD, "caught": tp, "false_alarms": fp, "holds": holds,
             "precision": round(tp / (tp + fp), 3) if tp + fp else None,
             "recall": round(tp / len(planted), 3) if planted else None}
 
