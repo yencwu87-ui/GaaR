@@ -3,9 +3,10 @@
 A refusal no test reaches is untested, however green the suite looks. `tools/trace_unreached_guards.py` fails
 if any refusal line in the pilot's modules is unreached and not listed here with a reason.
 
-**Scope of the trace.** The tracer covers the twenty-six modules named in `tools/trace_unreached_guards.py` (kit v20 added
+**Scope of the trace.** The tracer covers the twenty-seven modules named in `tools/trace_unreached_guards.py` (kit v20 added
 the scheduler and the inbox; kit v21 the regulatory watch intel service; kit v22 the twin generator and adjudication
-log, the arena, its cases, contestants and judge, the requirement basis and the state-path module; kit v23 the named-person rule; kit v24 the email-alert reader and the four field-agent modules). The
+log, the arena, its cases, contestants and judge, the requirement basis and the state-path module; kit v23 the named-person rule; kit v24 the email-alert reader and the four field-agent modules; kit v28 the round tool, `tools/gaar_round.py`, the first command-line tool traced,
+because it installs over live records). The other
 command-line tools under `tools/` are exercised by tests through separate processes, which the in-process
 tracer cannot see; their refusals are not covered by this register's count.
 
@@ -56,4 +57,4 @@ fails:
 | Module | Refusal | Reached through | Disposition |
 |---|---|---|---|
 
-Summary: 0 registered; all 12 previously registered guards are reached by exact-message tests (kit v19). Trace scope: twenty-six modules; command-line tools not traced.
+Summary: 0 registered; all 12 previously registered guards are reached by exact-message tests (kit v19). Trace scope: twenty-seven modules; of the command-line tools, only the round tool is traced.
