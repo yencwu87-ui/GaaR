@@ -608,3 +608,19 @@ def test_the_command_line_runs_a_period_verifies_it_and_refuses_what_it_should(s
     assert again.returncode == 1 and "refused: ORD-CLI 2026-W3 is already sealed as" in again.stderr
     assert "sealed periods: 1" in _cli("status").stdout
     assert _cli("decide", "--proposal", "RCP-none").stderr.strip() == "refused: no proposal RCP-none"
+
+
+def test_a_proposal_whose_kept_text_is_gone_or_altered_cannot_be_decided(tmp_path):
+    # The per-item decision re-reads the kept publication; a missing or edited copy is refused, never trusted.
+    from governance import raas
+    from governance.raas import period, watch_link
+    proposal = m1.propose(PUB, "MAS", "Sample", "CONSTRUCTED/1")
+    with refused(ValueError, f"the text of proposal {proposal['proposal_id']} was not kept here"):
+        watch_link.publication(proposal["proposal_id"])
+    kept = raas.home() / "publications" / f"{proposal['publication_sha256']}.txt"
+    kept.parent.mkdir(parents=True, exist_ok=True)
+    kept.write_text(PUB + " (edited)", encoding="utf-8")
+    with refused(ValueError, f"the kept text of proposal {proposal['proposal_id']} no longer matches its hash"):
+        watch_link.publication(proposal["proposal_id"])
+    with pytest.raises(SystemExit, match=r"^usage: python -m governance.raas.period ORDER_ID_OR_FILE$"):
+        period.main([])
