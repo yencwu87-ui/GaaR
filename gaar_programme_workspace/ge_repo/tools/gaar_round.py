@@ -97,6 +97,25 @@ def self_contained(installed: dict, root: Path = ROOT) -> dict:
                                                           "kit's installer wrote"}
 
 
+def quarantine(root: Path = ROOT, target: Path | None = None, stamp: str = "") -> dict:
+    """D30: code no kit shipped is moved out (never deleted); changed shipped files are copied out as they are."""
+    from governance import doctor
+    found = doctor.install_files(root)
+    if found["shipped"] is None:
+        raise ValueError("the installed kit carries no file list (kits before v32); nothing can be told apart")
+    folder = Path(target or Path.home() / "gaar-quarantine").expanduser() / stamp
+    for rel in found["extra"]:
+        (folder / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(Path(root) / rel), str(folder / rel))
+    for rel in found["changed"]:
+        (folder / "changed" / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(Path(root) / rel, folder / "changed" / rel)
+    return {"status": "QUARANTINED" if found["extra"] or found["changed"] else "NOTHING_TO_QUARANTINE",
+            "moved": found["extra"], "copied_changed": found["changed"], "folder": str(folder),
+            "next": "reinstall the kit with --kit to restore changed shipped files" if found["changed"] else
+                    "run the round again"}
+
+
 def skipped(root: Path = ROOT) -> list[str]:
     runs = sorted((Path(root) / ".test_runs").glob("[0-9]*.json"))
     return json.loads(runs[-1].read_text()).get("skipped_with_reasons") or [] if runs else []
@@ -173,7 +192,12 @@ def main():
     parser.add_argument("--config", default=DEFAULT_CONFIG, help=f"the series (default {DEFAULT_CONFIG})")
     parser.add_argument("--out", default="~/Desktop/GaaR_Quality_Policy_Workpaper.docx")
     parser.add_argument("--resume", help=argparse.SUPPRESS)          # the new code continuing after an install
+    parser.add_argument("--quarantine", action="store_true",
+                        help="move files no kit shipped out of the install, then stop")
     args = parser.parse_args()
+    if args.quarantine:
+        print(json.dumps(quarantine(stamp=datetime.now().strftime("%Y%m%dT%H%M%S")), indent=2))
+        return
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     folder = Path(args.resume) if args.resume else ROOT / "reports" / f"round-{stamp}"
     folder.mkdir(parents=True, exist_ok=True)

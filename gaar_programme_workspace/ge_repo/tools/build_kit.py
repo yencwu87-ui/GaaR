@@ -56,7 +56,8 @@ def build(out: Path, version: str, expected: dict | None = None) -> dict:
         manifest = {"kit": version, "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                     "files": len(files), "never_shipped": RUNTIME_STATE,
                     "content_sha256": hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest(),
-                    **({"expected": expected} if expected else {})}
+                    **({"expected": expected} if expected else {}),
+                    "file_sha256": files}          # v32: every shipped file, so an install can check itself
         z.writestr(f"{PREFIX}/KIT_MANIFEST.json", json.dumps(manifest, indent=2) + "\n")
     return {"status": "KIT_BUILT", "kit": str(out), "files": len(files), "runtime_state_left_out": len(skipped),
             "content_sha256": manifest["content_sha256"]}

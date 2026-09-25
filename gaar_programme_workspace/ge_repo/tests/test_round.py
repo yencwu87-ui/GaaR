@@ -332,3 +332,51 @@ def test_the_round_prints_each_skip_with_its_reason(tmp_path):
     assert round_tool.skipped(tmp_path / "none") == []
     text = round_tool.summarise(tmp_path, {"verdict": "READY", "checks": []}, 0, None, None, [], None, skips)
     assert "  skipped: [1] tests/test_folder_picker_wb038.py:50: root ignores directory permissions" in text
+
+
+def _install_with_manifest(root, files):
+    import hashlib
+    for rel, text in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text)
+    manifest = {"kit": "v32", "file_sha256": {r: hashlib.sha256(t.encode()).hexdigest() for r, t in files.items()}}
+    (root / "KIT_MANIFEST.json").write_text(json.dumps(manifest))
+
+
+def test_the_doctor_refuses_an_install_holding_code_no_kit_shipped(tmp_path):
+    # D30 (v31 round): a module and 17 tests that no kit shipped sat in the Mac's install and changed its test count.
+    root = tmp_path / "ge_repo"
+    root.mkdir()
+    assert doctor.install_integrity(root)["state"] == "WARN"                  # a kit with no file list
+    _install_with_manifest(root, {"governance/doctor.py": "x", "tests/test_a.py": "t"})
+    (root / "governance" / "events.jsonl").write_text("runtime state, never compared\n")
+    (root / ".venv" / "lib").mkdir(parents=True)
+    (root / ".venv" / "lib" / "site.py").write_text("an environment, never compared")
+    assert doctor.install_integrity(root) == {"check": "install integrity", "state": "OK",
+                                              "detail": "exactly the 2 files the kit shipped", "fix": ""}
+    (root / "governance" / "raas").mkdir()
+    (root / "governance" / "raas" / "warranty.py").write_text("unreviewed")
+    (root / "tests" / "test_raas.py").write_text("unreviewed")
+    (root / "tests" / "test_a.py").write_text("edited")
+    row = doctor.install_integrity(root)
+    assert row["state"] == "FAIL" and row["fix"].startswith("python tools/gaar_round.py --quarantine")
+    assert row["detail"] == ("2 file(s) no kit shipped: governance/raas/warranty.py, tests/test_raas.py; "
+                             "1 shipped file(s) changed: tests/test_a.py")
+
+
+def test_quarantine_moves_unshipped_code_out_and_keeps_a_copy_of_changed_files(tmp_path):
+    root = tmp_path / "ge_repo"
+    root.mkdir()
+    with pytest.raises(ValueError, match=r"^the installed kit carries no file list"):
+        round_tool.quarantine(root, tmp_path / "q", "t")
+    _install_with_manifest(root, {"governance/doctor.py": "x", "tests/test_a.py": "t"})
+    assert round_tool.quarantine(root, tmp_path / "q", "t0")["status"] == "NOTHING_TO_QUARANTINE"
+    (root / "tests" / "test_raas.py").write_text("unreviewed")
+    (root / "tests" / "test_a.py").write_text("edited")
+    done = round_tool.quarantine(root, tmp_path / "q", "t1")
+    assert done["moved"] == ["tests/test_raas.py"] and done["copied_changed"] == ["tests/test_a.py"]
+    assert not (root / "tests" / "test_raas.py").exists()
+    assert (tmp_path / "q" / "t1" / "tests" / "test_raas.py").read_text() == "unreviewed"
+    assert (tmp_path / "q" / "t1" / "changed" / "tests" / "test_a.py").read_text() == "edited"
+    assert (root / "tests" / "test_a.py").read_text() == "edited"             # copied, not taken away
+    assert done["next"].startswith("reinstall the kit with --kit")

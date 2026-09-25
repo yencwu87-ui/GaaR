@@ -156,6 +156,48 @@ def launchd(plist_dir="~/Library/LaunchAgents", executable=None) -> list[dict]:
     return [_row("unattended scheduler", "OK", f"launchd runs this environment's Python ({program})")]
 
 
+SKIP_DIRS = (".venv/", "venv/", ".git/", "node_modules/")
+
+
+def install_files(root: Path = ROOT) -> dict:
+    """Compare the install with the file list its kit shipped (v32, D30): code no kit shipped, and shipped files
+    that were changed. Runtime state is excluded by the same rule the kit builder uses."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    from build_kit import excluded
+    manifest_path = Path(root) / "KIT_MANIFEST.json"
+    shipped = (json.loads(manifest_path.read_text()).get("file_sha256") if manifest_path.is_file() else None)
+    if shipped is None:
+        return {"shipped": None, "extra": [], "changed": [], "missing": []}
+    import hashlib
+    present = {}
+    for path in Path(root).rglob("*"):
+        rel = path.relative_to(root).as_posix()
+        if path.is_symlink() or not path.is_file() or rel == "KIT_MANIFEST.json" or excluded(rel) \
+                or rel.startswith(SKIP_DIRS):
+            continue
+        present[rel] = path
+    extra = sorted(r for r in present if r not in shipped)
+    changed = sorted(r for r, p in present.items() if r in shipped and
+                     hashlib.sha256(p.read_bytes()).hexdigest() != shipped[r])
+    missing = sorted(r for r in shipped if r not in present)
+    return {"shipped": len(shipped), "extra": extra, "changed": changed, "missing": missing}
+
+
+def install_integrity(root: Path = ROOT) -> dict:
+    found = install_files(root)
+    if found["shipped"] is None:
+        return _row("install integrity", "WARN", "the installed kit carries no file list (kits before v32), so code "
+                    "added to the install cannot be told apart", "install v32 or later")
+    if not (found["extra"] or found["changed"] or found["missing"]):
+        return _row("install integrity", "OK", f"exactly the {found['shipped']} files the kit shipped")
+    parts = [f"{len(found[k])} {label}: {', '.join(found[k][:4])}{' …' if len(found[k]) > 4 else ''}"
+             for k, label in (("extra", "file(s) no kit shipped"), ("changed", "shipped file(s) changed"),
+                              ("missing", "shipped file(s) missing")) if found[k]]
+    return _row("install integrity", "FAIL", "; ".join(parts),
+                "python tools/gaar_round.py --quarantine   (moves files no kit shipped to ~/gaar-quarantine/<time>/, "
+                "copies changed ones there too; then reinstall the kit with --kit to restore shipped files)")
+
+
 def shared_state() -> dict:
     from governance.paths import shared_state_warning
     warning = shared_state_warning()
@@ -164,7 +206,8 @@ def shared_state() -> dict:
 
 
 def run(config_path, root: Path = ROOT, get=None) -> dict:
-    rows = [*scheduler_health(config_path), python_environment(), evidence_pack(root), kit(root), series(config_path),
+    rows = [*scheduler_health(config_path), python_environment(), evidence_pack(root), kit(root), install_integrity(root),
+            series(config_path),
             *launchd(), *watch(), ollama(get), anthropic_key(), *tools_and_space(), shared_state()]
     worst = "FAIL" if any(r["state"] == "FAIL" for r in rows) else "WARN" if any(r["state"] == "WARN" for r in rows) \
         else "OK"
