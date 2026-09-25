@@ -34,9 +34,8 @@ def python_environment(version=None) -> dict:
         return _row("python environment", "FAIL", f"running in conda environment '{active}', not '{expected}' "
                     f"(Python {version[0]}.{version[1]})", f"conda activate {expected}   (after any source ~/.zshrc)")
     sys.path.insert(0, str(ROOT / "tools"))
-    from run_all_tests import requirement_problems
-    dev = ROOT / "requirements-dev.txt"         # D28: the same file the test runner checks, test tooling included
-    missing, mismatched = requirement_problems(dev) if dev.is_file() else requirement_problems()
+    import run_all_tests
+    missing, mismatched = run_all_tests.readiness()      # D28: the runner's own check, not a copy of it
     env = os.environ.get("CONDA_DEFAULT_ENV") or "(no conda environment)"
     if missing:
         return _row("python environment", "FAIL", f"{len(missing)} required package(s) missing in {env}: "

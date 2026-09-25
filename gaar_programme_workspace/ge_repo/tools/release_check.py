@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""The release rule, made mechanical (kit v32): the zip that ships is the zip that was rehearsed.
+
+    python tools/release_check.py --kit GaaR_RaaS_Kit_v32.zip --round <rehearsal round folder>
+
+v22 and v31 each shipped a kit changed after its rehearsal (register text in v22; install-path code in v31). The rule:
+after the rehearsal, the only permitted step is sending the rehearsed zip itself. Any change means a new build and a
+new rehearsal. This check refuses unless:
+  - the rehearsal's install recorded this exact zip (SHA-256 of the file, not of its contents list);
+  - no ledger changed during that install;
+  - the kit's expected counts were met on the rehearsal machine;
+  - the milestone ended ALL GATES AS EXPECTED or WAITING ON YOU, and nothing in the summary says DIFFERS.
+"""
+import argparse
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+
+def check(kit: Path, folder: Path) -> dict:
+    kit, folder = Path(kit).expanduser(), Path(folder).expanduser()
+    problems = []
+    install = folder / "install.json"
+    summary = folder / "summary.txt"
+    if not install.is_file() or not summary.is_file():
+        return {"releasable": False, "problems": [f"{folder} is not a rehearsal round with an install"]}
+    installed = json.loads(install.read_text())
+    digest = hashlib.sha256(kit.read_bytes()).hexdigest() if kit.is_file() else None
+    if digest is None:
+        problems.append(f"no kit at {kit}")
+    elif installed.get("kit_sha256") != digest:
+        problems.append(f"this zip ({digest[:16]}) is not the one the rehearsal installed "
+                        f"({str(installed.get('kit_sha256'))[:16]}): rebuild means rehearse again")
+    text = summary.read_text()
+    if "CHANGED:" in text:
+        problems.append("a ledger changed during the rehearsal's install")
+    if "expected counts: met" not in text:
+        problems.append("the kit's expected counts were not met on the rehearsal machine")
+    if "DIFFER" in text:
+        problems.append("the rehearsal summary reports a difference: " + next(
+            line.strip() for line in text.splitlines() if "DIFFER" in line))
+    if "milestone: RESULT: ALL GATES AS EXPECTED" not in text and "milestone: WAITING ON YOU" not in text:
+        problems.append("the rehearsal's milestone did not end ALL GATES AS EXPECTED or WAITING ON YOU")
+    return {"releasable": not problems, "kit_sha256": digest, "problems": problems}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--kit", required=True)
+    parser.add_argument("--round", required=True)
+    args = parser.parse_args()
+    result = check(Path(args.kit), Path(args.round))
+    print(json.dumps(result, indent=2))
+    raise SystemExit(0 if result["releasable"] else 1)
+
+
+if __name__ == "__main__":
+    main()

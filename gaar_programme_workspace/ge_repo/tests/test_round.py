@@ -2,6 +2,7 @@
 import importlib
 import json
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -188,6 +189,18 @@ def test_a_mistyped_kit_name_points_to_the_newest_kit_in_that_folder(tmp_path):
         round_tool.install(tmp_path / "GaaR_RaaS_Kit_v29.zip")
 
 
+def test_the_doctor_and_the_runner_call_one_readiness_check(monkeypatch):
+    # D28, the class: two readiness lists can drift; one function cannot disagree with itself.
+    import run_all_tests
+    monkeypatch.setattr(run_all_tests, "readiness", lambda: (["coverage>=7"], []))
+    monkeypatch.setenv("CONDA_DEFAULT_ENV", "gaar")
+    row = doctor.python_environment(version=(3, 12))
+    assert row["state"] == "FAIL" and "coverage>=7" in row["detail"]
+    source = Path(run_all_tests.__file__).read_text()
+    assert source.count("readiness()") == 2 and "requirement_problems(dev)" in source   # defined once, used once
+    assert "requirement_problems" not in Path(doctor.__file__).read_text()
+
+
 def test_the_doctor_checks_the_same_requirements_file_as_the_test_runner(monkeypatch):
     # D28 (v28 round): the doctor read requirements.txt and said "requirements met" in base; the runner read
     # requirements-dev.txt (pytest, coverage) and stopped with ENVIRONMENT NOT READY.
@@ -282,8 +295,40 @@ def test_an_install_done_by_the_previous_kits_installer_says_why_it_has_no_diges
     folder.mkdir()
     old = {"kit": "v31", "ledgers_checked": 14, "snapshot": "/s/t"}                  # written by the v30 installer
     text = round_tool.summarise(folder, {"verdict": "READY", "checks": []}, None, None, old)
-    assert ("install: v31 installed; 14 ledger(s) unchanged (no digest: the previous kit's installer did the install "
-            "and records none; the per-file hashes are in /s/t/ledgers.sha256.json)") in text
+    assert "install: v31 installed; 14 ledger(s) unchanged (no prior baseline); snapshot /s/t" in text
     new = {**old, "ledgers_before": "a" * 64, "ledgers_after": "a" * 64}
     assert "(digest before aaaaaaaaaaaaaaaa, after aaaaaaaaaaaaaaaa)" in \
         round_tool.summarise(folder, {"verdict": "READY", "checks": []}, None, None, new)
+
+
+def test_an_older_installers_install_is_digested_here_from_its_snapshot(tmp_path):
+    root = tmp_path / "ge_repo"
+    (root / "governance").mkdir(parents=True)
+    (root / "governance" / "events.jsonl").write_text('{"x":1}\n')
+    snap = tmp_path / "snap"
+    snap.mkdir()
+    (snap / "ledgers.sha256.json").write_text(json.dumps(round_tool.ledgers(root)))
+    old = {"kit": "v31", "ledgers_checked": 1, "snapshot": str(snap)}
+    done = round_tool.self_contained(old, root)
+    assert done["ledgers_before"] == done["ledgers_after"] and done["ledgers_changed"] == []
+    assert done["digest_source"].startswith("computed by this kit from the snapshot")
+    (root / "governance" / "events.jsonl").write_text('{"x":2}\n')
+    assert round_tool.self_contained(old, root)["ledgers_changed"] == ["governance/events.jsonl"]
+    text = round_tool.summarise(tmp_path, {"verdict": "READY", "checks": []}, None, None,
+                                round_tool.self_contained(old, root))
+    assert "1 ledger(s) CHANGED: governance/events.jsonl" in text
+    assert round_tool.self_contained({**old, "snapshot": str(tmp_path / "none")}, root)["digest_source"] == \
+        "no prior baseline: the installer that ran wrote no ledger hashes"
+    assert round_tool.self_contained({**old, "ledgers_before": "a"}, root) == {**old, "ledgers_before": "a"}
+
+
+def test_the_round_prints_each_skip_with_its_reason(tmp_path):
+    from tools.run_all_tests import run_record
+    (tmp_path / ".test_runs").mkdir()
+    (tmp_path / ".test_runs" / "2026-09-25T1.json").write_text(json.dumps(run_record(
+        "COMPLETE RUN, ALL PASSED", skipped_with_reasons=["SKIPPED [1] tests/test_folder_picker_wb038.py:50: root "
+                                                          "ignores directory permissions"])))
+    skips = round_tool.skipped(tmp_path)
+    assert round_tool.skipped(tmp_path / "none") == []
+    text = round_tool.summarise(tmp_path, {"verdict": "READY", "checks": []}, 0, None, None, [], None, skips)
+    assert "  skipped: [1] tests/test_folder_picker_wb038.py:50: root ignores directory permissions" in text

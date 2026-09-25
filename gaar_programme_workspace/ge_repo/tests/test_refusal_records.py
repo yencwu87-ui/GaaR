@@ -146,3 +146,13 @@ def test_no_test_reads_this_machines_run_history_packs_or_pilot(tmp_path):
     from governance.production import gate_status
     for path in (gate_status.RUNS, gate_status.PACKS, realrecords.home()):
         assert str(path).startswith(str(tmp_path)), f"{path} is outside this test's own folder"
+
+
+def test_no_test_undoes_its_monkeypatch(tmp_path):
+    # D29: monkeypatch.undo() also undoes the autouse fixtures that keep tests off the real state folders.
+    import re
+    from pathlib import Path
+    tests = Path(__file__).resolve().parent
+    call = re.compile(r"^\s*monkeypatch\.undo\(\)", re.M)                 # a statement, not a comment or a string
+    assert call.search("    monkeypatch.undo()\n") and not call.search("    # never monkeypatch.undo()\n")
+    assert [p.name for p in sorted(tests.glob("*.py")) if call.search(p.read_text())] == []

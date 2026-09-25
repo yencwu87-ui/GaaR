@@ -75,8 +75,31 @@ def install(kit_path: Path, root: Path = ROOT, snapshots: Path | None = None, st
     changed = [rel for rel, digest in before.items() if after.get(rel) != digest]
     if changed:
         raise ValueError(f"{len(changed)} ledger(s) changed during the install ({changed[0]}); restore them from {snap}")
-    return {"kit": version, "ledgers_checked": len(before), "snapshot": str(snap), "ledgers_before": digest(before),
+    return {"kit": version, "kit_sha256": hashlib.sha256(kit_path.read_bytes()).hexdigest(),
+            "ledgers_checked": len(before), "snapshot": str(snap), "ledgers_before": digest(before),
             "ledgers_after": digest(after), "expected": expected}
+
+
+def self_contained(installed: dict, root: Path = ROOT) -> dict:
+    """v32: an install done by an older installer carries no digest; compute both sides here, before anything runs.
+
+    Before comes from the per-file hashes every installer since v28 writes to the snapshot; after is this install's
+    own ledgers, hashed now, before the doctor or the milestone can write to them."""
+    if installed.get("ledgers_before"):
+        return installed
+    snap = Path(installed.get("snapshot", "")) / "ledgers.sha256.json"
+    if not snap.is_file():
+        return {**installed, "digest_source": "no prior baseline: the installer that ran wrote no ledger hashes"}
+    before, after = json.loads(snap.read_text()), ledgers(root)
+    changed = [rel for rel, h in before.items() if after.get(rel) != h]
+    return {**installed, "ledgers_before": digest(before), "ledgers_after": digest(after),
+            "ledgers_changed": changed, "digest_source": "computed by this kit from the snapshot the previous "
+                                                          "kit's installer wrote"}
+
+
+def skipped(root: Path = ROOT) -> list[str]:
+    runs = sorted((Path(root) / ".test_runs").glob("[0-9]*.json"))
+    return json.loads(runs[-1].read_text()).get("skipped_with_reasons") or [] if runs else []
 
 
 def digest(ledger_hashes: dict) -> str:
@@ -105,15 +128,16 @@ def _run(args: list[str], out: Path) -> int:
 
 
 def summarise(folder: Path, doctor_report: dict, milestone_code, watch_rows, installed, mismatches=None,
-              adjudications=None) -> str:
+              adjudications=None, skips=None) -> str:
     lines = [f"GaaR round {folder.name}", ""]
     if installed:
         digests = (f"digest before {installed['ledgers_before'][:16]}, after {installed['ledgers_after'][:16]}"
-                   if installed.get("ledgers_before") else
-                   "no digest: the previous kit's installer did the install and records none; "
-                   f"the per-file hashes are in {installed['snapshot']}/ledgers.sha256.json")
-        lines.append(f"install: {installed['kit']} installed; {installed['ledgers_checked']} ledger(s) unchanged "
-                     f"({digests}); snapshot {installed['snapshot']}")
+                   + (f"; {installed['digest_source']}" if installed.get("digest_source") else "")
+                   if installed.get("ledgers_before") else installed.get("digest_source") or "no prior baseline")
+        changed = installed.get("ledgers_changed") or []
+        lines.append(f"install: {installed['kit']} installed; {installed['ledgers_checked']} ledger(s) "
+                     + (f"CHANGED: {', '.join(changed)}" if changed else "unchanged")
+                     + f" ({digests}); snapshot {installed['snapshot']}")
     from governance import doctor
     lines += [doctor.render(doctor_report), ""]
     if milestone_code is None:
@@ -129,6 +153,8 @@ def summarise(folder: Path, doctor_report: dict, milestone_code, watch_rows, ins
                                                   1: "STOPPED: see milestone.txt"}.get(milestone_code, "see milestone.txt")))
     if mismatches is not None:
         lines.append("expected counts: " + ("met" if not mismatches else "DIFFER: " + "; ".join(mismatches)))
+    for line in skips or []:
+        lines.append(f"  skipped: {line.removeprefix('SKIPPED ')[:200]}")
     if adjudications is not None:
         lines.append("twin adjudications: " + (", ".join(
             f"{a['id']} {a['state']}" + (f" by {', '.join(a['confirmed_by'])}" if a["confirmed_by"] else "")
@@ -161,7 +187,7 @@ def main():
         os.execv(sys.executable, [sys.executable, str(ROOT / "tools/gaar_round.py"), "--config", args.config,
                                   "--out", args.out, "--resume", str(folder)])
     if (folder / "install.json").exists():
-        installed = json.loads((folder / "install.json").read_text())
+        installed = self_contained(json.loads((folder / "install.json").read_text()))
     from governance import doctor
     print("2. doctor", flush=True)
     report = doctor.run(args.config)
@@ -185,7 +211,8 @@ def main():
         if mismatches and milestone_code == 0:
             milestone_code = 1                                     # a met milestone on the wrong count is not met
     from governance.twin import adjudication
-    text = summarise(folder, report, milestone_code, watch_rows, installed, mismatches, adjudication.status())
+    text = summarise(folder, report, milestone_code, watch_rows, installed, mismatches, adjudication.status(),
+                     skipped() if milestone_code is not None else None)
     (folder / "summary.txt").write_text(text)
     target = Path.home() / "Desktop" / f"gaar-round-{folder.name.removeprefix('round-')}.zip"
     target.parent.mkdir(parents=True, exist_ok=True)

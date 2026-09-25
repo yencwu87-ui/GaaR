@@ -52,7 +52,7 @@ sources:
     # document links, most likely because the listing is built in the browser; not confirmed from outside. The HKMA
     # circulars, guidelines, consultations and SPM feeds cover the same publications. Subscribe by hand to retry.
     region_setup: false
-    known_limit: "page loads but shows no document links to an automated reader; covered by the HKMA RSS feeds"
+    known_limit: "page loads but shows no document links to an automated reader; covered by the HKMA RSS feeds. Not diagnosed: the differential test (browser capture against the automated read) was never run, so the cause is a hypothesis"
   - source_id: nfra-rules-en-index
     jurisdiction: China
     authority: NFRA

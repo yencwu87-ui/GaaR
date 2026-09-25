@@ -32,7 +32,10 @@ import json
 import os
 import random
 import re
-from datetime import datetime, timezone
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
@@ -50,10 +53,17 @@ CONTROLS = {
     "RC3": "An approval covers the code that was merged: an approving review was made on the final commit.",
     "RC4": "Automated checks on the final commit passed; none failed or were still running at merge.",
 }
-LABELS = ("TRUE_EXCEPTION", "FALSE_POSITIVE", "CANNOT_TELL", "MISSED_EXCEPTION", "CORRECTLY_PASSED")
+LABELS = ("TRUE_EXCEPTION", "FALSE_POSITIVE", "CANNOT_TELL", "MISSED_EXCEPTION", "CORRECTLY_PASSED",
+          "CORRECTLY_LINKED", "WRONGLY_LINKED")
+ANSWERS = {"exception": ("TRUE_EXCEPTION", "FALSE_POSITIVE", "CANNOT_TELL"),
+           "passed": ("CORRECTLY_PASSED", "MISSED_EXCEPTION", "CANNOT_TELL"),
+           "linked": ("CORRECTLY_LINKED", "WRONGLY_LINKED", "CANNOT_TELL")}
+RUBRIC_VERDICTS = ("ACCEPTED", "CHANGES_NEEDED")
+GIT_RUN = subprocess.run            # the git baseline's only command runner (tests replace it)
+EDGE = timedelta(hours=1)          # commits this close to a window edge are reported, never refused on
 PROVENANCE = ("self", "independent")
 MAX_BYTES = 20 * 1024 * 1024
-EXCEPTION_SAMPLE, CLEAN_SAMPLE = 40, 20
+EXCEPTION_SAMPLE, CLEAN_SAMPLE, LINKED_SAMPLE = 40, 20, 20
 
 
 class PilotRefused(ValueError):
@@ -104,10 +114,12 @@ def _day(text: str) -> datetime:
 # ---------------------------------------------------------------------------------------------------------
 
 def make_plan(repo: str, start: str, end: str, token_env: str = "GAAR_GITHUB_TOKEN", max_requests: int = 2000,
-              path=None) -> dict:
+              path=None, keychain_service: str = "gaar-github") -> dict:
     if not re.fullmatch(r"[A-Z_][A-Z0-9_]*", token_env or ""):
         raise PilotRefused("token_env must be the NAME of an environment variable (for example GAAR_GITHUB_TOKEN), "
                            "never the token itself")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", keychain_service or ""):
+        raise PilotRefused("keychain_service must be the NAME of a Keychain entry, for example gaar-github")
     begin, finish = _day(start), _day(end)
     if not begin < finish <= datetime.now(timezone.utc):
         raise PilotRefused("the window must start before it ends and must have ended: a pilot reads closed history")
@@ -117,10 +129,63 @@ def make_plan(repo: str, start: str, end: str, token_env: str = "GAAR_GITHUB_TOK
             "max_requests": int(max_requests), "api": API, "user_agent": USER_AGENT,
             "controls_version": CONTROLS_VERSION, "controls_sha256": controls_sha256(),
             "protocol": str(PROTOCOL.relative_to(ROOT)), "protocol_sha256": _sha_bytes(PROTOCOL.read_bytes()),
-            "sample": {"exceptions": EXCEPTION_SAMPLE, "clean": CLEAN_SAMPLE}}
+            "sample": {"exceptions": EXCEPTION_SAMPLE, "clean": CLEAN_SAMPLE, "linked": LINKED_SAMPLE},
+            "keychain_service": keychain_service}
+    folder = _folder(repo, path)
+    baseline = git_baseline(repo, begin, finish, folder)
+    raw = json.dumps(baseline, indent=1, sort_keys=True).encode()
+    (folder / "baseline.json").write_bytes(raw)
+    plan["baseline"] = {"source": baseline["source"], "branch": baseline["branch"], "head": baseline["head"],
+                        "first_parent_commits": len(baseline["first_parent"]), "sha256": _sha_bytes(raw)}
     plan["seed"] = int(_sha_bytes(_canon(plan))[:12], 16)
-    (_folder(repo, path) / "plan.json").write_text(json.dumps(plan, indent=2) + "\n")
+    (folder / "plan.json").write_text(json.dumps(plan, indent=2) + "\n")
     return plan
+
+
+def git_baseline(repo: str, begin: datetime, finish: datetime, folder: Path) -> dict:
+    """The second channel (v32): the same window read from git itself, pinned in the plan before the API is asked.
+
+    The likeliest silent failure of an API collector is a skipped page: fewer changes, and the rules report a
+    cleaner history than exists. Git's own first-parent history of the default branch is the population the API
+    collection must cover; evaluate refuses when a commit git shows is missing from what the API returned."""
+    if GIT_RUN is subprocess.run and not shutil.which("git"):
+        raise PilotRefused("git is needed for the baseline the plan pins; install it (xcode-select --install)")
+    clone = folder / "git"
+    url = f"https://github.com/{repo}"
+    since = (begin - timedelta(days=7)).date().isoformat()
+
+    def git(*args):
+        result = GIT_RUN(["git", *args], capture_output=True, text=True, timeout=600)
+        if result.returncode != 0:
+            raise PilotRefused(f"git {args[0] if args[0] != '-C' else args[2]} failed for the baseline: "
+                               f"{(result.stderr or '').strip()[:300]}")
+        return result.stdout
+    if (clone / "HEAD").exists():
+        git("-C", str(clone), "fetch", "--quiet", f"--shallow-since={since}", "origin")
+    else:
+        git("clone", "--quiet", "--bare", "--filter=blob:none", f"--shallow-since={since}", url, str(clone))
+    branch = git("-C", str(clone), "symbolic-ref", "HEAD").strip().removeprefix("refs/heads/")
+    head = git("-C", str(clone), "rev-parse", branch).strip()
+    log = git("-C", str(clone), "log", "--first-parent", "--format=%H%x1f%cI%x1f%s", branch)
+    commits = []
+    for line in log.splitlines():
+        sha, date, subject = (line.split("\x1f") + ["", ""])[:3]
+        when = _day(date)
+        if begin <= when < finish:
+            commits.append({"sha": sha, "date": when.isoformat(), "subject": subject[:200],
+                            "near_edge": when - begin < EDGE or finish - when < EDGE})
+    refs = sorted(_pr_refs(commits))
+    return {"source": f"git clone {url} (first-parent history of the default branch)", "branch": branch, "head": head,
+            "first_parent": commits, "pr_refs": refs}
+
+
+def _pr_refs(commits: list[dict]) -> set[int]:
+    """PR numbers the commit subjects name by GitHub's own conventions: squash "(#N)" and "Merge pull request #N"."""
+    refs = set()
+    for c in commits:
+        for match in re.finditer(r"\(#(\d+)\)$|^Merge pull request #(\d+)", c["subject"]):
+            refs.add(int(match.group(1) or match.group(2)))
+    return refs
 
 
 def approve(repo: str, by: str, path=None) -> dict:
@@ -157,18 +222,16 @@ def approved_plan(repo: str, path=None) -> dict:
 class _Reader:
     """Read-only GETs to the GitHub API. Every response is kept as evidence; a rerun reads the kept copy."""
 
-    def __init__(self, plan: dict, folder: Path, store: HashChainStore, get=None):
+    def __init__(self, plan: dict, folder: Path, store: HashChainStore, get=None, keychain=None):
         self.plan, self.raw, self.store = plan, folder / "raw", store
         self.raw.mkdir(exist_ok=True)
         self.get = get
         self.network = 0
-        self.token = os.environ.get(plan["token_env"])
-        if not self.token:
-            raise CollectionStopped(f"the credential variable {plan['token_env']} is not set in this terminal "
-                                    "(a fine-grained GitHub token with read-only access to public repositories)")
+        self.last_url = None
+        self.token, self.token_source = token(plan, keychain)
 
     def __call__(self, path: str, **query) -> object:
-        url = f"{API}{path}" + (f"?{urlencode(query)}" if query else "")
+        url = self.last_url = f"{API}{path}" + (f"?{urlencode(query)}" if query else "")
         key = _sha_bytes(url.encode())[:32]
         kept = self.raw / f"{key}.json"
         if kept.exists():
@@ -189,8 +252,9 @@ class _Reader:
             when = datetime.fromtimestamp(int(reset), timezone.utc).isoformat() if reset else "later"
             raise CollectionStopped(f"GitHub's rate limit was reached; rerun collect after {when} to continue")
         if response.status_code == 401:
-            raise CollectionStopped("GitHub refused the token (HTTP 401): create a new read-only token and put it in "
-                                    f"{self.plan['token_env']}")
+            raise CollectionStopped(f"GitHub refused the token from {self.token_source} (HTTP 401). Fine-grained tokens "
+                                    "expire on the date set when they were made: create a new read-only token and "
+                                    "store it where this one was")
         if 300 <= response.status_code < 400:
             raise CollectionStopped(f"{urlparse(url).path}: redirected; the pilot does not follow redirects")
         if response.status_code != 200:
@@ -198,11 +262,15 @@ class _Reader:
         raw = response.content
         if len(raw) > MAX_BYTES:
             raise CollectionStopped(f"{urlparse(url).path}: response larger than 20 MB")
-        data = json.loads(raw)
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            raise CollectionStopped(f"{urlparse(url).path}: the response is not JSON")
         kept.write_bytes(raw)
         self.store.append("Read", {"url": url, "status": response.status_code, "sha256": _sha_bytes(raw),
                                    "bytes": len(raw), "kept_as": f"raw/{kept.name}", "started_at": started.isoformat(),
-                                   "finished_at": datetime.now(timezone.utc).isoformat(), "user_agent": USER_AGENT})
+                                   "finished_at": datetime.now(timezone.utc).isoformat(), "user_agent": USER_AGENT,
+                                   "token_from": self.token_source})
         return data
 
     def pages(self, path: str, stop=None, **query):
@@ -216,11 +284,34 @@ class _Reader:
             page += 1
 
 
-def collect(repo: str, path=None, get=None) -> dict:
+def keychain_read(service: str, run=subprocess.run, platform=None) -> str | None:
+    """macOS: read the token from the Keychain at the moment of use, so it is never in any shell's environment."""
+    if (platform or sys.platform) != "darwin":
+        return None
+    result = run(["security", "find-generic-password", "-a", os.environ.get("USER", ""), "-s", service, "-w"],
+                 capture_output=True, text=True)
+    return result.stdout.strip() or None if result.returncode == 0 else None
+
+
+def token(plan: dict, keychain=None) -> tuple[str, str]:
+    """The token and where it came from (the where is recorded; the token never is)."""
+    service = plan.get("keychain_service", "gaar-github")
+    value = (keychain or keychain_read)(service)
+    if value:
+        return value, f"the macOS Keychain entry {service}"
+    value = os.environ.get(plan["token_env"])
+    if value:
+        return value, f"the environment variable {plan['token_env']}"
+    raise CollectionStopped(f"no GitHub token: on a Mac add it to the Keychain as {service} "
+                            f"(security add-generic-password -a \"$USER\" -s {service} -w); elsewhere set "
+                            f"{plan['token_env']} for this one command")
+
+
+def collect(repo: str, path=None, get=None, keychain=None) -> dict:
     plan = approved_plan(repo, path)
     folder = _folder(repo, path)
     store = ledger(repo, path)
-    read = _Reader(plan, folder, store, get)
+    read = _Reader(plan, folder, store, get, keychain)
     begin, finish = _day(plan["window"]["from"]), _day(plan["window"]["to"])
     owner_repo = f"/repos/{repo}"
     snapshot = {"repo": repo, "window": plan["window"], "plan_seed": plan["seed"], "complete": False, "stopped": None,
@@ -256,14 +347,19 @@ def collect(repo: str, path=None, get=None) -> dict:
             prs = [by_merge[c["sha"]]] if c["sha"] in by_merge else [
                 p["number"] for p in read(f"{owner_repo}/commits/{c['sha']}/pulls")
                 if p.get("merged_at") and p.get("base", {}).get("ref") == branch]
+            linked_by = "merge_commit_sha" if c["sha"] in by_merge else "commit_pulls_lookup" if prs else None
             snapshot["commits"].append({
                 "sha": c["sha"], "url": c.get("html_url"), "message": (c["commit"]["message"] or "").split("\n")[0][:200],
                 "date": c["commit"]["committer"]["date"], "parents": len(c.get("parents") or []),
                 "author": _actor(c.get("author")), "author_email_sha256": _email(c["commit"]["author"].get("email")),
-                "committer": _actor(c.get("committer")), "pulls": sorted(set(prs))})
+                "committer": _actor(c.get("committer")), "pulls": sorted(set(prs)), "linked_by": linked_by})
         snapshot["complete"] = True
     except CollectionStopped as exc:
         snapshot["stopped"] = str(exc)
+    except (KeyError, TypeError, AttributeError, IndexError) as exc:
+        # v32: a response in a shape this collector does not know is a recorded stop, never an unrecorded crash
+        snapshot["stopped"] = (f"unexpected response shape ({type(exc).__name__}: {exc}) after reading "
+                               f"{read.last_url}; the response is kept in raw/ for diagnosis")
     snapshot["reads_this_run"] = read.network
     snapshot["reads_kept"] = sum(1 for r in store.read() if r["record_type"] == "Read")
     raw = json.dumps(snapshot, indent=1, sort_keys=True).encode()
@@ -340,8 +436,35 @@ def evaluate_pull(pr: dict) -> dict:
     return results
 
 
+def coverage(repo: str, snapshot: dict, path=None) -> dict:
+    """The API collection against the git baseline the plan pinned. A missing commit refuses evaluation."""
+    plan = approved_plan(repo, path)
+    file = _folder(repo, path) / "baseline.json"
+    if not file.is_file() or _sha_bytes(file.read_bytes()) != plan["baseline"]["sha256"]:
+        raise PilotRefused("baseline.json differs from the baseline the plan pinned; it is evidence and is never "
+                           "edited. Make and approve a new plan")
+    baseline = json.loads(file.read_text())
+    found = {c["sha"] for c in snapshot["commits"]}
+    missing = [b for b in baseline["first_parent"] if b["sha"] not in found]
+    hard = [m for m in missing if not m["near_edge"]]
+    if hard:
+        raise PilotRefused(f"the API collection is missing {len(hard)} of the {len(baseline['first_parent'])} commits "
+                           f"git shows on {baseline['branch']} in the window (first: {hard[0]['sha'][:10]} "
+                           f"\"{hard[0]['subject'][:60]}\"); a page was probably skipped. Nothing is evaluated on an "
+                           "incomplete population: run collect again, and report this if it repeats")
+    numbers = {p["number"] for p in snapshot["pulls"]} | {n for c in snapshot["commits"] for n in c["pulls"]}
+    return {"git_first_parent_commits": len(baseline["first_parent"]),
+            "found_by_the_api": len(baseline["first_parent"]) - len(missing),
+            "near_a_window_edge_not_found": [m["sha"][:10] for m in missing],
+            "pr_numbers_named_in_commit_subjects": len(baseline["pr_refs"]),
+            "named_but_not_collected": [n for n in baseline["pr_refs"] if n not in numbers],
+            "reading": "commits git shows are all in the API collection; PR numbers named in messages but not "
+                       "collected are listed, not refused: a message can name another branch's or an older PR"}
+
+
 def evaluate(repo: str, path=None) -> dict:
     snapshot = _snapshot(repo, path)
+    covered = coverage(repo, snapshot, path)
     changes = []
     for pr in snapshot["pulls"]:
         changes.append({"id": f"PR#{pr['number']}", "url": pr["url"], "title": pr["title"], "at": pr["merged_at"],
@@ -357,8 +480,11 @@ def evaluate(repo: str, path=None) -> dict:
                                             + ("; the author is not linked to any account" if unresolved else ""))}})
     for change in changes:
         change["exception"] = any(r[0] == "EXCEPTION" for r in change["results"].values())
-    result = {"repo": repo, "window": snapshot["window"], "controls_version": CONTROLS_VERSION,
-              "changes": changes, "identity": identity(snapshot),
+    linked = [{"id": f"commit {c['sha'][:10]}", "url": c["url"], "pull": c["pulls"][0],
+               "pull_url": f"https://github.com/{repo}/pull/{c['pulls'][0]}", "title": c["message"]}
+              for c in snapshot["commits"] if c.get("linked_by") == "commit_pulls_lookup"]
+    result = {"repo": repo, "window": snapshot["window"], "controls_version": CONTROLS_VERSION, "coverage": covered,
+              "changes": changes, "linked_by_lookup": linked, "identity": identity(snapshot),
               "counts": {rc: {s: sum(1 for c in changes if c["results"].get(rc, ("",))[0] == s)
                               for s in ("PASS", "EXCEPTION", "NOT_EVIDENCED", "NOT_APPLICABLE")} for rc in CONTROLS}}
     (_folder(repo, path) / "results.json").write_text(json.dumps(result, indent=1) + "\n")
@@ -403,8 +529,17 @@ def sample(repo: str, path=None) -> dict:
     items += [{"item": f"C{i + 1:02d}", "change": c["id"], "url": c["url"], "kind": "passed",
                "claim": "the rules found no exception", "answer_with": "CORRECTLY_PASSED, MISSED_EXCEPTION or "
                                                                      "CANNOT_TELL"} for i, c in enumerate(checks)]
+    # v32: the linking decision is a rule output too. A commit judged "arrived through PR #N" by GitHub's lookup,
+    # rather than by the PR's own merge commit, is where a direct change could be passed as reviewed.
+    results = json.loads(file.read_text())
+    link_pool = results.get("linked_by_lookup", [])
+    links = sorted(rng.sample(link_pool, min(len(link_pool), plan["sample"].get("linked", LINKED_SAMPLE))),
+                   key=lambda c: c["id"])
+    items += [{"item": f"L{i + 1:02d}", "change": c["id"], "url": c["url"], "kind": "linked",
+               "claim": f"this commit reached the default branch through PR #{c['pull']} ({c['pull_url']})",
+               "answer_with": "CORRECTLY_LINKED, WRONGLY_LINKED or CANNOT_TELL"} for i, c in enumerate(links)]
     out = {"repo": repo, "seed": plan["seed"], "exceptions_found": len(exceptions), "passed_found": len(clean),
-           "items": items}
+           "linked_by_lookup": len(link_pool), "items": items}
     raw = json.dumps(out, indent=1).encode()
     (_folder(repo, path) / "sample.json").write_bytes(raw)
     ledger(repo, path).append("SampleDrawn", {"sample_sha256": _sha_bytes(raw), "items": len(items)})
@@ -422,11 +557,10 @@ def label(repo: str, item: str, value: str, by: str, provenance: str, note: str 
     items = {i["item"]: i for i in json.loads(file.read_text())["items"]}
     if item not in items:
         raise PilotRefused(f"no item {item} in the sample")
-    allowed = ("TRUE_EXCEPTION", "FALSE_POSITIVE", "CANNOT_TELL") if items[item]["kind"] == "exception" else \
-        ("CORRECTLY_PASSED", "MISSED_EXCEPTION", "CANNOT_TELL")
+    allowed = ANSWERS[items[item]["kind"]]
     if value not in allowed:
         raise PilotRefused(f"item {item} is answered with {', '.join(allowed)}")
-    if value in ("FALSE_POSITIVE", "MISSED_EXCEPTION", "CANNOT_TELL") and not note.strip():
+    if value in ("FALSE_POSITIVE", "MISSED_EXCEPTION", "WRONGLY_LINKED", "CANNOT_TELL") and not note.strip():
         raise PilotRefused(f"{value} needs a note saying what you saw on GitHub")
     ledger(repo, path).append("Labelled", {"item": item, "change": items[item]["change"], "label": value, "by": by,
                                            "provenance": provenance, "note": note,
@@ -452,7 +586,7 @@ def score(repo: str, path=None) -> dict:
         judged = n["TRUE_EXCEPTION"] + n["FALSE_POSITIVE"]
         out.append({"labeller": by, "provenance": provenance, "labelled": len(labels), "of": len(items), **n,
                     "precision": round(n["TRUE_EXCEPTION"] / judged, 3) if judged else None,
-                    "missed_in_passed_sample": n["MISSED_EXCEPTION"],
+                    "missed_in_passed_sample": n["MISSED_EXCEPTION"], "wrong_links": n["WRONGLY_LINKED"],
                     "reads_as": "labelled by a builder of GaaR, not independent" if provenance == "self" else
                     "independent labels"})
     pairs = [(a, b) for a in out for b in out if a["provenance"] == "self" and b["provenance"] == "independent"]
@@ -462,9 +596,49 @@ def score(repo: str, path=None) -> dict:
         both = set(la) & set(lb)
         agreement.append({"self": a["labeller"], "independent": b["labeller"], "items_both": len(both),
                           "agree": sum(1 for i in both if la[i] == lb[i])})
+    reviews = [r["payload"] for r in ledger(repo, path).read() if r["record_type"] == "RubricReviewed"]
+    independent = [r for r in reviews if r["provenance"] == "independent"]
     return {"repo": repo, "labellers": out, "agreement": agreement,
+            "rubric": ("reviewed independently: " + independent[-1]["verdict"] + f" by {independent[-1]['by']}")
+            if independent else "not yet reviewed by anyone independent: every label rests on a self-approved rubric",
             "headline": None if not out else ("independent" if any(o["provenance"] == "independent" for o in out)
                                               else "self-labelled only: no independent result yet")}
+
+
+def review_rubric(repo: str, by: str, provenance: str, verdict: str, note: str = "", path=None) -> dict:
+    """The rubric comes first in the reviewer's packet: a blind spot in it invalidates every label beneath it."""
+    by = require_person(by, "a rubric review is made by a named person: pass --by with your name")
+    if provenance not in PROVENANCE:
+        raise PilotRefused(f"provenance must be one of {', '.join(PROVENANCE)}")
+    if verdict not in RUBRIC_VERDICTS:
+        raise PilotRefused(f"verdict must be one of {', '.join(RUBRIC_VERDICTS)}")
+    if verdict == "CHANGES_NEEDED" and not note.strip():
+        raise PilotRefused("CHANGES_NEEDED needs a note naming what the rubric misses")
+    ledger(repo, path).append("RubricReviewed", {"by": by, "provenance": provenance, "verdict": verdict, "note": note,
+                                                 "protocol_sha256": _sha_bytes(PROTOCOL.read_bytes()),
+                                                 "at": datetime.now(timezone.utc).isoformat()})
+    return {"status": "RUBRIC_REVIEWED", "verdict": verdict, "provenance": provenance}
+
+
+def packet(repo: str, path=None) -> Path:
+    """The reviewer's packet: the protocol (the rubric) first, then every sampled item with its link."""
+    file = _folder(repo, path) / "sample.json"
+    if not file.is_file():
+        raise PilotRefused("no sample drawn yet; run sample")
+    drawn = json.loads(file.read_text())
+    lines = [f"# Labelling packet: {repo}", "",
+             "Read the protocol first and record your view of it before labelling anything:",
+             f"`python tools/gaar_realrecords.py review-rubric --repo {repo} --by \"<your name>\" "
+             "--provenance independent --verdict ACCEPTED` (or CHANGES_NEEDED with --note).", "", "---", "",
+             PROTOCOL.read_text(), "", "---", "", "## Items", "",
+             "| Item | Kind | Change | What GaaR claims | Answer with |", "|---|---|---|---|---|"]
+    for i in drawn["items"]:
+        lines.append(f"| {i['item']} | {i['kind']} | [{i['change']}]({i['url']}) | {i['claim']} | {i['answer_with']} |")
+    lines += ["", f"Record each: `python tools/gaar_realrecords.py label --repo {repo} --item <item> --label <answer> "
+              "--by \"<your name>\" --provenance independent --note \"what you saw\"`"]
+    out = _folder(repo, path) / "reviewer_packet.md"
+    out.write_text("\n".join(lines) + "\n")
+    return out
 
 
 def status(repo: str, path=None) -> dict:

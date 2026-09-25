@@ -59,6 +59,50 @@ COMMITS = [
 ]
 
 
+GIT_LOG = [  # git's own first-parent history: the population the API collection must cover
+    ("m1", "2026-07-02T10:00:00+00:00", "change 1 (#1)"), ("m2", "2026-07-05T10:00:00+00:00", "change 2 (#2)"),
+    ("m3", "2026-07-09T10:00:00+00:00", "change 3 (#3)"), ("r3", "2026-07-09T10:00:01+00:00", "rebased part, see (#42)"),
+    ("m4", "2026-07-12T10:00:00+00:00", "Merge pull request #4 from bot/deps"), ("m5", "2026-07-15T10:00:00+00:00", "x"),
+    ("d1", "2026-07-20T10:00:00+00:00", "hotfix straight to main"), ("d2", "2026-07-21T10:00:00+00:00", "unlinked"),
+    ("e1", "2026-06-01T00:20:00+00:00", "at the window's opening edge"),
+    ("old", "2026-05-20T10:00:00+00:00", "before the window"),
+]
+
+
+class Done:
+    def __init__(self, stdout="", returncode=0, stderr=""):
+        self.stdout, self.returncode, self.stderr = stdout, returncode, stderr
+
+
+class FakeGit:
+    def __init__(self, log=GIT_LOG, fail=None):
+        self.log, self.fail, self.calls = log, fail, []
+
+    def __call__(self, args, **kwargs):
+        self.calls.append(args)
+        if self.fail:
+            return Done("", 128, self.fail)
+        if args[1] == "clone":
+            Path(args[-1]).mkdir(parents=True)
+            (Path(args[-1]) / "HEAD").write_text("ref: refs/heads/main\n")
+            return Done()
+        verb = args[3]
+        if verb == "symbolic-ref":
+            return Done("refs/heads/main\n")
+        if verb == "rev-parse":
+            return Done("f" * 40 + "\n")
+        if verb == "log":
+            return Done("".join(f"{sha}\x1f{date}\x1f{subject}\n" for sha, date, subject in self.log))
+        return Done()                                                   # fetch
+
+
+@pytest.fixture(autouse=True)
+def constructed_git(monkeypatch):
+    git = FakeGit()
+    monkeypatch.setattr(rr, "GIT_RUN", git)
+    return git
+
+
 class Resp:
     def __init__(self, status, data=None, headers=None, raw=None):
         self.status_code, self.headers = status, headers or {}
@@ -204,17 +248,39 @@ def test_a_rerun_reads_what_was_kept_and_asks_github_nothing_again(pilot):
 
 def test_without_the_token_nothing_is_read(pilot, monkeypatch):
     monkeypatch.delenv("GAAR_GITHUB_TOKEN")
-    with pytest.raises(rr.CollectionStopped, match=r"^the credential variable GAAR_GITHUB_TOKEN is not set"):
+    with pytest.raises(rr.CollectionStopped, match=r"^no GitHub token: on a Mac add it to the Keychain as gaar-github "
+                                                   r"\(security add-generic-password -a \"\$USER\" -s gaar-github -w\); "
+                                                   r"elsewhere set GAAR_GITHUB_TOKEN for this one command$"):
         rr.collect(REPO, get=pilot)
     assert pilot.calls == []
+
+
+def test_on_a_mac_the_token_is_read_from_the_keychain_when_it_is_used(pilot, monkeypatch):
+    # v32: an exported token sits in every shell's environment, including shells an agent runs commands in.
+    seen = []
+
+    def security(args, **kwargs):
+        seen.append(args)
+        return Done("ghp_from_keychain\n")
+    assert rr.keychain_read("gaar-github", run=security, platform="darwin") == "ghp_from_keychain"
+    assert seen[0][:2] == ["security", "find-generic-password"] and seen[0][-3:] == ["-s", "gaar-github", "-w"]
+    assert rr.keychain_read("gaar-github", run=security, platform="linux") is None
+    assert rr.keychain_read("gaar-github", run=lambda a, **k: Done("", 44), platform="darwin") is None
+    monkeypatch.delenv("GAAR_GITHUB_TOKEN")
+    rr.collect(REPO, get=pilot, keychain=lambda service: "ghp_from_keychain")
+    assert pilot.calls[0][1]["Authorization"] == "Bearer ghp_from_keychain"
+    reads = [r["payload"] for r in rr.ledger(REPO).read() if r["record_type"] == "Read"]
+    assert reads[0]["token_from"] == "the macOS Keychain entry gaar-github"
+    assert "ghp_from_keychain" not in (rr._folder(REPO) / "ledger.jsonl").read_text()
 
 
 @pytest.mark.parametrize("response, message", [
     (Resp(403, {}, {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1790400000"}),
      r"^GitHub's rate limit was reached; rerun collect after 2026-09-26T0\d:\d\d:00\+00:00 to continue$"),
     (Resp(429, {}), r"^GitHub's rate limit was reached; rerun collect after later to continue$"),
-    (Resp(401, {}), r"^GitHub refused the token \(HTTP 401\): create a new read-only token and put it in "
-                    r"GAAR_GITHUB_TOKEN$"),
+    (Resp(401, {}), r"^GitHub refused the token from the environment variable GAAR_GITHUB_TOKEN \(HTTP 401\)\. "
+                    r"Fine-grained tokens expire on the date set when they were made"),
+    (Resp(200, raw=b"<html>busy</html>"), r"^/repos/acme/widgets/pulls/1: the response is not JSON$"),
     (Resp(302, {}), r"^/repos/acme/widgets/pulls/1: redirected; the pilot does not follow redirects$"),
     (Resp(500, {}), r"^/repos/acme/widgets/pulls/1: HTTP 500$"),
     (Resp(200, raw=b"x" * (rr.MAX_BYTES + 1)), r"^/repos/acme/widgets/pulls/1: response larger than 20 MB$"),
@@ -241,6 +307,22 @@ def test_the_request_budget_is_a_stop_not_a_silent_truncation(monkeypatch):
                                  "what was read")
 
 
+def test_a_response_in_an_unknown_shape_is_a_recorded_stop(pilot, monkeypatch):
+    broken = [dict(COMMITS[0])]
+    del broken[0]["commit"]
+    real = pilot.__class__.__call__
+
+    def shaped(self, url, **kw):
+        return Resp(200, broken) if urlparse(url).path.endswith("/commits") else real(self, url, **kw)
+    monkeypatch.setattr(FakeGitHub, "__call__", shaped)
+    result = rr.collect(REPO, get=FakeGitHub())
+    assert result["status"] == "INCOMPLETE"
+    assert result["stopped"].startswith("unexpected response shape (KeyError: 'commit') after reading "
+                                        "https://api.github.com/repos/acme/widgets/commits?")
+    collected = [r["payload"] for r in rr.ledger(REPO).read() if r["record_type"] == "Collected"]
+    assert collected[-1]["complete"] is False and collected[-1]["stopped"] == result["stopped"]
+
+
 def test_the_snapshot_is_evidence_and_is_never_edited(pilot):
     with pytest.raises(rr.PilotRefused, match=r"^nothing collected yet; run collect$"):
         rr.evaluate(REPO)
@@ -248,6 +330,65 @@ def test_the_snapshot_is_evidence_and_is_never_edited(pilot):
     file = rr._folder(REPO) / "snapshot.json"
     file.write_text(file.read_text().replace("ana", "anna"))
     with pytest.raises(rr.PilotRefused, match=r"^snapshot\.json differs from what the last collection recorded"):
+        rr.evaluate(REPO)
+
+
+# ---------------------------------------------------------------------------------------------------------
+# The git baseline
+# ---------------------------------------------------------------------------------------------------------
+
+def test_the_plan_pins_gits_own_history_of_the_window(constructed_git):
+    plan = rr.make_plan(REPO, "2026-06-01", "2026-09-01")
+    assert constructed_git.calls[0][:3] == ["git", "clone", "--quiet"] and "--shallow-since=2026-05-25" in \
+        constructed_git.calls[0]
+    assert constructed_git.calls[0][-2] == "https://github.com/acme/widgets"
+    assert plan["baseline"]["first_parent_commits"] == 9 and plan["baseline"]["branch"] == "main"  # not "old"
+    baseline = json.loads((rr._folder(REPO) / "baseline.json").read_text())
+    assert baseline["pr_refs"] == [1, 2, 3, 4, 42]
+    rr.make_plan(REPO, "2026-06-01", "2026-09-01")
+    assert constructed_git.calls[-4][3] == "fetch"                        # a second plan updates the same clone
+
+
+def test_without_git_there_is_no_baseline_and_no_plan(monkeypatch):
+    import subprocess
+    monkeypatch.setattr(rr, "GIT_RUN", subprocess.run)
+    monkeypatch.setattr(rr.shutil, "which", lambda name: None)
+    with pytest.raises(rr.PilotRefused, match=r"^git is needed for the baseline the plan pins"):
+        rr.make_plan(REPO, "2026-06-01", "2026-09-01")
+    monkeypatch.setattr(rr, "GIT_RUN", FakeGit(fail="fatal: repository not found"))
+    with pytest.raises(rr.PilotRefused, match=r"^git clone failed for the baseline: fatal: repository not found$"):
+        rr.make_plan(REPO, "2026-06-01", "2026-09-01")
+    with pytest.raises(rr.PilotRefused, match=r"^keychain_service must be the NAME of a Keychain entry"):
+        rr.make_plan(REPO, "2026-06-01", "2026-09-01", keychain_service="ghp_secret value")
+
+
+def test_a_skipped_page_is_caught_by_the_baseline_and_nothing_is_evaluated(pilot, monkeypatch):
+    real = pilot.__class__.__call__
+
+    def short(self, url, **kw):
+        if urlparse(url).path.endswith("/commits"):
+            return Resp(200, [c for c in COMMITS if c["sha"] != "d1"])     # as if a page had been skipped
+        return real(self, url, **kw)
+    monkeypatch.setattr(FakeGitHub, "__call__", short)
+    assert rr.collect(REPO, get=FakeGitHub())["status"] == "COLLECTED"   # the API alone cannot tell
+    with pytest.raises(rr.PilotRefused, match=r'^the API collection is missing 1 of the 9 commits git shows on main '
+                                              r'in the window \(first: d1 "hotfix straight to main"\); a page was '
+                                              r'probably skipped'):
+        rr.evaluate(REPO)
+
+
+def test_coverage_is_reported_and_edge_commits_are_listed_not_refused(pilot):
+    covered = _collected(pilot)["coverage"]
+    assert covered["git_first_parent_commits"] == 9 and covered["found_by_the_api"] == 8
+    assert covered["near_a_window_edge_not_found"] == ["e1"]
+    assert covered["named_but_not_collected"] == [42]                    # named in a message, not a collected PR
+
+
+def test_the_baseline_is_evidence_and_is_never_edited(pilot):
+    rr.collect(REPO, get=pilot)
+    file = rr._folder(REPO) / "baseline.json"
+    file.write_text(file.read_text().replace("hotfix", "feature"))
+    with pytest.raises(rr.PilotRefused, match=r"^baseline\.json differs from the baseline the plan pinned"):
         rr.evaluate(REPO)
 
 
@@ -300,6 +441,9 @@ def test_the_sample_is_every_exception_and_a_seeded_set_of_passed_changes(pilot)
     assert first == rr.sample(REPO)                                       # the same seed draws the same sample
     kinds = [i["kind"] for i in first["items"]]
     assert kinds.count("exception") == first["exceptions_found"] == 6 and kinds.count("passed") == 1
+    assert kinds.count("linked") == first["linked_by_lookup"] == 1          # r3: linked by GitHub's lookup
+    [linked] = [i for i in first["items"] if i["kind"] == "linked"]
+    assert linked["change"] == "commit r3" and "through PR #3" in linked["claim"]
     assert first["items"][0]["url"].startswith("https://github.com/acme/widgets/")
 
 
@@ -321,6 +465,37 @@ def test_labels_are_named_stated_as_self_or_independent_and_explained_when_negat
         rr.label(REPO, "E01", "CORRECTLY_PASSED", "Wu Yen Ching", "self")
     with pytest.raises(rr.PilotRefused, match=r"^FALSE_POSITIVE needs a note saying what you saw on GitHub$"):
         rr.label(REPO, "E01", "FALSE_POSITIVE", "Wu Yen Ching", "self")
+    with pytest.raises(rr.PilotRefused, match=r"^item L01 is answered with CORRECTLY_LINKED, WRONGLY_LINKED, "
+                                              r"CANNOT_TELL$"):
+        rr.label(REPO, "L01", "TRUE_EXCEPTION", "Wu Yen Ching", "self")
+    with pytest.raises(rr.PilotRefused, match=r"^WRONGLY_LINKED needs a note saying what you saw on GitHub$"):
+        rr.label(REPO, "L01", "WRONGLY_LINKED", "Wu Yen Ching", "self")
+    assert rr.label(REPO, "L01", "CORRECTLY_LINKED", "Wu Yen Ching", "self")["status"] == "LABELLED"
+
+
+def test_the_reviewers_packet_starts_with_the_rubric_and_the_rubric_review_is_recorded(pilot):
+    with pytest.raises(rr.PilotRefused, match=r"^no sample drawn yet; run sample$"):
+        rr.packet(REPO)
+    _collected(pilot)
+    rr.sample(REPO)
+    text = rr.packet(REPO).read_text()
+    assert text.index("review-rubric") < text.index("## What is being labelled") < text.index("## Items")
+    assert "| L01 | linked | [commit r3]" in text
+    assert rr.score(REPO)["rubric"].startswith("not yet reviewed by anyone independent")
+    with pytest.raises(ValueError, match=r"^'Your Name' is a placeholder, not a name"):
+        rr.review_rubric(REPO, "Your Name", "independent", "ACCEPTED")
+    with pytest.raises(ValueError, match=r"^a rubric review is made by a named person"):
+        rr.review_rubric(REPO, "", "independent", "ACCEPTED")
+    with pytest.raises(rr.PilotRefused, match=r"^provenance must be one of self, independent$"):
+        rr.review_rubric(REPO, "Priya Raman", "friend", "ACCEPTED")
+    with pytest.raises(rr.PilotRefused, match=r"^verdict must be one of ACCEPTED, CHANGES_NEEDED$"):
+        rr.review_rubric(REPO, "Priya Raman", "independent", "OK")
+    with pytest.raises(rr.PilotRefused, match=r"^CHANGES_NEEDED needs a note naming what the rubric misses$"):
+        rr.review_rubric(REPO, "Priya Raman", "independent", "CHANGES_NEEDED")
+    rr.review_rubric(REPO, "Wu Yen Ching", "self", "ACCEPTED")
+    assert rr.score(REPO)["rubric"].startswith("not yet reviewed by anyone independent")
+    rr.review_rubric(REPO, "Priya Raman", "independent", "CHANGES_NEEDED", note="RC4 ignores required reviewers")
+    assert rr.score(REPO)["rubric"] == "reviewed independently: CHANGES_NEEDED by Priya Raman"
 
 
 def test_the_score_keeps_each_labeller_apart_and_says_when_nobody_independent_has_labelled(pilot):
@@ -355,7 +530,11 @@ def test_the_command_line_runs_the_steps_in_order(pilot, capsys, monkeypatch):
     assert cli.main(["collect", "--repo", REPO])["status"] == "COLLECTED"
     evaluated = cli.main(["evaluate", "--repo", REPO])
     assert len(evaluated["exceptions"]) == 6 and evaluated["identity"]["commits"] == 8
+    assert evaluated["coverage"]["found_by_the_api"] == 8 and evaluated["linked_by_lookup"] == 1
     assert cli.main(["sample", "--repo", REPO])["items"]
+    assert cli.main(["packet", "--repo", REPO])["packet"].endswith("reviewer_packet.md")
+    assert cli.main(["review-rubric", "--repo", REPO, "--by", "Wu Yen Ching", "--provenance", "self",
+                     "--verdict", "ACCEPTED"])["status"] == "RUBRIC_REVIEWED"
     assert cli.main(["label", "--repo", REPO, "--item", "E01", "--label", "TRUE_EXCEPTION", "--by", "Wu Yen Ching",
                      "--provenance", "self"])["status"] == "LABELLED"
     assert cli.main(["score", "--repo", REPO])["labellers"][0]["labelled"] == 1

@@ -88,13 +88,17 @@ def run_record(verdict, **fields) -> dict:
     return {**record, **fields}
 
 
+def readiness():
+    """The one readiness check (D28): the runner and the doctor both call this, so they cannot disagree."""
+    dev = ROOT / "requirements-dev.txt"         # the test tooling is checked too, not only the application
+    return requirement_problems(dev) if dev.is_file() else requirement_problems()
+
+
 def main():
     print(f"python {sys.executable} ({sys.version.split()[0]})")
     print(f"packages: {versions()}")
     print(f"conda env: {os.environ.get('CONDA_DEFAULT_ENV', '(none)')}")
-    # The runner's guarantee covers the runner: the test tooling (requirements-dev.txt) is checked too.
-    dev = ROOT / "requirements-dev.txt"
-    missing, mismatched = requirement_problems(dev) if dev.is_file() else requirement_problems()
+    missing, mismatched = readiness()
     if missing:
         print("MISSING from this environment (pip install -r requirements.txt):")
         for line in missing:
