@@ -25,7 +25,8 @@ MODULES = ["governance/production/reconciliation.py", "governance/production/com
            "governance/field/builder.py", "governance/field/demo.py", "tools/gaar_round.py",
            "governance/realrecords.py", "governance/raas/__init__.py", "governance/raas/reg_to_control.py",
            "governance/raas/verifier.py", "governance/raas/closure.py", "governance/raas/warranty.py",
-           "governance/raas/result.py"]
+           "governance/raas/result.py", "governance/raas/series.py", "governance/raas/watch_link.py",
+           "governance/raas/period.py", "governance/raas/seal.py"]
 # The command-line tools are exercised by tests through separate processes, which this in-process tracer
 # cannot see. They are excluded here and the gap is recorded in the register, rather than reported as passing.
 TESTS = ["tests/test_decisions.py", "tests/test_reconciliation.py", "tests/test_completion.py",

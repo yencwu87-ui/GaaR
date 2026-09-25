@@ -40,6 +40,11 @@ def home(path=None) -> Path:
     return p
 
 
+def exists(path=None) -> bool:
+    """Whether RaaS has any state here, without creating the folder: readers such as the inbox ask this first."""
+    return Path(path or os.environ.get("GAAR_RAAS_HOME") or Path.home() / "gaar-raas").expanduser().is_dir()
+
+
 def store(name: str, path=None):
     from governance.watcher.store import HashChainStore
     return HashChainStore(home(path) / f"{name}.jsonl", f"gaar.raas.{name}.v1")

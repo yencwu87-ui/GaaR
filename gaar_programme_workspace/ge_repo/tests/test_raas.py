@@ -3,13 +3,16 @@
 Each refusal test expects the whole message, anchored, so a guard that stops firing fails its test."""
 import json
 import re
+from pathlib import Path
 
 import pytest
 
 from governance.raas import closure, demo, reg_to_control as m1, verifier, warranty
 from governance.raas.result import result_pack
+from tests.test_guards_exercised import series  # noqa: F401  (fixture)
 
 PUB = demo.SAMPLE_PUBLICATION
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def refused(exc, message):
@@ -156,9 +159,85 @@ def test_m3_closed_means_an_independent_retest_passed():
     closure.evidence_fix(eid, "CR-1", "Rajesh Kumar")
     assert closure.retest(eid, "FAIL", "Siti Rahman")["state"] == "ASSIGNED"          # reopened
     closure.evidence_fix(eid, "CR-2", "Rajesh Kumar")
+    closure.rerun(eid, demo.constructed_retest, {"fixed": True}, "Siti Rahman")
     assert closure.retest(eid, "PASS", "Siti Rahman")["state"] == "CLOSED"
     s = closure.summary()
     assert (s["closed_by_retest"], s["billable"], s["reopened_after_failed_retest"]) == (1, 1, 1)
+
+
+def test_m3_a_pass_needs_a_passing_rerun_made_by_the_desk_on_new_evidence():
+    # B1-4: "closed" is never a person's word alone; the desk runs the control test and keeps the receipt.
+    closure.open_exception("EXC-1", "CHG-01", "unapproved change", "VER-x", evidence_sha256=closure.evidence_sha256(
+        {"fixed": False}))
+    closure.assign("EXC-1", "Rajesh Kumar", "Tan Wei Ling")
+    with refused(ValueError, "EXC-1 is ASSIGNED: it cannot be rerun"):
+        closure.rerun("EXC-1", demo.constructed_retest, {"fixed": True}, "Siti Rahman")
+    closure.evidence_fix("EXC-1", "CR-1", "Rajesh Kumar")
+    with refused(ValueError, "a retest cannot pass without a rerun: run the control test on the fixed evidence first"):
+        closure.retest("EXC-1", "PASS", "Siti Rahman")
+    with refused(ValueError, "a rerun needs new evidence: this is the evidence that raised the exception"):
+        closure.rerun("EXC-1", demo.constructed_retest, {"fixed": False}, "Siti Rahman")
+    with refused(TypeError, "a rerun needs the control test: a callable that takes the evidence and returns its verdict"):
+        closure.rerun("EXC-1", "looks fine", {"fixed": True}, "Siti Rahman")
+    with refused(ValueError, "the control test returned 'OK': a rerun verdict is PASS or FAIL"):
+        closure.rerun("EXC-1", lambda e: {"verdict": "OK"}, {"fixed": True}, "Siti Rahman")
+    with refused(ValueError, "a rerun needs the name of the person who ran it"):
+        closure.rerun("EXC-1", demo.constructed_retest, {"fixed": True}, " ")
+    s = closure.rerun("EXC-1", demo.constructed_retest, {"fixed": False, "attempt": 2}, "Siti Rahman")
+    assert s["rerun"]["verdict"] == "FAIL" and s["rerun"]["test"] == "constructed_retest"
+    with refused(ValueError, "the rerun's verdict was FAIL: the retest cannot record PASS"):
+        closure.retest("EXC-1", "PASS", "Siti Rahman")
+    s = closure.retest("EXC-1", "FAIL", "Siti Rahman")
+    assert s["state"] == "ASSIGNED"
+    closure.evidence_fix("EXC-1", "CR-2", "Rajesh Kumar")
+    assert closure.state("EXC-1")["rerun"] is None                    # a new fix needs its own rerun
+    receipt = closure.rerun("EXC-1", demo.constructed_retest, {"fixed": True}, "Siti Rahman")["rerun"]
+    assert closure.retest("EXC-1", "PASS", "Siti Rahman")["state"] == "CLOSED"
+    retested = [r["payload"] for r in closure._ledger().read() if r["payload"]["event"] == "RETESTED"][-1]
+    assert retested["rerun_receipt_sha256"] == receipt["receipt_sha256"]
+
+
+def test_series_findings_open_exceptions_and_the_retest_reruns_the_series_procedure(series):
+    # B1-3 and B1-4 on the constructed series: week 1's findings reach the desk once, and a retest is the series'
+    # own change_authorization procedure re-run on the owner's corrected export.
+    import copy
+    from tests.test_inbox_and_scheduler import _ticked
+    from governance.raas import series as feed
+    home, config_path, _ = _ticked(series, weeks=(1,))
+    [week1] = feed.open_from_series(config_path)
+    assert week1["period"] == "2026-09-15" and len(week1["opened"]) == 13 and week1["already_open"] == []
+    assert feed.open_from_series(config_path)[0] == {"period": "2026-09-15", "opened": [],
+                                                     "already_open": week1["opened"]}
+    rows = {(r["detail"]["code"], r["detail"]["event_id"]): r for r in closure.summary()["exceptions"]}
+    exc = rows[("IMPLEMENTATION_CONTENT_MISMATCH", "CHG-04")]
+    assert exc["control_id"] == "chg.2" and exc["source"].startswith("CHG-WEEKLY-2026-09-15/ISSUE-")
+    eid = exc["exception_id"]
+    closure.assign(eid, "Rajesh Kumar", "Tan Wei Ling")
+    closure.evidence_fix(eid, "CR-104 redeployed", "Rajesh Kumar")
+    export = json.loads((ROOT / "tests/fixtures/constructed_change_pack/changes.json").read_text())
+    test = feed.retest_for(closure.state(eid))
+    with refused(ValueError, "a rerun needs new evidence: this is the evidence that raised the exception"):
+        closure.rerun(eid, test, export, "Siti Rahman")
+    unfixed = copy.deepcopy(export)
+    unfixed["changes"][3]["note"] = "redeployed"                                     # a new export, still wrong
+    assert closure.rerun(eid, test, unfixed, "Siti Rahman")["rerun"]["verdict"] == "FAIL"
+    malformed = copy.deepcopy(unfixed)
+    malformed["changes"][3]["outcome"] = "done"
+    assert test(malformed) == {"verdict": "FAIL",
+                               "reason": "the export could not be tested: explicit change outcome required"}
+    closure.retest(eid, "FAIL", "Siti Rahman")
+    closure.evidence_fix(eid, "CR-104 redeployed from the approved build", "Rajesh Kumar")
+    fixed = copy.deepcopy(export)
+    change = next(c for c in fixed["changes"] if c["event_id"] == "CHG-04")
+    change["actual_spec_hash"] = next(t for t in fixed["tickets"] if t["ticket_id"] == "CR-104")["approved_spec_hash"]
+    receipt = closure.rerun(eid, test, fixed, "Siti Rahman")["rerun"]
+    assert receipt["verdict"] == "PASS" and receipt["test"] == "change_authorization:2 (IMPLEMENTATION_CONTENT_MISMATCH on CHG-04)"
+    assert closure.retest(eid, "PASS", "Siti Rahman")["state"] == "CLOSED"
+    incomplete = copy.deepcopy(fixed)
+    incomplete["collection"]["complete"] = False
+    assert test(incomplete)["verdict"] == "FAIL"                           # not comparable is never a pass
+    with refused(ValueError, "no re-executable control test for procedure None"):
+        feed.retest_for({"detail": {}})
 
 
 def test_m3_an_expired_risk_acceptance_is_an_open_exception_again():
@@ -284,3 +363,248 @@ def test_result_pack_with_open_exceptions_is_incomplete():
     pack = result_pack("ORD-1", "Change management", "2026-Q4", ["CHG-01"], [], v, closure.summary(), None, "not issued")
     assert pack["status"]["headline"] == "Incomplete: exceptions still open"
     assert pack["invoice"]["total"] == 0 and len(pack["params_sha256"]) == 64
+
+
+# ---------- block 1: the watch feeds M1 (B1-2) ----------
+
+def test_a_replayed_mas_watch_item_becomes_an_m1_proposal_and_inbox_work(tmp_path):
+    from governance.production.inbox import _raas_items
+    from governance.raas import watch_link
+    from governance.watcher import intel
+    from tests.test_watch_intel import NOW, _alert, _drop, _row
+    intel.subscriptions()
+    _drop("mas-email-alerts", "a.eml", _alert("alerts@mas.gov.sg", [("https://www.mas.gov.sg/regulation/circulars/c1",
+                                                                     "Circular one")]))
+    intel.scan_mailbox(_row("mas-email-alerts"), now=NOW)                                   # the baseline
+    notice = "https://www.mas.gov.sg/regulation/notices/notice-on-ai-change-and-third-party-oversight"
+    _drop("mas-email-alerts", "b.eml", _alert("alerts@mas.gov.sg", [(notice, "Notice on AI change oversight")]))
+    intel.scan_mailbox(_row("mas-email-alerts"), now=NOW)
+    item = next(i for i in intel.items() if i["url"] == notice)
+    assert watch_link.awaiting_text() == [] and _raas_items(NOW) == []       # triage comes first, as for any item
+    intel.triage(item["item_id"], "RELEVANT", "Tan Wei Ling")
+    assert [i["item_id"] for i in watch_link.awaiting_text()] == [item["item_id"]]
+    [todo] = _raas_items(NOW)
+    assert todo["kind"] == "m1_text" and todo["title"] == f"Save the text of {item['title']} so M1 can read it"
+    saved = tmp_path / "notice.txt"
+    saved.write_text(PUB, encoding="utf-8")
+    with refused(ValueError, f"no saved publication at {tmp_path / 'missing.txt'}"):
+        watch_link.propose_from_watch(item["item_id"], tmp_path / "missing.txt", "Tan Wei Ling")
+    with refused(ValueError, "no watch item nope"):
+        watch_link.propose_from_watch("nope", saved, "Tan Wei Ling")
+    proposal = watch_link.propose_from_watch(item["item_id"], saved, "Tan Wei Ling")
+    assert proposal["reference"] == notice and proposal["title"] == item["title"]
+    with refused(ValueError, f"watch item {item['item_id']} already has proposal {proposal['proposal_id']}"):
+        watch_link.propose_from_watch(item["item_id"], saved, "Tan Wei Ling")
+    assert watch_link.awaiting_text() == []
+    [decide] = _raas_items(NOW)
+    assert decide["kind"] == "m1_decide" and decide["title"].startswith(f"Decide {len(proposal['items'])} of ")
+    text = watch_link.publication(proposal["proposal_id"])
+    for i in proposal["items"]:
+        m1.decide(proposal["proposal_id"], i["item_id"], "ACCEPT", "Tan Wei Ling", text)
+    assert _raas_items(NOW) == [] and m1.control_set(proposal["proposal_id"])["status"] == "SIGNED"
+
+
+def test_the_inbox_never_creates_the_raas_folder(tmp_path, monkeypatch):
+    from governance.production.inbox import _raas_items
+    from governance import raas
+    monkeypatch.setenv("GAAR_RAAS_HOME", str(tmp_path / "never-made"))
+    assert _raas_items(None) == [] and not raas.exists()
+    assert not (tmp_path / "never-made").exists()
+
+
+def test_the_watch_link_refuses_what_m1_cannot_read(tmp_path):
+    from governance.raas import watch_link
+    from governance.watcher import intel
+    from tests.test_watch_intel import NOW, _alert, _drop, _row
+    intel.subscriptions()
+    _drop("mas-email-alerts", "a.eml", _alert("alerts@mas.gov.sg", [("https://www.mas.gov.sg/regulation/circulars/c1",
+                                                                     "Circular one")]))
+    intel.scan_mailbox(_row("mas-email-alerts"), now=NOW)
+    _drop("mas-email-alerts", "b.eml", _alert("alerts@mas.gov.sg", [("https://www.mas.gov.sg/news/media-releases/x",
+                                                                     "Media release")]))
+    intel.scan_mailbox(_row("mas-email-alerts"), now=NOW)
+    item = next(i for i in intel.items() if i["url"].endswith("/x"))
+    saved = tmp_path / "x.txt"
+    saved.write_text(PUB, encoding="utf-8")
+    if item["kind"] not in watch_link.REGULATORY:
+        with refused(ValueError, f"watch item {item['item_id']} is not a MAS instrument or consultation: M1 reads "
+                                 "MAS publications"):
+            watch_link.propose_from_watch(item["item_id"], saved, "Tan Wei Ling")
+    with refused(ValueError, "a proposal from the watch needs the name of the person who saved the publication"):
+        watch_link.propose_from_watch(item["item_id"], saved, " ")
+    with refused(ValueError, "no proposal RCP-missing"):
+        watch_link.publication("RCP-missing")
+
+
+# ---------- block 1: one command runs a period and seals it (B1-1, B1-5, B1-6) ----------
+
+def _order(tmp_path, config_path, controls, name="ORD-T"):
+    order = tmp_path / f"{name}.yaml"
+    order.write_text(json.dumps({"order_id": name, "customer": "CONSTRUCTED bank", "control_family": "Change management",
+                                 "period": "2026-W3", "period_end": "2026-10-01", "series": str(config_path),
+                                 "controls": controls, "agent": "governance.raas.demo:careful_agent",
+                                 "issued_by": "Tan Wei Ling"}))
+    return order
+
+
+def test_one_command_runs_a_period_through_all_four_modules_and_seals_the_pack(series, tmp_path):
+    from tests.test_inbox_and_scheduler import _ticked
+    from governance.raas import period, seal
+    home, config_path, _ = _ticked(series, weeks=(1,))
+    out = period.run(_order(tmp_path, config_path, ["chg.1", "chg.2", "chg.3", "chg.4"]))
+    pack = out["pack"]
+    assert pack["verification"]["planted"] == 500 and pack["verification"]["cases"] == 1000
+    assert pack["closure"]["total"] == 13 and pack["closure"]["still_open"] == 13
+    assert pack["status"]["tier"] == "WARRANTED" and not pack["status"]["warranted"]
+    assert pack["status"]["headline"] == "Incomplete: exceptions still open"
+    assert pack["status"]["not_warranted_reason"] == ("13 exception(s) still open: no warranty until the period is "
+                                                      "complete")
+    assert pack["lineage"]["series_periods_fed"] == ["2026-09-15"] and len(pack["lineage"]["exceptions"]) == 13
+    assert "seed" not in json.dumps(pack["verification"])                    # only a commitment leaves the tenant
+    stored = json.loads(Path(out["pack_file"]).read_text())
+    passport = json.loads(Path(out["passport_file"]).read_text())
+    tenant_key = seal.key_register()[0]["public_key_b64"]
+    assert seal.verify(stored, passport, tenant_key)["valid"]
+    with refused(ValueError, f"ORD-T 2026-W3 is already sealed as {pack['pack_id']}: a period is sealed once"):
+        period.run(_order(tmp_path, config_path, ["chg.1"]))
+
+
+def test_a_sealed_pack_fails_verification_if_one_byte_changes(series, tmp_path):
+    from governance.raas import period, seal
+    from tests.test_inbox_and_scheduler import _ticked
+    home, config_path, _ = _ticked(series, weeks=(1,))
+    out = period.run(_order(tmp_path, config_path, ["OUT-OF-SERIES-1"], name="ORD-CLEAN"))
+    pack, passport = out["pack"], out["passport"]
+    assert pack["status"]["headline"] == "Warranted Control Period" and pack["warranty"]["tier"] == "WARRANTED"
+    raw = Path(out["pack_file"]).read_text()
+    tampered = json.loads(raw.replace('"false_assurance": 0', '"false_assurance": 1', 1))
+    result = seal.verify(tampered, passport)
+    assert not result["valid"] and not result["content_matches"] and result["signature_valid"]
+    forged = dict(passport, headline="Warranted Control Period (edited)")
+    assert not seal.verify(pack, forged)["passport_digest_valid"]
+    other = seal.seal(pack, path=tmp_path / "another-tenant")                 # re-signed with another key
+    assert seal.verify(pack, other)["valid"]
+    assert not seal.verify(pack, other, seal.key_register()[0]["public_key_b64"])["key_is_the_tenants"]
+
+
+def test_the_planted_draw_is_sealed_by_the_tenant_key_and_new_each_period(tmp_path):
+    from governance.raas import period
+    a, b = period.sealed_seed("ORD-1", "2026-Q3"), period.sealed_seed("ORD-1", "2026-Q4")
+    assert a != b and a == period.sealed_seed("ORD-1", "2026-Q3")
+    assert period.sealed_seed("ORD-1", "2026-Q3", path=tmp_path / "other") != a     # another key, another draw
+
+
+def test_the_scheduler_seals_due_orders_over_its_series(series, tmp_path):
+    from governance import raas
+    from governance.production import scheduler
+    from governance.raas import period
+    from tests.test_inbox_and_scheduler import AFTER_WEEK3, _ticked
+    home, config_path, first = _ticked(series, weeks=(1,))
+    assert first["jobs"]["raas"]["status"] == "NOT_CONFIGURED" or raas.exists()
+    orders = raas.home() / "orders"
+    orders.mkdir(parents=True, exist_ok=True)
+    _order(orders, config_path, ["OUT-OF-SERIES-1"], name="ORD-DUE")
+    _order(orders, tmp_path / "another-series.json", ["X"], name="ORD-ELSEWHERE")
+    assert period.due_orders(config_path, "2026-09-30") == []                         # its period has not ended
+    ticked = scheduler.tick(config_path, now=AFTER_WEEK3)["jobs"]["raas"]
+    assert ticked["status"] == "OK" and ticked["sealed"] == [period.sealed("ORD-DUE", "2026-W3")["pack_id"]]
+    assert scheduler.tick(config_path, now=AFTER_WEEK3)["jobs"]["raas"]["detail"] == "nothing due"
+
+
+def test_period_refusals(tmp_path):
+    from governance.raas import period
+    with refused(ValueError, f"no order ORD-NONE: put it in {raas_home() / 'orders'}/ORD-NONE.yaml"):
+        period.run("ORD-NONE")
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("order_id: ORD-B\ncustomer: C\n")
+    with refused(ValueError, "order bad.yaml is missing control_family, period, period_end, controls, agent, issued_by"):
+        period.run(bad)
+    with refused(ValueError, "agent 'os:system' must be module:function inside governance/"):
+        period.agent_for("os:system")
+    assert period.load_order("ORD-DEMO")["order_id"] == "ORD-DEMO"                  # the shipped constructed order
+
+
+def raas_home():
+    from governance import raas
+    return raas.home()
+
+
+# ---------- block 1: read-only API over sealed periods (B1-7) ----------
+
+@pytest.fixture
+def api(monkeypatch):
+    import threading
+    from http.server import ThreadingHTTPServer
+    from services.raas_api import RaaSHandler
+    monkeypatch.setenv("WB_GAAR_API_QUIET", "1")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), RaaSHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_address[1]}"
+    server.shutdown()
+
+
+def _call(url, token=None, body=None):
+    import urllib.error
+    import urllib.request
+    request = urllib.request.Request(url, data=None if body is None else json.dumps(body).encode(),
+                                     headers={"Authorization": f"Bearer {token}"} if token else {})
+    try:
+        with urllib.request.urlopen(request) as response:
+            return response.status, json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        return error.code, json.loads(error.read())
+
+
+def test_the_period_endpoints_need_a_token_and_never_reveal_the_planted_seed(series, tmp_path, api, monkeypatch):
+    from governance import raas
+    from governance.raas import period
+    from tests.test_inbox_and_scheduler import _ticked
+    monkeypatch.delenv("WB_GAAR_API_KEY", raising=False)
+    assert _call(f"{api}/v1/periods") == (401, {"error": "unauthorized"})        # never open, even with no key set
+    assert _call(f"{api}/health")[0] == 200                                       # the existing public read stays
+    monkeypatch.setenv("WB_GAAR_API_KEY", "test-token")
+    assert _call(f"{api}/v1/periods", "wrong")[0] == 401
+    assert _call(f"{api}/v1/periods", "test-token") == (200, []) and not raas.exists()   # reading creates nothing
+    home, config_path, _ = _ticked(series, weeks=(1,))
+    out = period.run(_order(tmp_path, config_path, ["OUT-OF-SERIES-1"], name="ORD-API"))
+    pid = out["pack"]["pack_id"]
+    status, periods = _call(f"{api}/v1/periods", "test-token")
+    assert status == 200 and [p["pack_id"] for p in periods] == [pid]
+    status, sealed = _call(f"{api}/v1/periods/{pid}", "test-token")
+    assert status == 200 and sealed["passport"]["content_hash"] == out["passport"]["content_hash"]
+    assert _call(f"{api}/v1/periods/PACK-nope", "test-token")[0] == 404
+    status, verifications = _call(f"{api}/v1/verifications", "test-token")
+    assert status == 200 and verifications and all("seed" not in v for v in verifications)
+    status, warranties = _call(f"{api}/v1/warranties", "test-token")
+    assert status == 200 and [w["order_id"] for w in warranties] == ["ORD-API"] and warranties[0]["claims"] == []
+    status, checked = _call(f"{api}/v1/packs/verify", "test-token", sealed)
+    assert status == 200 and checked["valid"] and checked["key_is_the_tenants"]
+    sealed["pack"]["closure"]["still_open"] = 1
+    assert _call(f"{api}/v1/packs/verify", "test-token", sealed)[1]["valid"] is False
+    assert _call(f"{api}/v1/packs/verify", "test-token", {"pack": {}})[0] == 400
+
+
+def _cli(*args):
+    import subprocess
+    import sys
+    return subprocess.run([sys.executable, str(ROOT / "tools/gaar_raas.py"), *map(str, args)], text=True,
+                          capture_output=True)
+
+
+def test_the_command_line_runs_a_period_verifies_it_and_refuses_what_it_should(series, tmp_path):
+    from tests.test_inbox_and_scheduler import _ticked
+    assert _cli("status").stdout.startswith("no RaaS state yet")
+    home, config_path, _ = _ticked(series, weeks=(1,))
+    ran = _cli("period", _order(tmp_path, config_path, ["OUT-OF-SERIES-1"], name="ORD-CLI"))
+    assert ran.returncode == 0, ran.stderr
+    assert ran.stdout.splitlines()[0] == "ORD-CLI 2026-W3: Warranted Control Period (WARRANTED)"
+    pack_file = ran.stdout.split("pack:")[1].split()[0]
+    passport_file = ran.stdout.split("passport:")[1].split()[0]
+    assert _cli("verify", "--pack", pack_file, "--passport", passport_file).returncode == 0
+    tampered = tmp_path / "tampered.json"
+    tampered.write_text(Path(pack_file).read_text().replace('"still_open": 0', '"still_open": 1'))
+    assert _cli("verify", "--pack", tampered, "--passport", passport_file).returncode == 1
+    again = _cli("period", tmp_path / "ORD-CLI.yaml")
+    assert again.returncode == 1 and "refused: ORD-CLI 2026-W3 is already sealed as" in again.stderr
+    assert "sealed periods: 1" in _cli("status").stdout
+    assert _cli("decide", "--proposal", "RCP-none").stderr.strip() == "refused: no proposal RCP-none"

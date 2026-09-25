@@ -57,6 +57,11 @@ def hasty_agent(prompt: str) -> str:
     return json.dumps({"answer": "SUPPORTED" if ok else "CONTRADICTED", "confidence": 0.9})
 
 
+def constructed_retest(evidence: dict) -> dict:
+    """The demo's stand-in for a control test: constructed evidence says whether the fix holds."""
+    return {"verdict": "PASS" if evidence.get("fixed") else "FAIL"}
+
+
 def run(path=None, as_of: str = "2026-12-24") -> dict:
     path = path or tempfile.mkdtemp(prefix="gaar-raas-demo-")
     controls = [f"CHG-{i:02d}" for i in range(1, 41)]            # one change-management family of 40 controls
@@ -82,10 +87,14 @@ def run(path=None, as_of: str = "2026-12-24") -> dict:
         closure.assign(eid, "Rajesh Kumar", "Tan Wei Ling", path=path)
     for eid in ids[:4]:
         closure.evidence_fix(eid, f"CR-{eid}-fix", "Rajesh Kumar", path=path)
+        closure.rerun(eid, constructed_retest, {"exception": eid, "fixed": True}, "Siti Rahman", path=path)
         closure.retest(eid, "PASS", "Siti Rahman", path=path)
     closure.evidence_fix(ids[4], f"CR-{ids[4]}-fix", "Rajesh Kumar", path=path)
+    closure.rerun(ids[4], constructed_retest, {"exception": ids[4], "fixed": False}, "Siti Rahman", path=path)
     closure.retest(ids[4], "FAIL", "Siti Rahman", note="rollback evidence missing", path=path)
     closure.evidence_fix(ids[4], f"CR-{ids[4]}-fix2", "Rajesh Kumar", path=path)
+    closure.rerun(ids[4], constructed_retest, {"exception": ids[4], "fixed": True, "attempt": 2}, "Siti Rahman",
+                  path=path)
     closure.retest(ids[4], "PASS", "Siti Rahman", path=path)
     closure.accept_risk(ids[5], "Lim Mei Hua", "legacy batch job retired in Q1; compensating daily review",
                         "2027-03-31", as_of=as_of, path=path)

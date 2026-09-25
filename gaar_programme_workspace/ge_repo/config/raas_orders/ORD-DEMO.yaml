@@ -1,0 +1,11 @@
+# A constructed order (block 1): one control family, one period, over the constructed demonstration series.
+# A real order lives in the RaaS home (orders/<order_id>.yaml), never in the kit. Every name here is fictional.
+order_id: ORD-DEMO
+customer: CONSTRUCTED bank
+control_family: Change management
+period: 2026-Q3-W3
+period_end: "2026-10-01"
+series: ~/gaar-recurring-demo/operations.json   # the recurring series whose findings feed the closure desk
+controls: [chg.1, chg.2, chg.3, chg.4]         # the series' elements in scope
+agent: governance.raas.demo:careful_agent       # the agent whose assurances are verified on planted cases
+issued_by: Tan Wei Ling                          # who issues the warranty when the period qualifies

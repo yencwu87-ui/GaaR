@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json,os
+import hmac,json,os
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse,parse_qs
@@ -34,24 +34,63 @@ class RaaSService:
         hs=HealthStore(); sources=load_sources(); emissions=EmissionStore().read()
         return {"sources":[{"source_id":s.source_id,"authority":s.authority.value,"jurisdiction":s.jurisdiction,"health":hs.latest(s.source_id)} for s in sources],"emission_count":len(emissions),"emitted_changes":sum((r.get("payload") or {}).get("emission_status")=="EMITTED" for r in emissions)}
 
+class PeriodService:
+    """Block 1 (B1-7): the sealed periods, verifications and warranties, read-only. Nothing here writes, and nothing
+    creates the RaaS home: with no RaaS state every list is empty. The planted-case seed never leaves the tenant."""
+    def _ready(self):
+        from governance import raas
+        return raas.exists()
+    def periods(self):
+        from governance.raas import store
+        return [r["payload"] for r in store("periods").read()] if self._ready() else []
+    def period(self,pack_id):
+        from governance import raas
+        if not self._ready(): raise KeyError(pack_id)
+        folder=raas.home()/"packs"; pack=folder/f"{pack_id}.json"; passport=folder/f"{pack_id}.passport.json"
+        if "/" in pack_id or not pack.is_file() or not passport.is_file(): raise KeyError(pack_id)
+        return {"pack":json.loads(pack.read_text()),"passport":json.loads(passport.read_text())}
+    def verifications(self):
+        from governance.raas import verifier
+        return [{k:v for k,v in r.items() if k!="seed"} for r in verifier.verifications()] if self._ready() else []
+    def warranties(self):
+        from governance.raas import store
+        if not self._ready(): return []
+        rows=[r["payload"] for r in store("warranty").read()]
+        return [dict(c,claims=[x for x in rows if "payout" in x and x["certificate_id"]==c["certificate_id"]]) for c in rows if "cap" in c]
+    def verify(self,payload):
+        from governance.raas import seal
+        if not isinstance(payload,dict) or "pack" not in payload or "passport" not in payload:
+            raise ValueError("send the pack and its passport: {\"pack\": ..., \"passport\": ...}")
+        register=seal.key_register() if self._ready() else []
+        key=register[-1]["public_key_b64"] if register else None
+        return seal.verify(payload["pack"],payload["passport"],key)
+
 class RaaSHandler(BaseHTTPRequestHandler):
     service=RaaSService()
+    periods=PeriodService()
     server_version="GaaR-RaaS/1.0"
-    def _auth(self):
+    def _auth(self,required=False):
         expected=os.environ.get("WB_GAAR_API_KEY","").strip()
-        if not expected: return True
+        if not expected: return not required        # the period endpoints are never open: no key set, no answer
         header=self.headers.get("Authorization","")
-        return header==f"Bearer {expected}"
+        return hmac.compare_digest(header.encode(),f"Bearer {expected}".encode())
     def _send(self,status,payload,etag=None):
         body=json.dumps(payload,ensure_ascii=False,sort_keys=True,default=str).encode()
         self.send_response(status); self.send_header("Content-Type","application/json; charset=utf-8"); self.send_header("Content-Length",str(len(body)))
         if etag: self.send_header("ETag",etag)
         self.send_header("Cache-Control","no-store")
         self.end_headers(); self.wfile.write(body)
+    RAAS=("periods","verifications","warranties","packs")
     def do_GET(self):
-        if not self._auth(): return self._send(HTTPStatus.UNAUTHORIZED,{"error":"unauthorized"})
         p=urlparse(self.path); parts=[x for x in p.path.split('/') if x]
+        tenant=len(parts)>=2 and parts[0]=="v1" and parts[1] in self.RAAS
+        if not self._auth(required=tenant): return self._send(HTTPStatus.UNAUTHORIZED,{"error":"unauthorized"})
         try:
+            if p.path=="/v1/periods": return self._send(200,self.periods.periods())
+            if len(parts)==3 and parts[:2]==["v1","periods"]:
+                obj=self.periods.period(parts[2]); return self._send(200,obj,etag='"'+obj['passport']['content_hash']+'"')
+            if p.path=="/v1/verifications": return self._send(200,self.periods.verifications())
+            if p.path=="/v1/warranties": return self._send(200,self.periods.warranties())
             if p.path=="/health": return self._send(200,self.service.health())
             if p.path=="/v1/results": return self._send(200,self.service.results())
             if len(parts)==3 and parts[:2]==["v1","results"]:
@@ -67,10 +106,12 @@ class RaaSHandler(BaseHTTPRequestHandler):
         except KeyError as e: return self._send(404,{"error":"not_found","id":str(e.args[0])})
         except Exception as e: return self._send(500,{"error":type(e).__name__,"message":str(e)})
     def do_POST(self):
-        if not self._auth(): return self._send(HTTPStatus.UNAUTHORIZED,{"error":"unauthorized"})
-        if self.path!="/v1/passports/verify": return self._send(404,{"error":"not_found"})
+        tenant=self.path=="/v1/packs/verify"
+        if not self._auth(required=tenant): return self._send(HTTPStatus.UNAUTHORIZED,{"error":"unauthorized"})
+        if self.path not in ("/v1/passports/verify","/v1/packs/verify"): return self._send(404,{"error":"not_found"})
         try:
             n=int(self.headers.get("Content-Length","0")); payload=json.loads(self.rfile.read(n) or b"{}")
+            if tenant: return self._send(200,self.periods.verify(payload))
             return self._send(200,self.service.verify(payload))
         except Exception as e: return self._send(400,{"error":type(e).__name__,"message":str(e)})
     def log_message(self,format,*args):

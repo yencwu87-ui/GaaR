@@ -1,15 +1,22 @@
 """M3 Closure Desk: every exception ends closed by an independent retest, or held under a signed, expiring risk
 acceptance. Those are the only two outcomes a bank is billed for, and they are counted separately.
 
-    OPEN -> ASSIGNED -> FIX_EVIDENCED -> CLOSED            (retest PASS by someone other than the owner)
+    OPEN -> ASSIGNED -> FIX_EVIDENCED -> CLOSED            (retest PASS by someone other than the owner, on a
+                                                            passing rerun of the control test on new evidence)
                              |        -> ASSIGNED          (retest FAIL: reopened, the owner fixes again)
     OPEN | ASSIGNED -> RISK_ACCEPTED -> (after expiry) ASSIGNED again, as if never accepted
 
 Gaming guard (the Lambda School failure): "closed" is never the owner's word. The owner evidences a fix; a different
 person retests it; a risk acceptance needs an approver who is not the owner, a reason and an expiry.
+
+Retest by re-execution (block 1, B1-4): a PASS is never a person's word alone. The desk itself runs the control test on
+the fixed evidence (`rerun`) and records the verdict with the evidence's hash; a retest can record PASS only on a
+passing rerun made after the latest fix, on evidence other than the evidence that raised the exception.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import date, datetime, timedelta, timezone
 
 from governance.names import require_person
@@ -33,11 +40,14 @@ def _fold(events: list[dict], as_of: str) -> dict:
         kind = e["event"]
         s["history"].append(kind)
         if kind == "OPENED":
-            s.update(state="OPEN", control_id=e["control_id"], finding=e["finding"], source=e["source"])
+            s.update(state="OPEN", control_id=e["control_id"], finding=e["finding"], source=e["source"],
+                     evidence_sha256=e.get("evidence_sha256"), detail=e.get("detail"))
         elif kind == "ASSIGNED":
             s.update(state="ASSIGNED", owner=e["owner"])
         elif kind == "FIX_EVIDENCED":
-            s.update(state="FIX_EVIDENCED", fix_by=e["by"], evidence_ref=e["evidence_ref"])
+            s.update(state="FIX_EVIDENCED", fix_by=e["by"], evidence_ref=e["evidence_ref"], rerun=None)
+        elif kind == "RERUN":
+            s["rerun"] = {k: e[k] for k in ("verdict", "evidence_sha256", "test", "by", "receipt_sha256")}
         elif kind == "RETESTED":
             s.update(state="CLOSED" if e["result"] == "PASS" else "ASSIGNED", retested_by=e["by"])
         elif kind == "RISK_ACCEPTED":
@@ -66,12 +76,41 @@ def _require(s: dict, allowed: tuple, action: str):
         raise ValueError(f"{s['exception_id']} is {s['state']}: it cannot be {action}")
 
 
-def open_exception(exception_id: str, control_id: str, finding: str, source: str, path=None) -> dict:
+def open_exception(exception_id: str, control_id: str, finding: str, source: str, path=None, *,
+                   evidence_sha256: str = "", detail: dict | None = None) -> dict:
     if _events(exception_id, path):
         raise ValueError(f"exception {exception_id} is already on the closure desk")
     if not (finding or "").strip() or not (source or "").strip():
         raise ValueError("an exception needs the finding and the source that raised it")
-    return _append(exception_id, "OPENED", path, control_id=control_id, finding=finding.strip(), source=source.strip())
+    return _append(exception_id, "OPENED", path, control_id=control_id, finding=finding.strip(), source=source.strip(),
+                   evidence_sha256=evidence_sha256, detail=detail or {})
+
+
+def evidence_sha256(evidence) -> str:
+    """The hash a rerun records: bytes as they are, anything else as canonical JSON."""
+    raw = evidence if isinstance(evidence, bytes) else json.dumps(evidence, sort_keys=True, default=str).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
+def rerun(exception_id: str, test, evidence, by: str, path=None) -> dict:
+    """Run the control test on the fixed evidence, here, and record its verdict: the receipt a PASS needs (B1-4)."""
+    s = state(exception_id, path=path)
+    _require(s, ("FIX_EVIDENCED",), "rerun")
+    by = require_person(by, "a rerun needs the name of the person who ran it")
+    if not callable(test):
+        raise TypeError("a rerun needs the control test: a callable that takes the evidence and returns its verdict")
+    digest = evidence_sha256(evidence)
+    if s.get("evidence_sha256") and digest == s["evidence_sha256"]:
+        raise ValueError("a rerun needs new evidence: this is the evidence that raised the exception")
+    outcome = test(evidence)
+    verdict = (outcome or {}).get("verdict")
+    if verdict not in RESULTS:
+        raise ValueError(f"the control test returned {verdict!r}: a rerun verdict is PASS or FAIL")
+    name = getattr(test, "test_name", getattr(test, "__name__", "control test"))
+    receipt = {"verdict": verdict, "evidence_sha256": digest, "test": name, "by": by,
+               "detail": {k: v for k, v in outcome.items() if k != "verdict"}}
+    receipt["receipt_sha256"] = evidence_sha256(receipt)
+    return _append(exception_id, "RERUN", path, **receipt)
 
 
 def assign(exception_id: str, owner: str, by: str, path=None) -> dict:
@@ -101,7 +140,13 @@ def retest(exception_id: str, result: str, by: str, note: str = "", path=None) -
     by = require_person(by, "a retest needs the name of the person who performed it")
     if by in (s["owner"], s["fix_by"]):
         raise ValueError("the retest must be performed by someone other than the owner who fixed it")
-    return _append(exception_id, "RETESTED", path, result=result, by=by, note=note)
+    receipt = s.get("rerun")
+    if result == "PASS" and not receipt:
+        raise ValueError("a retest cannot pass without a rerun: run the control test on the fixed evidence first")
+    if receipt and receipt["verdict"] != result:
+        raise ValueError(f"the rerun's verdict was {receipt['verdict']}: the retest cannot record {result}")
+    return _append(exception_id, "RETESTED", path, result=result, by=by, note=note,
+                   rerun_receipt_sha256=(receipt or {}).get("receipt_sha256"))
 
 
 def accept_risk(exception_id: str, by: str, reason: str, expires_on: str, as_of: str | None = None, path=None) -> dict:
@@ -119,11 +164,14 @@ def accept_risk(exception_id: str, by: str, reason: str, expires_on: str, as_of:
     return _append(exception_id, "RISK_ACCEPTED", path, by=by, reason=reason.strip(), expires_on=expires_on)
 
 
-def summary(as_of: str | None = None, path=None) -> dict:
-    """Every exception's state now, and the billable outcomes: closed by retest and under acceptance, apart."""
+def summary(as_of: str | None = None, path=None, controls=None) -> dict:
+    """Every exception's state now, and the billable outcomes: closed by retest and under acceptance, apart.
+    `controls` limits it to one order's scope."""
     today = as_of or date.today().isoformat()
     ids = sorted({r["payload"]["exception_id"] for r in _ledger(path).read()})
     rows = [{"exception_id": i, **_fold(_events(i, path), today)} for i in ids]
+    if controls is not None:
+        rows = [r for r in rows if r.get("control_id") in set(controls)]
     count = lambda st: sum(r["state"] == st for r in rows)                        # noqa: E731
     return {"as_of": today, "exceptions": rows, "total": len(rows), "closed_by_retest": count("CLOSED"),
             "risk_accepted": count("RISK_ACCEPTED"),

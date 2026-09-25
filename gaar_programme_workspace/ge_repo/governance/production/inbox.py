@@ -165,12 +165,34 @@ def _watch_items(now) -> list[dict]:
     return found
 
 
+def _raas_items(now) -> list[dict]:
+    """Block 1 (B1-2): a MAS publication marked relevant waits for its text; an M1 proposal waits for its decisions."""
+    from governance.raas import watch_link
+    found = []
+    for i in watch_link.awaiting_text(now=now):
+        found.append({"id": f"m1-text:{i['item_id']}", "who": HUMAN, "kind": "m1_text", "intel_item_id": i["item_id"],
+                      "title": f"Save the text of {i['title']} so M1 can read it",
+                      "why": "Marked relevant. The watch sees the title and link only; M1 needs the publication itself.",
+                      "action": f"Open {i['url']}, save it as PDF or text, then run: python tools/gaar_raas.py "
+                                f"propose-from-watch --item {i['item_id']} --file <saved file> --by \"Your Name\"",
+                      "since": i["first_seen"], "origin": {"watch_item": i["item_id"], "source": i["source_id"]}})
+    for p in watch_link.awaiting_decision():
+        found.append({"id": f"m1-decide:{p['proposal_id']}", "who": HUMAN, "kind": "m1_decide",
+                      "title": f"Decide {p['undecided']} of {p['items']} proposed control change(s): {p['title']}",
+                      "why": "M1 proposed amendments and additions, each quoting its passage. Nothing is live until "
+                             "every item is decided by a person.",
+                      "action": f"python tools/gaar_raas.py decide --proposal {p['proposal_id']}   (one item at a time)",
+                      "since": p["since"], "origin": {"proposal": p["proposal_id"], "reference": p["reference"]}})
+    return found
+
+
 def items(config_path, now: datetime | None = None) -> list[dict]:
     from governance.operations.runtime import load
     config_path = Path(config_path).expanduser().resolve()
     config, root = load(config_path)
     now = now or datetime.now().astimezone()
-    found = _system_items(config, root, now, config_path) + _series_items(config, root, now) + _watch_items(now)
+    found = _system_items(config, root, now, config_path) + _series_items(config, root, now) + _watch_items(now) \
+        + _raas_items(now)
     for item in found:
         if item.get("since"):
             item["age_days"] = round((now - _when(item["since"])).total_seconds() / 86400, 1)

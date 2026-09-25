@@ -80,7 +80,20 @@ def job_field(ctx: dict) -> dict:
 
 
 # field runs before series, so evidence it delivers is assessed in the same tick
-JOBS = [("field", job_field), ("series", job_series), ("watcher", job_watcher), ("gate_status", job_gate_status)]
+def job_raas(ctx: dict) -> dict:
+    """Block 1 (B1-1): seal every RaaS order over this series whose period has ended. No RaaS home: not configured."""
+    from governance import raas
+    if not raas.exists():
+        return {"status": "NOT_CONFIGURED", "detail": "no RaaS home; no orders"}
+    from governance.raas import period
+    today = (ctx["now"] or datetime.now().astimezone()).date().isoformat()
+    due = period.due_orders(ctx["config_path"], today)
+    sealed = [period.run(f)["pack"]["pack_id"] for f in due]
+    return {"status": "OK", "sealed": sealed, "detail": f"{len(sealed)} period(s) sealed" if sealed else "nothing due"}
+
+
+JOBS = [("field", job_field), ("series", job_series), ("watcher", job_watcher), ("gate_status", job_gate_status),
+        ("raas", job_raas)]
 
 
 # ---------------------------------------------------------------------------------------------------------

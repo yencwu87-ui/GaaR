@@ -1,4 +1,4 @@
-# Result as a Service (kit v31)
+# Result as a Service
 
 GaaR sold as a **Warranted Control Period**: one control family, one period, every in-scope control tested on real
 evidence, every exception closed or formally accepted, and a published false-assurance rate backed by a capped
@@ -13,6 +13,25 @@ warranty. Parameters: `config/raas.yaml`. Code: `governance/raas/`. Tests: `test
 
 `result.py` assembles the pack and the outcome-priced invoice. `python -m governance.raas.demo` runs one constructed
 quarter end to end, with state in `GAAR_RAAS_HOME` (default `~/gaar-raas`).
+
+## Block 1: the chain, wired (25 September 2026)
+
+One command runs an order's period and ends in a sealed pack: `python -m governance.raas.period ORD-DEMO` (or
+`python tools/gaar_raas.py period ORD-DEMO`); the scheduler's `raas` job seals any order in the RaaS home whose period
+has ended.
+
+| Task | What is now true | Code |
+| --- | --- | --- |
+| B1-1 Period orchestrator | An order file (`config/raas_orders/ORD-DEMO.yaml` is the constructed one; real ones live in `<RaaS home>/orders/`) runs M1 to M4 and seals the pack once | `period.py`, scheduler job `raas` |
+| B1-2 Watch to M1 | A MAS publication marked RELEVANT in the watch becomes an inbox item to save its text; `propose-from-watch` runs M1 on the saved file (text, or a PDF read locally) and keeps the text under its hash; undecided proposals are inbox items, decided one item at a time | `watch_link.py`, `production/inbox.py` |
+| B1-3 Exception hook | Every finding in a series period's reconciliation opens one closure exception, keyed by its issue id, with the hash of the export that raised it; running it again opens nothing twice | `series.py` |
+| B1-4 Retest by re-execution | A retest PASS needs a passing rerun the desk itself executed, after the latest fix, on evidence other than the evidence that raised the exception. For series findings the rerun is the series' own procedure (change_authorization) on the corrected export; an export it cannot compare is a FAIL | `closure.rerun`, `series.retest_for` |
+| B1-5 Planted cases in periods | Each period verifies the order's agent on 500 planted cases mixed with 500 clean ones, drawn with a seed derived from the tenant's secret signing key, new each period; the pack carries a commitment to the seed, never the seed | `period.sealed_seed` |
+| B1-6 Sealed pack | The pack is sealed with its own passport (`gaar.raas.pack-passport.v1`): content hash, Merkle root over its sections, Ed25519 signature with the tenant key. It verifies offline and fails if one byte changes or another key signed it | `seal.py` |
+| B1-7 Read-only API | `/v1/periods`, `/v1/periods/{pack_id}`, `/v1/verifications`, `/v1/warranties`, and `POST /v1/packs/verify`, each needing the API token even when none is configured elsewhere; the seed is never served | `services/raas_api.py` |
+
+A warranty is issued only when the bound qualifies **and** the period is complete: a warranty over exceptions still
+open, or over an unsigned regulatory change, would insure known failures.
 
 ## Eligibility: decided 25 September 2026
 
