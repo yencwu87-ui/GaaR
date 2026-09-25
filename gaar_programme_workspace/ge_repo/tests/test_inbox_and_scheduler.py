@@ -304,7 +304,7 @@ def test_two_ticks_never_run_at_once(series):
 
 
 def test_a_job_that_keeps_failing_says_since_when_and_a_recovered_outage_stays_on_record(series):
-    # v31, after D27: gate_status failed on every tick for days and nothing said so until a round broke on it.
+    # v31, after D27: a job that failed on every tick would have gone unreported until a round broke on it.
     from governance.production import inbox, scheduler
     home, config_path = series
     config, root = _load(config_path)

@@ -155,9 +155,9 @@ def status(config: dict, root: Path, now: datetime | None = None) -> dict:
 def outages(events: list[dict]) -> list[dict]:
     """Every run of consecutive FAILED ticks per job, closed or still open (v31, after D27).
 
-    D27's gate-status crash failed every tick from the v28 round until v30, and nothing reported it until a round
-    broke on it. The outcomes were already journalled; this reads them as windows, so an outage is stated, with its
-    first and last tick, instead of disappearing into the latest tick's table."""
+    After D27: had a tick run while that record was newest, the gate-status job would have failed on it, and nothing
+    would have said so beyond the latest tick's table. The outcomes were already journalled; this reads them as
+    windows, so an outage is stated, with its first and last tick."""
     order = [e["payload"]["tick"] for e in events if e["kind"] == "scheduler_tick"]
     by_tick = {}
     for e in events:
