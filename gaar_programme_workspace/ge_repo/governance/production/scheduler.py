@@ -143,9 +143,58 @@ def status(config: dict, root: Path, now: datetime | None = None) -> dict:
     age = (now - finished).total_seconds()
     outcomes = {e["payload"]["job"]: {**e["payload"], "event_hash": e["event_hash"]}
                 for e in events if e["kind"] == "job_outcome" and e["payload"]["tick"] == last["tick"]}
+    windows = outages(events)
+    for window in windows:                              # v31: a failing job says since when, like a watch source
+        if window["to_tick"] is None and window["job"] in outcomes:
+            outcomes[window["job"]].update(failing_since=window["from_tick"], failed_ticks=window["failed_ticks"])
     return {"state": "STALE" if age > STALE_AFTER_INTERVALS * interval else "ALIVE", "last_tick": last,
             "age_seconds": max(0, int(age)), "interval_seconds": interval, "jobs": outcomes,
-            "tick_event_hash": ticks[-1]["event_hash"]}
+            "tick_event_hash": ticks[-1]["event_hash"], "outages": windows}
+
+
+def outages(events: list[dict]) -> list[dict]:
+    """Every run of consecutive FAILED ticks per job, closed or still open (v31, after D27).
+
+    D27's gate-status crash failed every tick from the v28 round until v30, and nothing reported it until a round
+    broke on it. The outcomes were already journalled; this reads them as windows, so an outage is stated, with its
+    first and last tick, instead of disappearing into the latest tick's table."""
+    order = [e["payload"]["tick"] for e in events if e["kind"] == "scheduler_tick"]
+    by_tick = {}
+    for e in events:
+        if e["kind"] == "job_outcome":
+            by_tick.setdefault(e["payload"]["tick"], {})[e["payload"]["job"]] = e["payload"]
+    open_, windows = {}, []
+    for tick in order:
+        for job, outcome in by_tick.get(tick, {}).items():
+            if outcome.get("status") == "FAILED":
+                window = open_.setdefault(job, {"job": job, "from_tick": tick, "to_tick": None, "failed_ticks": 0})
+                window["failed_ticks"] += 1
+                window["last_error"] = outcome.get("error")
+            elif job in open_:
+                window = open_.pop(job)
+                window["to_tick"], window["recovered_at"] = window.get("last_failed_tick", tick), tick
+                windows.append(window)
+            if job in open_:
+                open_[job]["last_failed_tick"] = tick
+    return windows + list(open_.values())
+
+
+def health_lines(config: dict, root: Path, now: datetime | None = None) -> list[str]:
+    """The scheduler's health as a round prints it first: alive or not, and every outage with its window."""
+    health = status(config, root, now)
+    if health["state"] == "NEVER_RAN":
+        return ["scheduler: has never run for this workspace"]
+    lines = [f"scheduler: {health['state']}, last tick {since(health['age_seconds'])}"]
+    for w in health["outages"]:
+        if w["to_tick"] is None:
+            lines.append(f"  {w['job']}: FAILING since {w['from_tick'][:16]} ({w['failed_ticks']} consecutive tick(s))"
+                         f" — {str(w.get('last_error'))[:140]}")
+        else:
+            lines.append(f"  {w['job']}: was failing from {w['from_tick'][:16]} to {w['to_tick'][:16]} "
+                         f"({w['failed_ticks']} tick(s)); recovered at {w['recovered_at'][:16]}")
+    if len(lines) == 1:
+        lines.append("  no job has failed on any recorded tick")
+    return lines
 
 
 def since(seconds: int) -> str:

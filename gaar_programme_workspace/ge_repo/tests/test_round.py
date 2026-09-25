@@ -6,6 +6,7 @@ import zipfile
 import pytest
 
 from governance import doctor
+from tests.test_guards_exercised import series  # noqa: F401  (fixture)
 
 round_tool = importlib.import_module("tools.gaar_round")
 
@@ -185,3 +186,104 @@ def test_a_mistyped_kit_name_points_to_the_newest_kit_in_that_folder(tmp_path):
     (tmp_path / "GaaR_RaaS_Kit_v28.zip").write_bytes(b"")
     with pytest.raises(ValueError, match=r"^no kit at .*v29\.zip; the newest kit in that folder is GaaR_RaaS_Kit_v28\.zip$"):
         round_tool.install(tmp_path / "GaaR_RaaS_Kit_v29.zip")
+
+
+def test_the_doctor_checks_the_same_requirements_file_as_the_test_runner(monkeypatch):
+    # D28 (v28 round): the doctor read requirements.txt and said "requirements met" in base; the runner read
+    # requirements-dev.txt (pytest, coverage) and stopped with ENVIRONMENT NOT READY.
+    import run_all_tests
+    seen = []
+    monkeypatch.setattr(run_all_tests, "requirement_problems",
+                        lambda path=None: seen.append(path) or (["pytest==9.0.2"], []))
+    monkeypatch.setenv("CONDA_DEFAULT_ENV", "gaar")
+    row = doctor.python_environment(version=(3, 12))
+    assert seen and seen[0].name == "requirements-dev.txt"
+    assert row["state"] == "FAIL" and "pytest==9.0.2" in row["detail"]
+
+
+def test_the_doctor_says_which_python_the_unattended_scheduler_runs(tmp_path):
+    import plistlib
+    assert doctor.launchd(tmp_path) == []                              # not installed: nothing to check
+    python = tmp_path / "gaar" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("")
+    plist = tmp_path / "com.gaar.scheduler.plist"
+    plist.write_bytes(plistlib.dumps({"ProgramArguments": [str(python), "tools/gaar_scheduler.py", "tick"]}))
+    assert doctor.launchd(tmp_path, executable=python)[0]["state"] == "OK"
+    other = doctor.launchd(tmp_path, executable=tmp_path / "base-python")[0]
+    assert other["state"] == "WARN" and f"launchd runs {python}" in other["detail"]
+    python.unlink()
+    gone = doctor.launchd(tmp_path, executable=python)[0]
+    assert gone["state"] == "FAIL" and "no longer exists" in gone["detail"]
+    plist.write_bytes(b"not a plist")
+    assert doctor.launchd(tmp_path)[0]["state"] == "WARN"
+
+
+def test_the_doctor_puts_scheduler_health_first(series, monkeypatch):
+    from governance.production import scheduler
+    home, config_path = series
+    assert doctor.scheduler_health(home / "absent.json") == []
+    assert doctor.scheduler_health(config_path)[0]["detail"] == "has never run for this workspace"
+
+    def boom(ctx):
+        raise RuntimeError("down")
+    scheduler.tick(config_path, jobs=[("gate_status", boom)])
+    row = doctor.scheduler_health(config_path)[0]
+    assert row["state"] == "WARN" and "gate_status: FAILING since" in row["detail"]
+    scheduler.tick(config_path, jobs=[("gate_status", lambda ctx: {"status": "OK"})])
+    row = doctor.scheduler_health(config_path)[0]
+    assert row["state"] == "OK" and "was failing from" in row["detail"]
+    report = doctor.run(config_path, get=lambda *a, **k: (_ for _ in ()).throw(OSError()))
+    assert report["checks"][0]["check"] == "scheduler"
+
+
+def test_the_round_compares_this_machine_with_the_counts_the_kit_states(tmp_path):
+    from tools.run_all_tests import run_record
+    from tools.trace_unreached_guards import trace_record
+    runs = tmp_path / ".test_runs"
+    runs.mkdir()
+    expected = {"tests_collected": 10, "trace_modules": len(trace_record(0, "", 0, [], None)["modules"]),
+                "trace_unreached": 0}
+    assert round_tool.compare(None, tmp_path) == []
+    assert round_tool.compare(expected, tmp_path) == ["tests_collected: expected 10, this machine None",
+                                                      f"trace_modules: expected {expected['trace_modules']}, this machine None",
+                                                      "trace_unreached: expected 0, this machine None"]
+    (runs / "2026-09-25T1.json").write_text(json.dumps(run_record("COMPLETE RUN, ALL PASSED", collected=10)))
+    (runs / "trace-2026-09-25T1.json").write_text(json.dumps(trace_record(0, "", 0, [], None)))
+    assert round_tool.compare(expected, tmp_path) == []
+    (runs / "2026-09-25T2.json").write_text(json.dumps(run_record("COMPLETE RUN, ALL PASSED", collected=9)))
+    assert round_tool.compare(expected, tmp_path) == ["tests_collected: expected 10, this machine 9"]
+    folder = tmp_path / "round-x"
+    folder.mkdir()
+    (folder / "milestone.txt").write_text("RESULT: ALL GATES AS EXPECTED\n")
+    text = round_tool.summarise(folder, {"verdict": "READY", "checks": []}, 0, None, None,
+                                ["tests_collected: expected 10, this machine 9"],
+                                [{"id": "A-001", "state": "HUMAN_ADJUDICATED", "confirmed_by": ["Wu Yen Ching"]},
+                                 {"id": "A-002", "state": "AWAITING_A_NAMED_PERSON", "confirmed_by": []}])
+    assert "expected counts: DIFFER: tests_collected: expected 10, this machine 9" in text
+    assert "twin adjudications: A-001 HUMAN_ADJUDICATED by Wu Yen Ching, A-002 AWAITING_A_NAMED_PERSON" in text
+
+
+def test_install_prints_one_digest_of_every_ledger_before_and_after(tmp_path):
+    root = tmp_path / "ws" / "ge_repo"
+    (root / "governance").mkdir(parents=True)
+    (root / "governance" / "events.jsonl").write_text('{"x":1}\n')
+    kit = tmp_path / "kit.zip"
+    with zipfile.ZipFile(kit, "w") as z:
+        z.writestr("ge_repo/README.md", "x")
+        z.writestr("ge_repo/KIT_MANIFEST.json", json.dumps({"kit": "v31", "expected": {"tests_collected": 5}}))
+    result = round_tool.install(kit, root=root, snapshots=tmp_path / "snap", stamp="t")
+    assert result["ledgers_before"] == result["ledgers_after"] == round_tool.digest(round_tool.ledgers(root))
+    assert result["expected"] == {"tests_collected": 5}
+
+
+def test_an_install_done_by_the_previous_kits_installer_says_why_it_has_no_digest(tmp_path):
+    folder = tmp_path / "round-x"
+    folder.mkdir()
+    old = {"kit": "v31", "ledgers_checked": 14, "snapshot": "/s/t"}                  # written by the v30 installer
+    text = round_tool.summarise(folder, {"verdict": "READY", "checks": []}, None, None, old)
+    assert ("install: v31 installed; 14 ledger(s) unchanged (no digest: the previous kit's installer did the install "
+            "and records none; the per-file hashes are in /s/t/ledgers.sha256.json)") in text
+    new = {**old, "ledgers_before": "a" * 64, "ledgers_after": "a" * 64}
+    assert "(digest before aaaaaaaaaaaaaaaa, after aaaaaaaaaaaaaaaa)" in \
+        round_tool.summarise(folder, {"verdict": "READY", "checks": []}, None, None, new)

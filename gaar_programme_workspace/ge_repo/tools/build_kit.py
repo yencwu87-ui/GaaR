@@ -13,6 +13,9 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import re
+import subprocess
+import sys
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,7 +39,7 @@ def excluded(rel: str) -> bool:
     return any(fnmatch.fnmatch(rel, pattern) for pattern in RUNTIME_STATE)
 
 
-def build(out: Path, version: str) -> dict:
+def build(out: Path, version: str, expected: dict | None = None) -> dict:
     out = Path(out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
     files, skipped = {}, []
@@ -52,10 +55,24 @@ def build(out: Path, version: str) -> dict:
             files[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
         manifest = {"kit": version, "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                     "files": len(files), "never_shipped": RUNTIME_STATE,
-                    "content_sha256": hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()}
+                    "content_sha256": hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest(),
+                    **({"expected": expected} if expected else {})}
         z.writestr(f"{PREFIX}/KIT_MANIFEST.json", json.dumps(manifest, indent=2) + "\n")
     return {"status": "KIT_BUILT", "kit": str(out), "files": len(files), "runtime_state_left_out": len(skipped),
             "content_sha256": manifest["content_sha256"]}
+
+
+def expected_counts() -> dict:
+    """What a correct install of this kit must reproduce (v31): the round compares its own run with these."""
+    listing = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"],
+                             cwd=ROOT, text=True, capture_output=True)
+    if re.search(r"^ERROR ", listing.stdout, re.M) or listing.returncode not in (0, 5):
+        raise SystemExit("tests do not collect cleanly; no kit is built from a tree whose count is unknown")
+    sys.path.insert(0, str(ROOT / "tools"))
+    from trace_unreached_guards import MODULES
+    return {"tests_collected": sum("::" in line for line in listing.stdout.splitlines()),
+            "trace_modules": len(MODULES), "trace_unreached": 0,
+            "note": "skipped is 0 on a normal account; one test skips only when run as root"}
 
 
 def main():
@@ -63,7 +80,7 @@ def main():
     parser.add_argument("--version", required=True)
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
-    print(json.dumps(build(Path(args.out), args.version), indent=2))
+    print(json.dumps(build(Path(args.out), args.version, expected_counts()), indent=2))
 
 
 if __name__ == "__main__":

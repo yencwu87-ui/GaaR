@@ -323,7 +323,9 @@ def test_a_hostile_or_broken_feed_is_unable_to_check(body, message):
 def test_regions_subscribe_every_source_in_them_and_unknown_regions_are_refused():
     intel.subscriptions()
     data = intel.subscribe_regions(["hk", "cn"], by="Test Owner")
-    assert {"hkma-brdr-whats-new", "hkma-press-rss", "nfra-rules-en-index", "pboc-en-news-index"} <= set(data["sources"])
+    assert {"hkma-press-rss", "hkma-circulars-index", "nfra-rules-en-index", "pboc-en-news-index"} <= set(data["sources"])
+    assert "hkma-brdr-whats-new" not in data["sources"]              # v31: known limit, stated in the catalogue
+    assert "no document links" in intel.catalogue()["hkma-brdr-whats-new"]["known_limit"]
     with pytest.raises(ValueError, match=exactly("unknown region(s): mars; use sg, us, uk, hk, cn, global")):
         intel.subscribe_regions(["mars"])
 

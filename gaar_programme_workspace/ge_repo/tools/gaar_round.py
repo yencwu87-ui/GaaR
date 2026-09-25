@@ -61,8 +61,8 @@ def install(kit_path: Path, root: Path = ROOT, snapshots: Path | None = None, st
         if carried:
             raise ValueError(f"the kit carries runtime state ({carried[0][8:]}{' and more' if len(carried) > 1 else ''}); "
                              "installing it could overwrite your records (D19). Nothing was installed")
-        version = json.loads(z.read("ge_repo/KIT_MANIFEST.json")).get("kit") if "ge_repo/KIT_MANIFEST.json" in names \
-            else None
+        manifest = json.loads(z.read("ge_repo/KIT_MANIFEST.json")) if "ge_repo/KIT_MANIFEST.json" in names else {}
+        version, expected = manifest.get("kit"), manifest.get("expected")
         before = ledgers(root)
         snap = Path(snapshots or Path.home() / "gaar-snapshots").expanduser() / stamp
         for rel in before:
@@ -75,7 +75,27 @@ def install(kit_path: Path, root: Path = ROOT, snapshots: Path | None = None, st
     changed = [rel for rel, digest in before.items() if after.get(rel) != digest]
     if changed:
         raise ValueError(f"{len(changed)} ledger(s) changed during the install ({changed[0]}); restore them from {snap}")
-    return {"kit": version, "ledgers_checked": len(before), "snapshot": str(snap)}
+    return {"kit": version, "ledgers_checked": len(before), "snapshot": str(snap), "ledgers_before": digest(before),
+            "ledgers_after": digest(after), "expected": expected}
+
+
+def digest(ledger_hashes: dict) -> str:
+    """One hash over every ledger's hash, printed before and after an install so the check is visible."""
+    return hashlib.sha256(json.dumps(ledger_hashes, sort_keys=True).encode()).hexdigest()
+
+
+def compare(expected: dict | None, root: Path = ROOT) -> list[str]:
+    """v31: the kit states what its tests must count; the Mac checks itself against that. Empty list = met."""
+    if not expected:
+        return []
+    runs = sorted((Path(root) / ".test_runs").glob("[0-9]*.json"))
+    traces = sorted((Path(root) / ".test_runs").glob("trace-*.json"))
+    run = json.loads(runs[-1].read_text()) if runs else {}
+    trace = json.loads(traces[-1].read_text()) if traces else {}
+    found = {"tests_collected": run.get("collected"), "trace_modules": len(trace.get("modules") or []) or None,
+             "trace_unreached": trace.get("unreached")}
+    return [f"{key}: expected {expected[key]}, this machine {found[key]}" for key in found
+            if key in expected and found[key] != expected[key]]
 
 
 def _run(args: list[str], out: Path) -> int:
@@ -84,11 +104,16 @@ def _run(args: list[str], out: Path) -> int:
     return result.returncode
 
 
-def summarise(folder: Path, doctor_report: dict, milestone_code, watch_rows, installed) -> str:
+def summarise(folder: Path, doctor_report: dict, milestone_code, watch_rows, installed, mismatches=None,
+              adjudications=None) -> str:
     lines = [f"GaaR round {folder.name}", ""]
     if installed:
-        lines.append(f"install: {installed['kit']} installed; {installed['ledgers_checked']} ledger(s) unchanged; "
-                     f"snapshot {installed['snapshot']}")
+        digests = (f"digest before {installed['ledgers_before'][:16]}, after {installed['ledgers_after'][:16]}"
+                   if installed.get("ledgers_before") else
+                   "no digest: the previous kit's installer did the install and records none; "
+                   f"the per-file hashes are in {installed['snapshot']}/ledgers.sha256.json")
+        lines.append(f"install: {installed['kit']} installed; {installed['ledgers_checked']} ledger(s) unchanged "
+                     f"({digests}); snapshot {installed['snapshot']}")
     from governance import doctor
     lines += [doctor.render(doctor_report), ""]
     if milestone_code is None:
@@ -102,6 +127,12 @@ def summarise(folder: Path, doctor_report: dict, milestone_code, watch_rows, ins
         lines.append("milestone: " + (result or {3: "WAITING ON YOU: sign in the inbox (command in milestone.txt), "
                                                      "then run the round again without --kit",
                                                   1: "STOPPED: see milestone.txt"}.get(milestone_code, "see milestone.txt")))
+    if mismatches is not None:
+        lines.append("expected counts: " + ("met" if not mismatches else "DIFFER: " + "; ".join(mismatches)))
+    if adjudications is not None:
+        lines.append("twin adjudications: " + (", ".join(
+            f"{a['id']} {a['state']}" + (f" by {', '.join(a['confirmed_by'])}" if a["confirmed_by"] else "")
+            for a in adjudications) or "none"))
     if watch_rows is not None:
         ok = [w for w in watch_rows if w["state"] == "OK"]
         lines.append(f"watch: {len(ok)} of {len(watch_rows)} source(s) OK")
@@ -125,7 +156,8 @@ def main():
         print("1. installing", args.kit, flush=True)
         installed = install(Path(args.kit), stamp=stamp)
         (folder / "install.json").write_text(json.dumps(installed, indent=1))
-        print(f"   {installed['kit']} installed; {installed['ledgers_checked']} ledger(s) unchanged", flush=True)
+        print(f"   {installed['kit']} installed; {installed['ledgers_checked']} ledger(s) unchanged "
+              f"(digest before {installed['ledgers_before'][:16]}, after {installed['ledgers_after'][:16]})", flush=True)
         os.execv(sys.executable, [sys.executable, str(ROOT / "tools/gaar_round.py"), "--config", args.config,
                                   "--out", args.out, "--resume", str(folder)])
     if (folder / "install.json").exists():
@@ -146,7 +178,14 @@ def main():
             _run(["tools/gaar_watch.py", "run", "--force"], folder / "watch_run.txt")
             watch_rows = intel.health()
             (folder / "watch_status.json").write_text(json.dumps(watch_rows, indent=1, default=str))
-    text = summarise(folder, report, milestone_code, watch_rows, installed)
+    mismatches = None
+    manifest = ROOT / "KIT_MANIFEST.json"
+    if milestone_code is not None and manifest.is_file():
+        mismatches = compare(json.loads(manifest.read_text()).get("expected"))
+        if mismatches and milestone_code == 0:
+            milestone_code = 1                                     # a met milestone on the wrong count is not met
+    from governance.twin import adjudication
+    text = summarise(folder, report, milestone_code, watch_rows, installed, mismatches, adjudication.status())
     (folder / "summary.txt").write_text(text)
     target = Path.home() / "Desktop" / f"gaar-round-{folder.name.removeprefix('round-')}.zip"
     target.parent.mkdir(parents=True, exist_ok=True)

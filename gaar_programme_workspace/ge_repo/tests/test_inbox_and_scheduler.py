@@ -301,3 +301,40 @@ def test_two_ticks_never_run_at_once(series):
         fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
         with pytest.raises(scheduler.SchedulerBusy, match="^another scheduler tick is running on this workspace$"):
             scheduler.tick(config_path)
+
+
+def test_a_job_that_keeps_failing_says_since_when_and_a_recovered_outage_stays_on_record(series):
+    # v31, after D27: gate_status failed on every tick for days and nothing said so until a round broke on it.
+    from governance.production import inbox, scheduler
+    home, config_path = series
+    config, root = _load(config_path)
+
+    def boom(ctx):
+        raise RuntimeError("KeyError: 'passed'")
+
+    def fine(ctx):
+        return {"status": "OK"}
+    for job in (boom, boom, boom):
+        scheduler.tick(config_path, now=AFTER_WEEK3, jobs=[("gate_status", job)])
+    health = scheduler.status(config, root)
+    assert health["jobs"]["gate_status"]["failed_ticks"] == 3
+    failing = [i for i in inbox.items(config_path) if i["id"] == "job:gate_status"]
+    assert failing and "failed on every tick since" in failing[0]["title"] and "(3 tick(s))" in failing[0]["title"]
+    lines = scheduler.health_lines(config, root)
+    assert lines[0].startswith("scheduler: ALIVE") and "gate_status: FAILING since" in lines[1]
+    assert "3 consecutive tick(s)" in lines[1] and "KeyError: 'passed'" in lines[1]
+    scheduler.tick(config_path, now=AFTER_WEEK3, jobs=[("gate_status", fine)])
+    [window] = scheduler.status(config, root)["outages"]
+    assert window["failed_ticks"] == 3 and window["to_tick"] and window["recovered_at"] > window["to_tick"]
+    lines = scheduler.health_lines(config, root)
+    assert "gate_status: was failing from" in lines[1] and "(3 tick(s)); recovered at" in lines[1]
+    assert not [i for i in inbox.items(config_path) if i["id"] == "job:gate_status"]
+
+
+def test_a_scheduler_with_no_failures_says_so(series):
+    from governance.production import scheduler
+    home, config_path = series
+    config, root = _load(config_path)
+    assert scheduler.health_lines(config, root) == ["scheduler: has never run for this workspace"]
+    scheduler.tick(config_path, now=AFTER_WEEK3, jobs=[("gate_status", lambda ctx: {"status": "OK"})])
+    assert scheduler.health_lines(config, root)[1] == "  no job has failed on any recorded tick"

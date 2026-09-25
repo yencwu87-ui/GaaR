@@ -22,7 +22,8 @@ MODULES = ["governance/production/reconciliation.py", "governance/production/com
            "governance/arena/cases.py", "governance/arena/judge.py", "governance/twin/adjudication.py",
            "governance/basis.py", "governance/paths.py", "governance/names.py",
            "governance/watcher/mailbox.py", "governance/field/mandate.py", "governance/field/connectors.py",
-           "governance/field/builder.py", "governance/field/demo.py", "tools/gaar_round.py"]
+           "governance/field/builder.py", "governance/field/demo.py", "tools/gaar_round.py",
+           "governance/realrecords.py"]
 # The command-line tools are exercised by tests through separate processes, which this in-process tracer
 # cannot see. They are excluded here and the gap is recorded in the register, rather than reported as passing.
 TESTS = ["tests/test_decisions.py", "tests/test_reconciliation.py", "tests/test_completion.py",
@@ -31,7 +32,7 @@ TESTS = ["tests/test_decisions.py", "tests/test_reconciliation.py", "tests/test_
          "tests/test_gate_status.py", "tests/test_core_guards_exercised.py", "tests/test_upgrade_rerun.py",
          "tests/test_inbox_and_scheduler.py", "tests/test_watch_intel.py", "tests/test_twin.py",
          "tests/test_arena.py", "tests/test_basis.py", "tests/test_field.py",
-         "tests/test_round.py"]
+         "tests/test_round.py", "tests/test_realrecords.py", "tests/test_refusal_records.py"]
 REGISTER = ROOT / "docs/quality/unexercised_guards.md"
 
 
@@ -65,18 +66,24 @@ def main():
     for f, t in unexplained:
         print(f"  UNEXPLAINED  {f}: {t[:120]}")
     import datetime, hashlib, json
-    record = {"kind": "guard_trace", "at": datetime.datetime.now().astimezone().isoformat(),
-              "tests_exit_code": run.returncode, "tests_summary": (run.stdout.strip().splitlines() or [""])[-1],
-              "modules": MODULES, "unreached": len(unreached), "registered": len(unreached) - len(unexplained),
-              "unexplained": [f"{f}: {t}" for f, t in unexplained],
-              "register_sha256": hashlib.sha256(REGISTER.read_bytes()).hexdigest() if REGISTER.exists() else None,
-              "verdict": "PASS" if not unexplained and not run.returncode else "FAIL"}
+    record = trace_record(run.returncode, (run.stdout.strip().splitlines() or [""])[-1], len(unreached),
+                          [f"{f}: {t}" for f, t in unexplained],
+                          hashlib.sha256(REGISTER.read_bytes()).hexdigest() if REGISTER.exists() else None)
     runs = ROOT / ".test_runs"
     runs.mkdir(exist_ok=True)
     target = runs / ("trace-" + record["at"].replace(":", "").replace("+", "_") + ".json")
     target.write_text(json.dumps(record, indent=2) + "\n")
     print(f"trace record: {target.relative_to(ROOT)}")
     raise SystemExit(1 if unexplained or run.returncode else 0)
+
+
+def trace_record(exit_code: int, summary: str, unreached: int, unexplained: list[str], register_sha256) -> dict:
+    """The one shape of a trace record, used by the tracer and by the refusal-record matrix test."""
+    import datetime
+    return {"kind": "guard_trace", "at": datetime.datetime.now().astimezone().isoformat(),
+            "tests_exit_code": exit_code, "tests_summary": summary, "modules": MODULES, "unreached": unreached,
+            "registered": unreached - len(unexplained), "unexplained": unexplained,
+            "register_sha256": register_sha256, "verdict": "PASS" if not unexplained and not exit_code else "FAIL"}
 
 
 if __name__ == "__main__":

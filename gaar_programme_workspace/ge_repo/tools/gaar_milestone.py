@@ -186,7 +186,7 @@ def report_and_workpaper(config_path, out):
     return report, target
 
 
-def summary(report, target, out, pack=None):
+def summary(report, target, out, pack=None, config_path=None):
     lines = [f"GaaR milestone check — {datetime.now().astimezone().isoformat(timespec='seconds')}",
              f"policy {report['policy']['policy_version']} ({report['policy']['policy_sha256'][:12]}), "
              f"series {report['series']}, report {target.name} (verified), workpaper {out}",
@@ -215,6 +215,10 @@ def summary(report, target, out, pack=None):
             watch = "not set up (optional: python tools/gaar_watch.py setup)"
     except Exception as exc:
         watch = f"unavailable ({type(exc).__name__}: {exc})"
+    from governance.production import scheduler as _scheduler
+    from governance.operations.runtime import load as _load
+    if config_path:
+        lines += ["", *_scheduler.health_lines(*_load(config_path))]  # v31: outage windows stated, never dropped
     lines += ["", f"guard register: {report['guard_register']['summary']}", f"regulatory watch: {watch}", *watch_rows, "",
               "RESULT: " + ("ALL GATES AS EXPECTED" if not differs else "DIFFERS: " + ", ".join(differs))]
     text = "\n".join(lines) + "\n"
@@ -241,6 +245,10 @@ def main():
     if series is None:
         raise SystemExit(1)
     say("3b. scheduler tick")
+    from governance.production import scheduler as _scheduler
+    from governance.operations.runtime import load as _load
+    for line in _scheduler.health_lines(*_load(config_path)):     # v31: any outage window is stated before the tick
+        say("   before: " + line)
     states, jobs = scheduler_tick(config_path)
     if jobs.get("series", {}).get("status") == "FAILED":
         say("   the series job failed; see the inbox: python tools/gaar_scheduler.py inbox --config " + str(config_path))
@@ -257,7 +265,7 @@ def main():
     say(f"   frozen pack: {pack['pack']} (verify: valid={check['valid']})")
     from governance.production import inbox
     say(f"   status line: {inbox.status_line(config_path)['text']}")
-    raise SystemExit(0 if summary(report, target, out, pack["pack"]) and check["valid"] else 1)
+    raise SystemExit(0 if summary(report, target, out, pack["pack"], config_path) and check["valid"] else 1)
 
 
 if __name__ == "__main__":

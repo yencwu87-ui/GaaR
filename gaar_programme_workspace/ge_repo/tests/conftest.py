@@ -41,3 +41,9 @@ def _isolated_run_history(tmp_path, monkeypatch):
     from governance.production import gate_status
     monkeypatch.setattr(gate_status, "RUNS", tmp_path / "machine-test-runs")
     monkeypatch.setattr(gate_status, "PACKS", tmp_path / "machine-packs")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_realrecords_home(tmp_path, monkeypatch):
+    """No test may read or write the real real-records pilot (~/gaar-realrecords)."""
+    monkeypatch.setenv("GAAR_REALRECORDS_HOME", str(tmp_path / "gaar-realrecords"))

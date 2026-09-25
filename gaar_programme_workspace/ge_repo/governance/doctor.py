@@ -35,7 +35,8 @@ def python_environment(version=None) -> dict:
                     f"(Python {version[0]}.{version[1]})", f"conda activate {expected}   (after any source ~/.zshrc)")
     sys.path.insert(0, str(ROOT / "tools"))
     from run_all_tests import requirement_problems
-    missing, mismatched = requirement_problems()
+    dev = ROOT / "requirements-dev.txt"         # D28: the same file the test runner checks, test tooling included
+    missing, mismatched = requirement_problems(dev) if dev.is_file() else requirement_problems()
     env = os.environ.get("CONDA_DEFAULT_ENV") or "(no conda environment)"
     if missing:
         return _row("python environment", "FAIL", f"{len(missing)} required package(s) missing in {env}: "
@@ -116,6 +117,46 @@ def tools_and_space(home: Path | None = None) -> list[dict]:
     return rows
 
 
+def scheduler_health(config_path) -> list[dict]:
+    """v31, after D27: the scheduler's jobs and every outage window, printed before anything else runs."""
+    path = Path(config_path).expanduser()
+    if not path.is_file():
+        return []
+    from governance.operations.runtime import load
+    from governance.production import scheduler
+    config, root = load(path)
+    health = scheduler.status(config, root)
+    lines = scheduler.health_lines(config, root)
+    failing = [w for w in health.get("outages", []) if w["to_tick"] is None]
+    if health["state"] == "NEVER_RAN":
+        return [_row("scheduler", "WARN", "has never run for this workspace", "the round's milestone ticks it once")]
+    state = "WARN" if failing or health["state"] == "STALE" else "OK"
+    return [_row("scheduler", state, "; ".join(l.strip() for l in lines),
+                 "the round ticks it; if a job keeps failing, the error above names the cause" if failing else
+                 f"python tools/gaar_scheduler.py tick --config {path}" if state == "WARN" else "")]
+
+
+def launchd(plist_dir="~/Library/LaunchAgents", executable=None) -> list[dict]:
+    """The unattended scheduler runs under the interpreter it was installed with; say which, and whether it exists."""
+    import plistlib
+    plist = Path(plist_dir).expanduser() / "com.gaar.scheduler.plist"
+    if not plist.is_file():
+        return []
+    try:
+        program = Path(plistlib.loads(plist.read_bytes())["ProgramArguments"][0])
+    except Exception as exc:
+        return [_row("unattended scheduler", "WARN", f"{plist} does not read ({type(exc).__name__})",
+                     "python tools/gaar_scheduler.py install --config <series>")]
+    here = Path(executable or sys.executable)
+    if not program.exists():
+        return [_row("unattended scheduler", "FAIL", f"launchd runs {program}, which no longer exists",
+                     "conda activate gaar; python tools/gaar_scheduler.py install --config <series>")]
+    if program.resolve() != here.resolve():
+        return [_row("unattended scheduler", "WARN", f"launchd runs {program}; this round runs {here}",
+                     "conda activate gaar; python tools/gaar_scheduler.py install --config <series>")]
+    return [_row("unattended scheduler", "OK", f"launchd runs this environment's Python ({program})")]
+
+
 def shared_state() -> dict:
     from governance.paths import shared_state_warning
     warning = shared_state_warning()
@@ -124,8 +165,8 @@ def shared_state() -> dict:
 
 
 def run(config_path, root: Path = ROOT, get=None) -> dict:
-    rows = [python_environment(), evidence_pack(root), kit(root), series(config_path), *watch(), ollama(get),
-            anthropic_key(), *tools_and_space(), shared_state()]
+    rows = [*scheduler_health(config_path), python_environment(), evidence_pack(root), kit(root), series(config_path),
+            *launchd(), *watch(), ollama(get), anthropic_key(), *tools_and_space(), shared_state()]
     worst = "FAIL" if any(r["state"] == "FAIL" for r in rows) else "WARN" if any(r["state"] == "WARN" for r in rows) \
         else "OK"
     return {"verdict": {"FAIL": "NOT READY", "WARN": "READY WITH WARNINGS", "OK": "READY"}[worst], "checks": rows}

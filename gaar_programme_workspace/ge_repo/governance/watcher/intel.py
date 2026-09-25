@@ -128,7 +128,7 @@ def subscribe_regions(regions: list[str], home=None, by: str = "") -> dict:
     wanted = {REGIONS[r] for r in regions}
     data = subscriptions(home)
     for sid, row in sorted(catalogue().items()):
-        if row.get("jurisdiction") in wanted and sid not in data["sources"]:
+        if row.get("jurisdiction") in wanted and sid not in data["sources"] and row.get("region_setup", True):
             data = set_subscribed(sid, True, home, by)
     return data
 

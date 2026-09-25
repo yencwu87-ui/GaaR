@@ -60,7 +60,9 @@ def _system_items(config, root, now, config_path) -> list[dict]:
     for name, outcome in health["jobs"].items():
         if outcome["status"] == "FAILED":
             items.append({"id": f"job:{name}", "who": SYSTEM, "kind": "job_failed",
-                          "title": f"Scheduler job '{name}' failed",
+                          "title": f"Scheduler job '{name}' failed" + (
+                              f" on every tick since {outcome['failing_since'][:16]} ({outcome['failed_ticks']} tick(s))"
+                              if outcome.get("failed_ticks", 0) > 1 else ""),
                           "why": outcome.get("error", "no error recorded"),
                           "action": "Fix the cause; the next tick retries. Other jobs were not affected.",
                           "origin": {"journal": "scheduler/operations.sqlite", "event_hash": outcome["event_hash"]}})

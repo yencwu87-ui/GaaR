@@ -69,6 +69,25 @@ def requirement_problems(path=None):
     return missing, mismatched
 
 
+VERDICTS = ("ENVIRONMENT NOT READY", "INCOMPLETE RUN", "COMPLETE RUN, NOT PASSING", "COMPLETE RUN, ALL PASSED")
+
+
+def run_record(verdict, **fields) -> dict:
+    """Every run record has every field (D27: a reader crashed on a stop record that had no pass counts)."""
+    record = {"at": __import__("datetime").datetime.now().astimezone().isoformat(), "python": sys.executable,
+              "python_version": sys.version.split()[0], "conda_env": os.environ.get("CONDA_DEFAULT_ENV"),
+              "packages": versions(), "requirements_sha256": {
+                  name: __import__("hashlib").sha256((ROOT / name).read_bytes()).hexdigest()
+                  for name in ("requirements.txt", "requirements-dev.txt") if (ROOT / name).is_file()},
+              "environment_missing": [], "environment_mismatched": [], "collected": 0, "executed": 0,
+              "passed": 0, "failed": 0, "skipped": 0, "error": 0, "files_failed_to_load": [],
+              "skipped_with_reasons": [], "failing": [], "verdict": verdict}
+    unknown = set(fields) - set(record)
+    if unknown:
+        raise ValueError(f"run record fields not in the record shape: {sorted(unknown)}")
+    return {**record, **fields}
+
+
 def main():
     print(f"python {sys.executable} ({sys.version.split()[0]})")
     print(f"packages: {versions()}")
@@ -95,10 +114,7 @@ def main():
               + (f" (conda env '{env}')" if env else ""))
         print("   activate the project's environment (for example: conda activate gaar), "
               "or install them: pip install -r requirements.txt")
-        record = {"at": __import__("datetime").datetime.now().astimezone().isoformat(), "python": sys.executable,
-                  "python_version": sys.version.split()[0], "conda_env": env, "packages": versions(),
-                  "environment_missing": missing, "environment_mismatched": mismatched,
-                  "verdict": "ENVIRONMENT NOT READY", "collected": 0, "executed": 0}
+        record = run_record("ENVIRONMENT NOT READY", environment_missing=missing, environment_mismatched=mismatched)
         runs = ROOT / ".test_runs"
         runs.mkdir(exist_ok=True)
         target = runs / (record["at"].replace(":", "").replace("+", "_") + ".json")
@@ -148,14 +164,9 @@ def main():
 
     complete = executed == collected and not load_errors
     passing = complete and not totals["failed"] and not totals["error"]
-    record = {"at": __import__("datetime").datetime.now().astimezone().isoformat(), "python": sys.executable,
-              "python_version": sys.version.split()[0], "conda_env": os.environ.get("CONDA_DEFAULT_ENV"),
-              "packages": versions(), "requirements_sha256": {
-                  name: __import__("hashlib").sha256((ROOT / name).read_bytes()).hexdigest()
-                  for name in ("requirements.txt", "requirements-dev.txt") if (ROOT / name).is_file()},
-              "environment_missing": missing, "environment_mismatched": mismatched,
-              "collected": collected, "executed": executed, **totals, "files_failed_to_load": load_errors,
-              "skipped_with_reasons": skipped_lines, "failing": failing}
+    record = run_record(None, environment_missing=missing, environment_mismatched=mismatched,
+                        collected=collected, executed=executed, **totals, files_failed_to_load=load_errors,
+                        skipped_with_reasons=skipped_lines, failing=failing)
     if passing and missing:
         print("\nVERDICT: COMPLETE RUN, ALL PASSED — but the environment is missing required packages (listed above)")
     elif passing:
