@@ -29,11 +29,17 @@ RUNTIME_STATE = [
     "docs/quality/approvals/*", "requirements/releases/*",
     ".test_runs/*", "reports/*", "packs/*", ".milestone_state.json", ".coverage*",
     "*/__pycache__/*", "__pycache__/*", ".pytest_cache/*", "*.pyc",
+    ".cache/*",                                    # the retriever's local embeddings cache (D32)
 ]
+# Files the operating system writes into any folder it shows: never shipped, never compared (D32: Finder's .DS_Store
+# files failed the Mac's first v32 round).
+OS_METADATA = ["*.DS_Store", "._*", "*/._*", "Icon\r", "*/Icon\r"]
 KEEP = ["governance/synthetic_demo/*"]          # constructed demonstration data the tests read, not runtime state
 
 
 def excluded(rel: str) -> bool:
+    if any(fnmatch.fnmatch(rel, pattern) for pattern in OS_METADATA):
+        return True
     if any(fnmatch.fnmatch(rel, pattern) for pattern in KEEP):
         return False
     return any(fnmatch.fnmatch(rel, pattern) for pattern in RUNTIME_STATE)

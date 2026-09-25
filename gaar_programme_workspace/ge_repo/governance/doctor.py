@@ -161,9 +161,16 @@ def launchd(plist_dir="~/Library/LaunchAgents", executable=None) -> list[dict]:
 SKIP_DIRS = (".venv/", "venv/", ".git/", "node_modules/")
 
 
+CODE_SUFFIXES = (".py", ".pth", ".sh", ".command", ".zsh", ".bash")
+
+
 def install_files(root: Path = ROOT) -> dict:
     """Compare the install with the file list its kit shipped (v32, D30): code no kit shipped, and shipped files
-    that were changed. Runtime state is excluded by the same rule the kit builder uses."""
+    that were changed. Runtime state and OS metadata are excluded by the same rule the kit builder uses.
+
+    D32: the tools also write data into shipped folders (drafts, contracts, converted instruments, workbooks), so a
+    file that is not code is reported apart ("other_extra", "other_changed"): named, left in place, never a stop.
+    Code is what can run, and so what can change a round's result; only code, and missing files, stop a round."""
     sys.path.insert(0, str(ROOT / "tools"))
     from build_kit import excluded
     manifest_path = Path(root) / "KIT_MANIFEST.json"
@@ -182,7 +189,10 @@ def install_files(root: Path = ROOT) -> dict:
     changed = sorted(r for r, p in present.items() if r in shipped and
                      hashlib.sha256(p.read_bytes()).hexdigest() != shipped[r])
     missing = sorted(r for r in shipped if r not in present)
-    return {"shipped": len(shipped), "extra": extra, "changed": changed, "missing": missing}
+    code = lambda rel: rel.endswith(CODE_SUFFIXES)
+    return {"shipped": len(shipped), "extra": [r for r in extra if code(r)], "changed": [r for r in changed if code(r)],
+            "missing": missing, "other_extra": [r for r in extra if not code(r)],
+            "other_changed": [r for r in changed if not code(r)]}
 
 
 def install_integrity(root: Path = ROOT) -> dict:
@@ -190,12 +200,20 @@ def install_integrity(root: Path = ROOT) -> dict:
     if found["shipped"] is None:
         return _row("install integrity", "WARN", "the installed kit carries no file list (kits before v32), so code "
                     "added to the install cannot be told apart", "install v32 or later")
+    def parts(labels):
+        return [f"{len(found[k])} {label}: {', '.join(found[k][:4])}{' …' if len(found[k]) > 4 else ''}"
+                for k, label in labels if found.get(k)]
+    other = parts((("other_extra", "file(s) no kit shipped that are not code"),
+                   ("other_changed", "shipped file(s) that are not code, changed")))
     if not (found["extra"] or found["changed"] or found["missing"]):
-        return _row("install integrity", "OK", f"exactly the {found['shipped']} files the kit shipped")
-    parts = [f"{len(found[k])} {label}: {', '.join(found[k][:4])}{' …' if len(found[k]) > 4 else ''}"
-             for k, label in (("extra", "file(s) no kit shipped"), ("changed", "shipped file(s) changed"),
-                              ("missing", "shipped file(s) missing")) if found[k]]
-    return _row("install integrity", "FAIL", "; ".join(parts),
+        if not other:
+            return _row("install integrity", "OK", f"exactly the {found['shipped']} files the kit shipped")
+        return _row("install integrity", "WARN", f"the {found['shipped']} shipped code files are as shipped; "
+                    + "; ".join(other) + " (left in place)",
+                    "nothing to do if these are yours (drafts, workbooks, converted instruments); they cannot run")
+    return _row("install integrity", "FAIL", "; ".join(parts((("extra", "code file(s) no kit shipped"),
+                                                              ("changed", "shipped code file(s) changed"),
+                                                              ("missing", "shipped file(s) missing"))) + other),
                 "python tools/gaar_round.py --quarantine   (moves files no kit shipped to ~/gaar-quarantine/<time>/, "
                 "copies changed ones there too; then reinstall the kit with --kit to restore shipped files)")
 

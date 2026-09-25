@@ -103,7 +103,8 @@ def self_contained(installed: dict, root: Path = ROOT) -> dict:
 
 
 def quarantine(root: Path = ROOT, target: Path | None = None, stamp: str = "") -> dict:
-    """D30: code no kit shipped is moved out (never deleted); changed shipped files are copied out as they are."""
+    """D30: code no kit shipped is moved out (never deleted); changed shipped code is copied out as it is. Files that
+    are not code are left where they are (D32): they are the owner's drafts and workbooks, and cannot run."""
     from governance import doctor
     found = doctor.install_files(root)
     if found["shipped"] is None:

@@ -15,6 +15,8 @@ next one will not announce itself as small, so the rule is mechanical.
    - at least one signed week and one awaiting week;
    - a twin adjudication confirmed under a name;
    - the leftovers the Mac is known to carry, such as the v28 environment-stop record and a scheduler outage;
+   - what a Mac writes into any install and the sandbox never does (D32): Finder's `.DS_Store` files in several
+     folders, the retriever's `.cache/embeddings.jsonl`, and a draft of the owner's own in `requirements/drafts/`;
    - then `python tools/gaar_round.py --kit <zip>`.
 4. `python tools/release_check.py --kit <zip> --round <the rehearsal's round folder>`. It refuses unless the rehearsal
    installed this exact file, with its SHA-256 recorded by the installer, no ledger changed, the expected counts were

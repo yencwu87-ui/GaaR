@@ -360,8 +360,34 @@ def test_the_doctor_refuses_an_install_holding_code_no_kit_shipped(tmp_path):
     (root / "tests" / "test_a.py").write_text("edited")
     row = doctor.install_integrity(root)
     assert row["state"] == "FAIL" and row["fix"].startswith("python tools/gaar_round.py --quarantine")
-    assert row["detail"] == ("2 file(s) no kit shipped: governance/raas/warranty.py, tests/test_raas.py; "
-                             "1 shipped file(s) changed: tests/test_a.py")
+    assert row["detail"] == ("2 code file(s) no kit shipped: governance/raas/warranty.py, tests/test_raas.py; "
+                             "1 shipped code file(s) changed: tests/test_a.py")
+
+
+def test_os_metadata_the_retrieval_cache_and_the_owners_data_do_not_stop_a_round(tmp_path):
+    # D32 (first v32 round on the Mac): Finder's .DS_Store files and the retriever's embeddings cache failed the check.
+    root = tmp_path / "ge_repo"
+    root.mkdir()
+    _install_with_manifest(root, {"governance/doctor.py": "x", "requirements/drafts/a.yaml": "shipped draft"})
+    for rel in (".DS_Store", "docs/.DS_Store", "governance/.DS_Store", "._doctor.py", "governance/._doctor.py",
+                ".cache/embeddings.jsonl"):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text("written by the machine, not shipped")
+    assert doctor.install_integrity(root)["state"] == "OK"
+    (root / "requirements" / "drafts" / "b.yaml").write_text("the owner's own draft")
+    (root / "requirements" / "drafts" / "a.yaml").write_text("the owner edited a shipped draft")
+    row = doctor.install_integrity(root)
+    assert row["state"] == "WARN" and row["detail"] == (
+        "the 2 shipped code files are as shipped; 1 file(s) no kit shipped that are not code: requirements/drafts/b.yaml; "
+        "1 shipped file(s) that are not code, changed: requirements/drafts/a.yaml (left in place)")
+    assert round_tool.quarantine(root, tmp_path / "q", "t")["status"] == "NOTHING_TO_QUARANTINE"
+    assert (root / "requirements" / "drafts" / "b.yaml").exists()           # the owner's file is never moved
+    (root / "governance" / "extra.py").write_text("code no kit shipped")
+    row = doctor.install_integrity(root)
+    assert row["state"] == "FAIL" and row["detail"].startswith("1 code file(s) no kit shipped: governance/extra.py; 1 file")
+    build_kit = importlib.import_module("tools.build_kit")
+    assert all(build_kit.excluded(r) for r in (".DS_Store", "docs/.DS_Store", "._x.py", "a/._x.py", ".cache/e.jsonl"))
+    assert not build_kit.excluded("governance/doctor.py")
 
 
 def test_quarantine_moves_unshipped_code_out_and_keeps_a_copy_of_changed_files(tmp_path):
