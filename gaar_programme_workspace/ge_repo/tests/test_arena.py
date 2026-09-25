@@ -201,3 +201,15 @@ def test_unknown_contestants_are_refused():
     with pytest.raises(ValueError, match="^unknown contestant: gpt-99$"):
         build("gpt-99")
     assert isinstance(build("ollama:mistral-nemo:12b"), Ollama)
+
+
+def test_a_model_server_error_keeps_its_reason_in_the_receipt(monkeypatch):
+    """v25 Mac round: muse-glimmer returned HTTP 500 and the reason was lost."""
+    import requests
+
+    class Reply:
+        status_code, text = 500, '{"error":"model requires more system memory (19 GiB) than is available"}'
+    monkeypatch.setattr(requests, "post", lambda url, **k: Reply())
+    result = build("ollama:muse-glimmer:30b-mlx").ask(draw(1, 3)[0])
+    assert result["error"].startswith("RuntimeError: HTTP 500 from the model server: ")
+    assert "more system memory" in result["error"] and result["parsed"]["answer"] == "HOLD"

@@ -100,13 +100,14 @@ feeds:
     flag_field: knownRansomwareCampaignUse
     flag_value: Known
   # Kit v24. Replaces hkma-brdr-whats-new, whose page builds its list with JavaScript (the v22 Mac round found no
-  # links in it). Same host as the HKMA press feed, which scans successfully.
+  # links in it). Same host as the HKMA press feed, which scans successfully. Kit v25.1: the v24 address was a guess
+  # and returned 404 on the Mac; this is HKMA's "Regulatory Documents" page, found by search. Unverified until scanned.
   - source_id: hkma-circulars-index
     jurisdiction: Hong Kong
     authority: HKMA
-    url: https://www.hkma.gov.hk/eng/regulatory-resources/regulatory-guides/circulars/
+    url: https://www.hkma.gov.hk/eng/regulatory-resources/regulatory-guides/guidelines/
     approved_hosts: [www.hkma.gov.hk]
-    path_prefixes: [/media/eng/doc/key-information/guidelines-and-circular/]
+    path_prefixes: [/media/eng/doc/key-information/guidelines-and-circular/, /eng/regulatory-resources/regulatory-guides/circulars/]
     max_items: 100
     verified: false
 # Kit v24: official email alerts, for regulators whose websites refuse automated clients (MAS: challenge page; FCA:
@@ -140,7 +141,7 @@ searches:
     jurisdiction: Singapore
     authority: MAS
     queries: ["site:mas.gov.sg circular", "site:mas.gov.sg notice", "site:mas.gov.sg consultation paper",
-              "site:mas.gov.sg guidelines"]
+              "site:mas.gov.sg guidelines", "Monetary Authority of Singapore circular", "MAS consultation paper"]
     approved_hosts: [www.mas.gov.sg]
     path_prefixes: [/regulation/, /publications/consultations/, /news/media-releases/]
     max_results: 10
@@ -148,7 +149,8 @@ searches:
   - source_id: fca-search-leads
     jurisdiction: UK
     authority: FCA
-    queries: ["site:fca.org.uk consultation paper", "site:fca.org.uk policy statement"]
+    queries: ["site:fca.org.uk consultation paper", "site:fca.org.uk policy statement",
+              "FCA consultation paper", "FCA policy statement"]
     approved_hosts: [www.fca.org.uk]
     path_prefixes: [/publications/]
     max_results: 10

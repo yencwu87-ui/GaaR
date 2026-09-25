@@ -51,6 +51,15 @@ def parse(raw: str) -> dict:
             "reason": str(data.get("reason", ""))[:400]}
 
 
+def _ok(response):
+    """A failed call keeps the server's own reason (Ollama puts it in the body), so the receipt says why."""
+    status = getattr(response, "status_code", 200)
+    if status >= 400:
+        body = (getattr(response, "text", "") or "")[:300].replace("\n", " ")
+        raise RuntimeError(f"HTTP {status} from the model server: {body or '(no message)'}")
+    response.raise_for_status()
+
+
 class Contestant:
     name = "contestant"
     local = True
@@ -85,7 +94,7 @@ class Ollama(Contestant):
         r = requests.post(f"{self.host}/api/generate", timeout=300,
                           json={"model": self.model, "prompt": prompt, "format": "json", "stream": False,
                                 "options": {"temperature": 0}})
-        r.raise_for_status()
+        _ok(r)
         return r.json().get("response", "")
 
 
@@ -103,7 +112,7 @@ class OpenAICompatible(Contestant):
         r = requests.post(f"{self.base_url}/chat/completions", headers=headers, timeout=300,
                           json={"model": self.model, "temperature": 0,
                                 "messages": [{"role": "user", "content": prompt}]})
-        r.raise_for_status()
+        _ok(r)
         return r.json()["choices"][0]["message"]["content"]
 
 
@@ -124,7 +133,7 @@ class Jev(Contestant):
         import requests
         r = requests.post(self.url, timeout=300, headers={"Authorization": f"Bearer {self.key}"},
                           json={"model": self.model, "input": prompt, "choices": list(CHOICES)})
-        r.raise_for_status()
+        _ok(r)
         return json.dumps(r.json())
 
 

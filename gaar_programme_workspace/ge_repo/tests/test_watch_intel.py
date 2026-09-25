@@ -539,8 +539,10 @@ def test_search_leads_count_only_regulator_pages_and_are_labelled_leads():
     rows = [{"title": "MAS Notice 655 on cyber hygiene", "url": "https://www.mas.gov.sg/regulation/notices/notice-655"},
             {"title": "Blog about MAS", "url": "https://blog.example/mas"},
             {"title": "MAS careers", "url": "https://www.mas.gov.sg/careers"}]
-    batches = iter([rows] + [[]] * 3 + [rows + [{"title": "Guidelines on AI risk management",
-                                                  "url": "https://www.mas.gov.sg/regulation/guidelines/ai-risk"}]] + [[]] * 3)
+    per_run = len(_row("mas-search-leads")["queries"])
+    batches = iter([rows] + [[]] * (per_run - 1) + [rows + [{"title": "Guidelines on AI risk management",
+                                                  "url": "https://www.mas.gov.sg/regulation/guidelines/ai-risk"}]]
+                   + [[]] * (per_run - 1))
     search = lambda q, max_results: (next(batches), None)
     assert intel.scan_search(_row("mas-search-leads"), now=NOW, search=search)["status"] == "BASELINE_ESTABLISHED"
     second = intel.scan_search(_row("mas-search-leads"), now=NOW, search=search)

@@ -56,6 +56,8 @@ def search_web_checked(query: str, max_results: int = 5) -> tuple[list[dict[str,
                     rows.append(row)
         return rows, None
     except Exception as exc:
+        if "no results found" in str(exc).lower():
+            return [], None        # ddgs raises when a query matches nothing: that is a result, not a failed search
         return [], f"the web search failed ({type(exc).__name__}: {exc})"
 
 def search_context(query: str, max_results: int = 5) -> dict[str,Any]:
