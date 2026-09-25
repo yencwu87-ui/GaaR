@@ -116,7 +116,7 @@ def tools_and_space(home: Path | None = None) -> list[dict]:
     return rows
 
 
-def scheduler_health(config_path) -> list[dict]:
+def scheduler_health(config_path, plist_dir="~/Library/LaunchAgents") -> list[dict]:
     """v31, after D27: the scheduler's jobs and every outage window, printed before anything else runs."""
     path = Path(config_path).expanduser()
     if not path.is_file():
@@ -130,6 +130,8 @@ def scheduler_health(config_path) -> list[dict]:
     if health["state"] == "NEVER_RAN":
         return [_row("scheduler", "WARN", "has never run for this workspace", "the round's milestone ticks it once")]
     state = "WARN" if failing or health["state"] == "STALE" else "OK"
+    if health["state"] == "STALE" and not (Path(plist_dir).expanduser() / "com.gaar.scheduler.plist").is_file():
+        lines = lines + ["no unattended scheduler is installed, so it ticks only during a round; this round ticks it"]
     return [_row("scheduler", state, "; ".join(l.strip() for l in lines),
                  "the round ticks it; if a job keeps failing, the error above names the cause" if failing else
                  f"python tools/gaar_scheduler.py tick --config {path}" if state == "WARN" else "")]

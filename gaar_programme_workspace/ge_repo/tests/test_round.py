@@ -380,3 +380,21 @@ def test_quarantine_moves_unshipped_code_out_and_keeps_a_copy_of_changed_files(t
     assert (tmp_path / "q" / "t1" / "changed" / "tests" / "test_a.py").read_text() == "edited"
     assert (root / "tests" / "test_a.py").read_text() == "edited"             # copied, not taken away
     assert done["next"].startswith("reinstall the kit with --kit")
+
+
+def test_a_stale_scheduler_without_launchd_says_rounds_are_its_only_ticks(series, tmp_path):
+    from datetime import datetime, timedelta
+    from governance.production import scheduler
+    home, config_path = series
+    scheduler.tick(config_path, jobs=[("gate_status", lambda ctx: {"status": "OK"})])
+    later = datetime.now().astimezone() + timedelta(hours=3)
+    import governance.production.scheduler as sched
+    real = sched.status
+    try:
+        sched.status = lambda config, root, now=None: real(config, root, later)
+        row = doctor.scheduler_health(config_path, plist_dir=tmp_path)[0]
+    finally:
+        sched.status = real
+    assert row["state"] == "WARN" and "STALE" in row["detail"]
+    assert row["detail"].endswith("no unattended scheduler is installed, so it ticks only during a round; "
+                                  "this round ticks it")
