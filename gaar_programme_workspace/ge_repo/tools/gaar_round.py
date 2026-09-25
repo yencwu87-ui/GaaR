@@ -85,6 +85,11 @@ def self_contained(installed: dict, root: Path = ROOT) -> dict:
 
     Before comes from the per-file hashes every installer since v28 writes to the snapshot; after is this install's
     own ledgers, hashed now, before the doctor or the milestone can write to them."""
+    if not installed.get("kit_sha256") and (root / "KIT_MANIFEST.json").is_file():
+        # The installer that ran predates v32 and did not hash the zip. Record the manifest this install carries;
+        # the doctor checks the installed files against it, and release_check checks the zip against it.
+        installed = {**installed, "manifest_sha256": hashlib.sha256((root / "KIT_MANIFEST.json").read_bytes()).hexdigest(),
+                     "kit_sha256_source": "not recorded: the installer that ran predates v32"}
     if installed.get("ledgers_before"):
         return installed
     snap = Path(installed.get("snapshot", "")) / "ledgers.sha256.json"
@@ -212,6 +217,7 @@ def main():
                                   "--out", args.out, "--resume", str(folder)])
     if (folder / "install.json").exists():
         installed = self_contained(json.loads((folder / "install.json").read_text()))
+        (folder / "install.json").write_text(json.dumps(installed, indent=1))
     from governance import doctor
     print("2. doctor", flush=True)
     report = doctor.run(args.config)

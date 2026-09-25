@@ -77,3 +77,58 @@ def test_the_practice_series_carries_a_signed_mapping_and_an_independent_review(
     assert gate["state"] == "HELD", gate["evidence"]
     with pytest.raises(ValueError, match=r"already holds a series; a rehearsal series is built fresh"):
         rehearsal.build(tmp_path / "demo", home=home)
+
+
+def _zip_with_manifest(path, files, manifest_files=None):
+    import zipfile
+    listed = manifest_files if manifest_files is not None else {n: hashlib.sha256(b).hexdigest() for n, b in files.items()}
+    manifest = json.dumps({"kit": "v32", "file_sha256": listed}).encode()
+    with zipfile.ZipFile(path, "w") as z:
+        for name, body in files.items():
+            z.writestr("ge_repo/" + name, body)
+        z.writestr("ge_repo/KIT_MANIFEST.json", manifest)
+    return hashlib.sha256(manifest).hexdigest()
+
+
+def _old_installer_rehearsal(tmp_path, integrity="OK"):
+    # v32 upgrading an install from v31: v31's installer ran and recorded no zip hash (the first v32 rehearsal).
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    kit = tmp_path / "kit.zip"
+    manifest = _zip_with_manifest(kit, {"README.md": b"x", "tools/a.py": b"a"})
+    folder = tmp_path / "round-x"
+    folder.mkdir()
+    (folder / "install.json").write_text(json.dumps({"kit": "v32", "manifest_sha256": manifest}))
+    (folder / "doctor.json").write_text(json.dumps({"checks": [{"check": "install integrity", "state": integrity}]}))
+    (folder / "summary.txt").write_text(CLEAN)
+    return kit, folder
+
+
+def test_an_install_by_an_older_installer_is_matched_by_its_manifest(tmp_path):
+    kit, folder = _old_installer_rehearsal(tmp_path)
+    assert release.check(kit, folder)["releasable"]
+
+
+def test_by_manifest_a_rebuilt_or_inconsistent_zip_or_an_unverified_install_is_not_releasable(tmp_path):
+    kit, folder = _old_installer_rehearsal(tmp_path)
+    _zip_with_manifest(kit, {"README.md": b"x", "tools/a.py": b"a, with one small fix"})
+    assert "is not the one the rehearsal installed" in release.check(kit, folder)["problems"][0]
+    install = json.loads((folder / "install.json").read_text())
+    stale = {"README.md": hashlib.sha256(b"x").hexdigest(), "tools/a.py": hashlib.sha256(b"a").hexdigest()}
+    install["manifest_sha256"] = _zip_with_manifest(kit, {"README.md": b"x", "tools/a.py": b"b"}, stale)
+    (folder / "install.json").write_text(json.dumps(install))
+    assert release.check(kit, folder)["problems"] == ["this zip's files do not match its own manifest (tools/a.py)"]
+    kit, folder = _old_installer_rehearsal(tmp_path / "second", integrity="FAIL")
+    assert release.check(kit, folder)["problems"] == [
+        "the rehearsal's doctor did not find the install to be exactly the kit's files"]
+
+
+def test_a_resumed_round_records_the_manifest_an_older_installer_left(tmp_path):
+    round_tool = importlib.import_module("tools.gaar_round")
+    root = tmp_path / "ge_repo"
+    root.mkdir()
+    (root / "KIT_MANIFEST.json").write_text('{"kit": "v32"}')
+    done = round_tool.self_contained({"kit": "v32", "ledgers_before": "a"}, root)
+    assert done["manifest_sha256"] == hashlib.sha256(b'{"kit": "v32"}').hexdigest()
+    assert done["kit_sha256_source"] == "not recorded: the installer that ran predates v32"
+    assert round_tool.self_contained({"kit_sha256": "z", "ledgers_before": "a"}, root) == {
+        "kit_sha256": "z", "ledgers_before": "a"}

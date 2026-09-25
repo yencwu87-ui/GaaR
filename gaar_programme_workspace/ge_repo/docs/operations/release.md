@@ -22,6 +22,14 @@ next one will not announce itself as small, so the rule is mechanical.
 5. Send that zip. After step 3, the only permitted action is sending it. Any change, however small, means a new
    build and a new rehearsal from step 2.
 
+## When the installer that ran is older than the release rule
+
+A round installs with the code already on the machine, then continues on the new code. The first v32 rehearsal was
+installed by v31's installer, which records no zip hash, so the check refused it though nothing had changed. The new
+code now records the SHA-256 of the manifest it installed, and the check accepts the zip only if its manifest has that
+hash, every file in the zip matches the manifest, and the rehearsal's doctor found the install to be exactly the
+manifest's files.
+
 ## What a rehearsal cannot show
 
 The sandbox cannot reach some of what the Mac reaches (the GitHub API, regulators' sites, Ollama, the Keychain).
