@@ -6,6 +6,8 @@
     openai:<base_url>|<model>   any other OpenAI-compatible endpoint
     jev                     Jev, per the adapter contract (GAAR_JEV_URL, GAAR_JEV_MODEL, and GAAR_JEV_KEY_ENV naming the
                             environment variable that holds the key: the key itself is never written anywhere)
+    anthropic:<model>       Claude through the official Anthropic SDK (hosted: constructed cases only), e.g.
+                            anthropic:claude-sonnet-5
     baseline:rules          the pilot's own deterministic checks: what every model has to beat
     baseline:always-supported   a model that always says "authorised": the false-assurance floor
     baseline:always-contradicted  a model that flags everything: the alarm-fatigue floor
@@ -186,6 +188,9 @@ def build(spec: str) -> Contestant:
         return OpenAICompatible(base, model, spec)
     if spec == "jev":
         return Jev()
+    if spec.startswith("anthropic:"):
+        from .claude_contestant import Claude
+        return Claude(spec.split(":", 1)[1])
     if spec.startswith("baseline:") and spec[9:] in ("rules", "always-supported", "always-contradicted"):
         return Baseline(spec[9:])
     raise ValueError(f"unknown contestant: {spec}")

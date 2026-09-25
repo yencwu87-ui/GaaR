@@ -95,6 +95,9 @@ Contestants:
 - `colibri` (OpenAI-compatible)
 - `mlx:<model>` (`mlx_lm.server`, default `http://127.0.0.1:8080/v1`)
 - `openai:<base>|<model>`
+- `anthropic:<model>`, e.g. `anthropic:claude-sonnet-5`: Claude through the official Anthropic SDK. It is hosted, so
+  it sees constructed cases only. It sends no sampling parameters (Sonnet 5 rejects them), and it can judge the
+  local families because it belongs to none of them
 - `jev`, which needs `GAAR_JEV_URL`, `GAAR_JEV_MODEL` and `GAAR_JEV_KEY_ENV`. The last is the *name* of the
   variable holding the key, never the key.
 - the three `baseline:*` fixtures.
@@ -157,6 +160,11 @@ to an identified client. The watch does not get around either. Three sanctioned 
 | Official email alerts | `mas-email-alerts`, `fca-email-alerts` | The regulator's own alerts (MAS subscription services; FCA daily news and publications alert), read from a folder of .eml files or by IMAP (read-only; the password comes from an environment variable named in `mail.password_env`, never written) | Coverage of what the alert lists. Stale for longer than `stale_after_days` means UNABLE_TO_CHECK, never "no updates" |
 | Browser capture | any index, e.g. `mas-circulars-index` | `gaar_watch.py capture --source … --file … --by "<name>"` reads a page you saved in your own browser | That page, on that day, as captured by a named person |
 | Search leads | `mas-search-leads`, `fca-search-leads` | `ollama_search.py` (DuckDuckGo, no key) finding pages on the regulator's own site | Nothing about coverage: items are labelled leads and capped at P2 |
+
+**Identification rule.** The watcher's user agent always identifies the watcher truthfully: it names GaaR and
+never imitates a browser (enforced when the subscriptions load). The `user_agent` setting exists to add a contact
+route, not to disguise. A site that refuses an honest client is recorded as blocked and reached by a sanctioned
+route (a feed, an email alert, a browser capture by a named person), the way MAS and the FCA are.
 
 Links count only on the regulator's approved hosts and publication paths. A tracking redirect (GovDelivery) is decoded
 locally, never followed. The sender check is recorded as it is: an allowlisted From domain, and DKIM only where the

@@ -436,9 +436,24 @@ def _anthropic(system: str, user: str, pdf_bytes: bytes | None) -> str:
         content.append({"type": "document", "source": {"type": "base64", "media_type": "application/pdf",
                                                         "data": base64.b64encode(pdf_bytes).decode()}})
     content.append({"type": "text", "text": user})
-    msg = anthropic.Anthropic().messages.create(model=ANTHROPIC_MODEL, max_tokens=1000, temperature=0, system=system,
-                                                messages=[{"role": "user", "content": content}])
+    request = {"model": ANTHROPIC_MODEL, "system": system, "messages": [{"role": "user", "content": content}]}
+    if _sampling_allowed(ANTHROPIC_MODEL):
+        request.update(max_tokens=1000, temperature=0)
+    else:
+        request.update(max_tokens=16000)        # Sonnet 5 / Opus 4.7+ reject temperature (400) and think by default
+    msg = anthropic.Anthropic().messages.create(**request)
+    if msg.stop_reason == "refusal":
+        raise RuntimeError(f"the model declined the request ({getattr(msg.stop_details, 'category', None)})")
     return "".join(b.text for b in msg.content if b.type == "text")
+
+
+# Models that reject sampling parameters (temperature/top_p/top_k return HTTP 400).
+NO_SAMPLING_PREFIXES = ("claude-sonnet-5", "claude-opus-5", "claude-opus-4-7", "claude-opus-4-8", "claude-fable",
+                        "claude-mythos")
+
+
+def _sampling_allowed(model: str) -> bool:
+    return not str(model).startswith(NO_SAMPLING_PREFIXES)
 
 
 # ---------- post-model validation ----------

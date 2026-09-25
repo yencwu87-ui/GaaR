@@ -607,11 +607,33 @@ def test_a_capture_that_cannot_be_attributed_or_read_is_refused(tmp_path, source
         intel.capture(source, tmp_path / file, by)
 
 
-def test_hkma_circulars_replace_the_javascript_only_brdr_page():
-    row = _row("hkma-circulars-index")
-    assert row["approved_hosts"] == ["www.hkma.gov.hk"] and row["verified"] is False
-    page = (b'<html><body><a href="/media/eng/doc/key-information/guidelines-and-circular/2026/20260920e1.pdf">'
-            b"Artificial intelligence risk management</a></body></html>")
-    from governance.watcher.official_index import parse_index
-    found = parse_index(page, page_url=row["url"], approved_hosts=row["approved_hosts"], path_prefixes=row["path_prefixes"])
-    assert found[0]["title"] == "Artificial intelligence risk management"
+def test_hkma_is_read_from_its_own_rss_feeds():
+    """v26 Mac round: both guessed index pages were 404 to browser and watcher alike; HKMA's RSS page lists feeds."""
+    cat = intel.catalogue()
+    for sid in ("hkma-circulars-index", "hkma-guidelines-rss", "hkma-consultations-rss", "hkma-spm-rss"):
+        row = cat[sid]
+        assert row["type"] == "feed" and row["format"] == "rss" and row["approved_hosts"] == ["www.hkma.gov.hk"]
+        assert row["url"].startswith("https://www.hkma.gov.hk/eng/other-information/rss/rss_")
+    rss = ("<rss><channel><item><title>Circular on use of generative AI</title>"
+           "<link>https://www.hkma.gov.hk/media/eng/doc/key-information/guidelines-and-circular/2026/20260920e1.pdf</link>"
+           "</item></channel></rss>")
+    result = intel.scan_feed(cat["hkma-circulars-index"], get=lambda url, **k: Response(rss, "application/rss+xml"))
+    assert result["status"] == "BASELINE_ESTABLISHED" and len(result["inventory"]) == 1
+
+
+@pytest.mark.parametrize("agent", ["Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 Safari/605.1.15",
+                                   "GaaR-watch/1.0 (like Mozilla/5.0)", "CompliancePoller/2.0"])
+def test_the_watcher_never_disguises_itself(agent):
+    """Rule: per-source identification, never disguise. A site that refuses an honest client is recorded as blocked."""
+    import yaml
+    intel.subscriptions()
+    path = intel.home_path() / "subscriptions.yaml"
+    subs = yaml.safe_load(path.read_text())
+    subs["user_agent"] = agent
+    path.write_text(yaml.safe_dump(subs))
+    with pytest.raises(ValueError, match="^user_agent must identify the watcher truthfully: it must name GaaR and "
+                                         "must not imitate a browser$"):
+        intel.subscriptions()
+    subs["user_agent"] = "GaaR-watch/1.0 (contact: owner@example.com)"
+    path.write_text(yaml.safe_dump(subs))
+    assert intel.subscriptions()["user_agent"].startswith("GaaR-watch/1.0")

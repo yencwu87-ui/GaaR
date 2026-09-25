@@ -108,6 +108,12 @@ def subscriptions(home=None) -> dict:
     unknown = sorted(set(merged["sources"]) - set(catalogue()))
     if unknown:
         raise ValueError(f"subscribed to unknown source(s): {', '.join(unknown)}")
+    agent = str(merged.get("user_agent") or "")
+    if agent and ("gaar" not in agent.lower() or re.search(r"mozilla|chrome|safari|applewebkit|gecko|edg/", agent, re.I)):
+        # The watcher always says what it is. A site that refuses an honest client is recorded as blocked and
+        # reached by a sanctioned route (feed, email alert, browser capture), never by disguise.
+        raise ValueError("user_agent must identify the watcher truthfully: it must name GaaR and must not "
+                         "imitate a browser")
     return merged
 
 

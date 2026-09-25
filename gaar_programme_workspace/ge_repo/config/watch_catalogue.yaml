@@ -37,6 +37,37 @@ indexes:
     max_items: 100
     verified: false
 feeds:
+  # Kit v27. HKMA's own RSS feeds, found on its RSS page by the v26 Mac round (200 to both a browser and the watcher;
+  # the two index pages guessed earlier returned 404 to both). They sit beside the press feed that already scans.
+  # hkma-circulars-index keeps its id so existing subscriptions stay valid; it now reads the circulars feed.
+  - source_id: hkma-circulars-index
+    jurisdiction: Hong Kong
+    authority: HKMA
+    format: rss
+    url: https://www.hkma.gov.hk/eng/other-information/rss/rss_circulars.xml
+    approved_hosts: [www.hkma.gov.hk]
+    verified: false
+  - source_id: hkma-guidelines-rss
+    jurisdiction: Hong Kong
+    authority: HKMA
+    format: rss
+    url: https://www.hkma.gov.hk/eng/other-information/rss/rss_guidelines.xml
+    approved_hosts: [www.hkma.gov.hk]
+    verified: false
+  - source_id: hkma-consultations-rss
+    jurisdiction: Hong Kong
+    authority: HKMA
+    format: rss
+    url: https://www.hkma.gov.hk/eng/other-information/rss/rss_consultations.xml
+    approved_hosts: [www.hkma.gov.hk]
+    verified: false
+  - source_id: hkma-spm-rss
+    jurisdiction: Hong Kong
+    authority: HKMA
+    format: rss
+    url: https://www.hkma.gov.hk/eng/other-information/rss/rss_supervisory-policy-manual.xml
+    approved_hosts: [www.hkma.gov.hk]
+    verified: false
   - source_id: fed-press-rss
     jurisdiction: US
     authority: Federal Reserve
@@ -99,17 +130,6 @@ feeds:
     date_field: dateAdded
     flag_field: knownRansomwareCampaignUse
     flag_value: Known
-  # Kit v24. Replaces hkma-brdr-whats-new, whose page builds its list with JavaScript (the v22 Mac round found no
-  # links in it). Same host as the HKMA press feed, which scans successfully. Kit v25.1: the v24 address was a guess
-  # and returned 404 on the Mac; this is HKMA's "Regulatory Documents" page, found by search. Unverified until scanned.
-  - source_id: hkma-circulars-index
-    jurisdiction: Hong Kong
-    authority: HKMA
-    url: https://www.hkma.gov.hk/eng/regulatory-resources/regulatory-guides/guidelines/
-    approved_hosts: [www.hkma.gov.hk]
-    path_prefixes: [/media/eng/doc/key-information/guidelines-and-circular/, /eng/regulatory-resources/regulatory-guides/circulars/]
-    max_items: 100
-    verified: false
 # Kit v24: official email alerts, for regulators whose websites refuse automated clients (MAS: challenge page; FCA:
 # HTTP 403 on the v22 Mac round). Put alert emails in ~/gaar-watch/mail/<source_id>/ or configure `mail:` (IMAP) in
 # subscriptions.yaml. Sender domains and link paths are from public documentation: the first alert verifies them.

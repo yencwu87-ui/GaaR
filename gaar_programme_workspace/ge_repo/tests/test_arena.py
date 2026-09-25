@@ -213,3 +213,64 @@ def test_a_model_server_error_keeps_its_reason_in_the_receipt(monkeypatch):
     result = build("ollama:muse-glimmer:30b-mlx").ask(draw(1, 3)[0])
     assert result["error"].startswith("RuntimeError: HTTP 500 from the model server: ")
     assert "more system memory" in result["error"] and result["parsed"]["answer"] == "HOLD"
+
+
+class _FakeClaude:
+    """Stands in for anthropic.Anthropic: records each request, answers like the Messages API."""
+    calls = []
+
+    def __init__(self, reply='{"answer": "CONTRADICTED", "confidence": 0.9, "violations": ["x"]}', stop="end_turn"):
+        self.reply, self.stop = reply, stop
+        self.messages = self
+
+    def __call__(self):
+        return self
+
+    def create(self, **request):
+        from types import SimpleNamespace
+        _FakeClaude.calls.append(request)
+        return SimpleNamespace(stop_reason=self.stop, stop_details=SimpleNamespace(category="cyber"),
+                               content=[SimpleNamespace(type="thinking", thinking=""),
+                                        SimpleNamespace(type="text", text=self.reply)])
+
+
+def test_claude_sonnet_5_enters_through_the_official_sdk_without_sampling_parameters(monkeypatch):
+    import anthropic
+    _FakeClaude.calls.clear()
+    monkeypatch.setattr(anthropic, "Anthropic", _FakeClaude())
+    board = arena.run(["anthropic:claude-sonnet-5", "baseline:rules"], n_cases=6, seed=12)
+    row = next(r for r in board["table"] if r["contestant"] == "anthropic:claude-sonnet-5")
+    assert row["cases"] == 6 and row["errors"] == 0 and row["holds"] == 0
+    request = _FakeClaude.calls[0]
+    assert request["model"] == "claude-sonnet-5" and "temperature" not in request and "top_p" not in request
+    assert request["max_tokens"] >= 16000 and request["output_config"] == {"effort": "medium"}
+    assert build("anthropic:claude-sonnet-5").local is False             # hosted: the egress rule applies
+    case = dict(draw(1, 3)[0], provenance="own-bank-export")
+    with pytest.raises(PermissionError, match="^anthropic:claude-sonnet-5 is not on this machine"):
+        build("anthropic:claude-sonnet-5").ask(case)
+
+
+def test_a_claude_refusal_is_a_recorded_hold_and_claude_may_judge_other_families(monkeypatch):
+    import anthropic
+    from governance.arena.judge import judge_battle
+    monkeypatch.setattr(anthropic, "Anthropic", _FakeClaude(stop="refusal"))
+    result = build("anthropic:claude-sonnet-5").ask(draw(1, 3)[0])
+    assert result["parsed"]["answer"] == "HOLD" and result["error"] == "RuntimeError: the model declined the case (cyber)"
+    monkeypatch.setattr(anthropic, "Anthropic", _FakeClaude(reply='{"better": "A"}'))
+    run_id, case = _battle()
+    judged = judge_battle("anthropic:claude-sonnet-5", run_id, case, "baseline:rules", "baseline:always-supported")
+    assert judged["judge_family"] == "claude" and judged["status"] == "DISCARDED_INCONSISTENT"    # always-A flips
+
+
+def test_the_assessor_sends_no_sampling_parameters_to_models_that_reject_them(monkeypatch):
+    import anthropic
+    import assessor
+    _FakeClaude.calls.clear()
+    monkeypatch.setattr(anthropic, "Anthropic", _FakeClaude(reply="ok"))
+    for model, sampled in (("claude-sonnet-5", False), ("claude-opus-5-5", False), ("claude-sonnet-4-6", True)):
+        monkeypatch.setattr(assessor, "ANTHROPIC_MODEL", model)
+        assert assessor._anthropic("system", "user", None) == "ok"
+        assert ("temperature" in _FakeClaude.calls[-1]) is sampled
+    monkeypatch.setattr(anthropic, "Anthropic", _FakeClaude(stop="refusal"))
+    with pytest.raises(RuntimeError, match=r"^the model declined the request \(cyber\)$"):
+        assessor._anthropic("system", "user", None)
