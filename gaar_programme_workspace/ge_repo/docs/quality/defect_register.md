@@ -21,6 +21,7 @@ so that it is measured and not forgotten.
 | D24 | v22 round, on the Mac | With the Ollama server down, an arena run asked each of five models all 100 cases, 500 failed calls | Fixed (v23): a contestant is stopped after 5 consecutive failed calls (config/arena.yaml), with the stop on record | governance/arena/arena.py |
 | D25 | v24 round, on the Mac | Run in the wrong Python environment, the suite reported 11 failures, 16 errors and 8 files that could not load; the one real cause, missing packages, scrolled out of the milestone's view | Fixed (v25): the runner stops before any test with ENVIRONMENT NOT READY, names the missing packages and says to activate the project environment | tools/run_all_tests.py |
 | D26 | v24 round, on the Mac | The mail setting accepted a password typed where the environment variable's name belongs | Fixed (v25): `password_env` must look like a variable name; anything else is refused without echoing it | governance/watcher/mailbox.py |
+| D27 | v29 round, on the Mac | The gate report crashed on the record the test runner writes when it stops for ENVIRONMENT NOT READY (it has no pass counts), so the scheduler's gate-status job failed on every tick, and two scheduler tests failed because they read the machine's own run history | Fixed (v30): the report reads that record as an open gate with its cause; tests no longer read this machine's run records or packs (tests/conftest.py) | governance/production/gate_status.py |
 
 ## Limits of the checks
 

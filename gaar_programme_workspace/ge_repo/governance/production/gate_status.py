@@ -106,11 +106,17 @@ def generate(config_path=None, as_of=None) -> dict:
     run = _latest_record(False, moment, inputs)
     if run is None:
         gates["A valid test run"] = ("OPEN", "no canonical test run record at this moment")
+    elif run.get("verdict") == "ENVIRONMENT NOT READY":
+        # D27 (v28 round): this record stops before any test and has no pass counts; reading them crashed the report
+        gates["A valid test run"] = ("OPEN", f"the latest run stopped before any test: environment not ready "
+                                             f"({len(run.get('environment_missing') or [])} package(s) missing "
+                                             f"in {run.get('conda_env') or run.get('python') or 'an unnamed environment'}), "
+                                             f"at {run['at']}")
     else:
-        ok = run["verdict"] == "COMPLETE RUN, ALL PASSED" and not run.get("environment_missing")
+        ok = run.get("verdict") == "COMPLETE RUN, ALL PASSED" and not run.get("environment_missing")
         gates["A valid test run"] = ("HELD" if ok else "OPEN",
-                                     f"{run['verdict']}: {run['collected']} collected, {run['passed']} passed, "
-                                     f"{run['skipped']} skipped, at {run['at']}")
+                                     f"{run.get('verdict')}: {run.get('collected', 0)} collected, "
+                                     f"{run.get('passed', 0)} passed, {run.get('skipped', 0)} skipped, at {run['at']}")
 
     trace = _latest_record(True, moment, inputs)
     register = _register(inputs)

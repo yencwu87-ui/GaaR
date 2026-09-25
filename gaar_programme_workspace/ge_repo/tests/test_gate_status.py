@@ -204,3 +204,18 @@ def test_the_workpaper_keeps_each_wrapped_bullet_whole_and_ends_without_a_blank_
     assert not any(p.startswith("the canonical test and trace records") for p in paragraphs)
     last = doc.paragraphs[-1]
     assert last.text == "" and last._p.pPr.find(qn("w:rPr")).find(qn("w:sz")).get(qn("w:val")) == "2"
+
+
+def test_a_run_that_stopped_for_its_environment_keeps_the_gate_open_and_the_report_readable(isolated):
+    # D27 (v28 round): the record written by ENVIRONMENT NOT READY has no pass counts; the report crashed reading it,
+    # so the scheduler's gate_status job failed on every tick until a full run was recorded.
+    from governance.production import gate_status as gs
+    gs.RUNS.mkdir()
+    now = datetime.now().astimezone()
+    (gs.RUNS / "run.json").write_text(json.dumps({"at": now.isoformat(), "verdict": "ENVIRONMENT NOT READY",
+                                                  "collected": 0, "executed": 0, "conda_env": "base",
+                                                  "environment_missing": ["streamlit==1.63.0"]}))
+    report = gs.generate()
+    gate = next(g for g in report["gates"] if g["gate"] == "A valid test run")
+    assert gate["state"] == "OPEN"
+    assert "stopped before any test: environment not ready (1 package(s) missing in base)" in gate["evidence"]

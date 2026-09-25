@@ -32,3 +32,12 @@ def _isolated_twin_home(tmp_path, monkeypatch):
 def _isolated_basis_ledger(tmp_path, monkeypatch):
     """No test may read or write the real requirement-basis decisions."""
     monkeypatch.setenv("GAAR_BASIS_LEDGER", str(tmp_path / "basis_confirmations.jsonl"))
+
+
+@pytest.fixture(autouse=True)
+def _isolated_run_history(tmp_path, monkeypatch):
+    """No test may read this machine's own test-run records, trace records or packs (D27: a record left by an
+    earlier round on the Mac changed two scheduler tests' outcome)."""
+    from governance.production import gate_status
+    monkeypatch.setattr(gate_status, "RUNS", tmp_path / "machine-test-runs")
+    monkeypatch.setattr(gate_status, "PACKS", tmp_path / "machine-packs")
