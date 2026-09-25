@@ -38,9 +38,9 @@ def test_the_doctor_names_each_problem_with_its_fix(tmp_path, monkeypatch):
 def test_the_wrong_environment_stops_the_round_before_any_test(monkeypatch, tmp_path):
     import run_all_tests
     monkeypatch.setattr(run_all_tests, "requirement_problems", lambda path=None: (["streamlit==1.63.0"], []))
-    monkeypatch.setenv("CONDA_DEFAULT_ENV", "base")
+    monkeypatch.setenv("CONDA_DEFAULT_ENV", "gaar")
     row = doctor.python_environment()
-    assert row["state"] == "FAIL" and "base" in row["detail"] and row["fix"].startswith("conda activate gaar")
+    assert row["state"] == "FAIL" and "missing in gaar" in row["detail"] and row["fix"].startswith("conda activate gaar")
     report = doctor.run(tmp_path / "missing.json", get=lambda *a, **k: (_ for _ in ()).throw(OSError()))
     assert report["verdict"] == "NOT READY"
     assert "fix: conda activate gaar" in doctor.render(report)
@@ -159,3 +159,29 @@ def test_a_refused_kit_is_reported_as_blocked_and_exits_2(tmp_path, monkeypatch,
     assert stop.value.code == 2
     blocked = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
     assert blocked == {"status": "BLOCKED", "reason": f"no kit at {tmp_path / 'absent.zip'}"}
+
+
+def test_the_base_environment_is_refused_even_when_its_packages_look_right(monkeypatch):
+    # v28 round: `source ~/.zshrc` after `conda activate gaar` ran the round in base, on Python 3.14.
+    import run_all_tests
+    monkeypatch.setattr(run_all_tests, "requirement_problems", lambda path=None: ([], []))
+    monkeypatch.setenv("CONDA_DEFAULT_ENV", "base")
+    row = doctor.python_environment(version=(3, 14))
+    assert row["state"] == "FAIL" and "'base', not 'gaar'" in row["detail"] and "3.14" in row["detail"]
+    assert row["fix"] == "conda activate gaar   (after any source ~/.zshrc)"
+    monkeypatch.setenv("GAAR_CONDA_ENV", "base")
+    assert doctor.python_environment(version=(3, 12))["state"] == "OK"
+
+
+def test_a_stopped_milestone_puts_its_last_lines_in_the_summary(tmp_path):
+    folder = tmp_path / "round-x"
+    folder.mkdir()
+    (folder / "milestone.txt").write_text("step 1 ok\n\nSTOP: 3 test(s) failed in tests/test_twin.py\n")
+    text = round_tool.summarise(folder, {"verdict": "READY", "checks": []}, 1, None, None)
+    assert "milestone: STOPPED. The last lines of milestone.txt:\n  step 1 ok\n  STOP: 3 test(s) failed" in text
+
+
+def test_a_mistyped_kit_name_points_to_the_newest_kit_in_that_folder(tmp_path):
+    (tmp_path / "GaaR_RaaS_Kit_v28.zip").write_bytes(b"")
+    with pytest.raises(ValueError, match=r"^no kit at .*v29\.zip; the newest kit in that folder is GaaR_RaaS_Kit_v28\.zip$"):
+        round_tool.install(tmp_path / "GaaR_RaaS_Kit_v29.zip")

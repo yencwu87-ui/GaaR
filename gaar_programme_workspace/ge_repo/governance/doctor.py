@@ -27,6 +27,12 @@ def python_environment(version=None) -> dict:
     if tuple(version) < (3, 12):
         return _row("python environment", "FAIL", f"Python {version[0]}.{version[1]}: GaaR needs 3.12 or later",
                     "conda activate gaar   (the project environment is Python 3.12)")
+    expected = os.environ.get("GAAR_CONDA_ENV") or "gaar"
+    active = os.environ.get("CONDA_DEFAULT_ENV")
+    if active and active != expected:
+        # v28 round: `source ~/.zshrc` after `conda activate gaar` put the round back in base (Python 3.14).
+        return _row("python environment", "FAIL", f"running in conda environment '{active}', not '{expected}' "
+                    f"(Python {version[0]}.{version[1]})", f"conda activate {expected}   (after any source ~/.zshrc)")
     sys.path.insert(0, str(ROOT / "tools"))
     from run_all_tests import requirement_problems
     missing, mismatched = requirement_problems()

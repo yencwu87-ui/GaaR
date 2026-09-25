@@ -148,7 +148,7 @@ mailboxes:
     jurisdiction: UK
     authority: FCA
     subscribe_url: https://www.fca.org.uk/news-and-publications-email-alerts
-    sender_domains: [fca.org.uk, govdelivery.com]
+    sender_domains: [fca.org.uk, fcanewsletters.org.uk, govdelivery.com]   # v29: FCA sends from fcanewsletters.org.uk
     approved_hosts: [www.fca.org.uk]
     path_prefixes: [/publications/, /news/]
     redirect_hosts: [links-1.govdelivery.com, links-2.govdelivery.com, lnks.gd]

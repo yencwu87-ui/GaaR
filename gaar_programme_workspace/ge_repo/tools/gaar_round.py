@@ -49,7 +49,9 @@ def install(kit_path: Path, root: Path = ROOT, snapshots: Path | None = None, st
     from build_kit import RUNTIME_STATE, KEEP
     kit_path = Path(kit_path).expanduser()
     if not kit_path.is_file():
-        raise ValueError(f"no kit at {kit_path}")
+        found = sorted(kit_path.parent.glob("GaaR_RaaS_Kit_v*.zip"), key=lambda p: p.stat().st_mtime) \
+            if kit_path.parent.is_dir() else []
+        raise ValueError(f"no kit at {kit_path}" + (f"; the newest kit in that folder is {found[-1].name}" if found else ""))
     with zipfile.ZipFile(kit_path) as z:
         names = z.namelist()
         if not names or not all(n.startswith("ge_repo/") for n in names):
@@ -94,6 +96,9 @@ def summarise(folder: Path, doctor_report: dict, milestone_code, watch_rows, ins
     else:
         text = (folder / "milestone.txt").read_text() if (folder / "milestone.txt").exists() else ""
         result = next((l for l in text.splitlines() if l.startswith("RESULT")), None)
+        if milestone_code == 1 and not result:
+            tail = [l for l in text.splitlines() if l.strip()][-15:]
+            result = "STOPPED. The last lines of milestone.txt:\n" + "\n".join("  " + l for l in tail)
         lines.append("milestone: " + (result or {3: "WAITING ON YOU: sign in the inbox (command in milestone.txt), "
                                                      "then run the round again without --kit",
                                                   1: "STOPPED: see milestone.txt"}.get(milestone_code, "see milestone.txt")))

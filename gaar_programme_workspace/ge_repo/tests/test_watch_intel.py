@@ -637,3 +637,11 @@ def test_the_watcher_never_disguises_itself(agent):
     subs["user_agent"] = "GaaR-watch/1.0 (contact: owner@example.com)"
     path.write_text(yaml.safe_dump(subs))
     assert intel.subscriptions()["user_agent"].startswith("GaaR-watch/1.0")
+
+
+def test_fca_alerts_from_its_newsletter_domain_are_accepted():
+    # v28 round: the FCA subscription confirmation came from FCA@fcanewsletters.org.uk.
+    from governance.watcher.mailbox import _sender_ok
+    row = intel.catalogue()["fca-email-alerts"]
+    assert _sender_ok("FCA@fcanewsletters.org.uk", row["sender_domains"])
+    assert not _sender_ok("FCA@fcanewsletters.org.uk.evil.example", row["sender_domains"])
