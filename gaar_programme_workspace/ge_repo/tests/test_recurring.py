@@ -631,3 +631,19 @@ def test_the_canonical_run_writes_its_own_record(tmp_path):
     record = json.loads(records[0].read_text())
     assert record["verdict"] == "COMPLETE RUN, ALL PASSED" and record["collected"] == record["executed"] == 1
     assert record["requirements_sha256"]["requirements.txt"] and record["python"]
+
+
+def test_a_run_in_an_environment_missing_a_requirement_stops_and_says_so(tmp_path):
+    """D25: the v24 Mac round ran in the wrong conda environment; 27 failures hid one missing package."""
+    import os, subprocess, sys
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests/test_x.py").write_text("def test_x():\n    assert True\n")
+    (tmp_path / "requirements.txt").write_text("pytest>=1\nnot-a-real-package==1.0\n")
+    env = {**os.environ, "GAAR_TEST_ROOT": str(tmp_path), "GAAR_TEST_BATCHES": "1"}
+    result = subprocess.run([sys.executable, str(ROOT / "tools/run_all_tests.py")], env=env, text=True,
+                            capture_output=True)
+    assert result.returncode == 1
+    assert "VERDICT: ENVIRONMENT NOT READY — 1 required package(s) missing from" in result.stdout
+    assert "conda activate gaar" in result.stdout and "batch 1/1" not in result.stdout      # no tests were run
+    record = json.loads(next((tmp_path / ".test_runs").glob("*.json")).read_text())
+    assert record["verdict"] == "ENVIRONMENT NOT READY" and record["environment_missing"] == ["not-a-real-package==1.0"]

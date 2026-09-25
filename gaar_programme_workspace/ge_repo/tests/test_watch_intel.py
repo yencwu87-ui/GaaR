@@ -526,6 +526,12 @@ def test_imap_alerts_are_copied_into_the_folder_and_the_password_is_never_writte
     monkeypatch.setenv("GAAR_MAIL_PW", "x")
     failing = intel.scan_mailbox(_row("mas-email-alerts"), now=NOW, imap_factory=_Imap([], search_status="NO"))
     assert failing["error"] == "mailbox search failed for mas.gov.sg"
+    subs["mail"]["password_env"] = "hunter2!Secret"                    # D26: the password typed in the name's place
+    path.write_text(yaml.safe_dump(subs))
+    leaked = intel.scan_mailbox(_row("mas-email-alerts"), now=NOW, imap_factory=server)
+    assert leaked["error"].startswith("mail.password_env must be the NAME of an environment variable")
+    assert "hunter2" not in json.dumps(leaked) and "hunter2" not in "".join(
+        p.read_text(errors="replace") for p in intel.home_path().glob("*.jsonl"))
 
 
 def test_search_leads_count_only_regulator_pages_and_are_labelled_leads():

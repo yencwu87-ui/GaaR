@@ -100,6 +100,11 @@ def links(message, row: dict) -> dict[str, str]:
 def fetch_imap(row: dict, mail: dict, target: Path, since: datetime, imap_factory=None) -> int:
     """Copy matching alerts from the mailbox into the source's folder. Returns how many were new."""
     password_env = mail.get("password_env")
+    if password_env and not re.fullmatch(r"[A-Z_][A-Z0-9_]*", str(password_env)):
+        # D26 (v24 round): a password was typed where the variable's name belongs. Never echo the value.
+        raise IndexErrorSafe("mail.password_env must be the NAME of an environment variable (for example "
+                             "GAAR_MAIL_PASSWORD), never the password itself. Remove the value from "
+                             "subscriptions.yaml, and change that password if it was a real one")
     password = os.environ.get(password_env or "")
     if not mail.get("imap_host") or not mail.get("imap_user") or not password:
         raise IndexErrorSafe(f"mail is not configured: set imap_host, imap_user and password_env in subscriptions.yaml,"

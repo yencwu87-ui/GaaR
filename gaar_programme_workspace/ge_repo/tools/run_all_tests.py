@@ -87,6 +87,24 @@ def main():
     if not missing and not mismatched:
         print("environment matches requirements.txt")
     print()
+    if missing:
+        # D25 (v24 round): run in the wrong environment, the suite failed in 27 places and the real cause, a missing
+        # package, scrolled away. A run that cannot pass for that reason stops here and says so.
+        env = os.environ.get("CONDA_DEFAULT_ENV")
+        print(f"VERDICT: ENVIRONMENT NOT READY — {len(missing)} required package(s) missing from {sys.executable}"
+              + (f" (conda env '{env}')" if env else ""))
+        print("   activate the project's environment (for example: conda activate gaar), "
+              "or install them: pip install -r requirements.txt")
+        record = {"at": __import__("datetime").datetime.now().astimezone().isoformat(), "python": sys.executable,
+                  "python_version": sys.version.split()[0], "conda_env": env, "packages": versions(),
+                  "environment_missing": missing, "environment_mismatched": mismatched,
+                  "verdict": "ENVIRONMENT NOT READY", "collected": 0, "executed": 0}
+        runs = ROOT / ".test_runs"
+        runs.mkdir(exist_ok=True)
+        target = runs / (record["at"].replace(":", "").replace("+", "_") + ".json")
+        target.write_text(__import__("json").dumps(record, indent=2) + "\n")
+        print(f"run record: {target.relative_to(ROOT)}")
+        raise SystemExit(1)
 
     listing = pytest("--collect-only")
     ids = [line for line in listing.stdout.splitlines() if "::" in line]

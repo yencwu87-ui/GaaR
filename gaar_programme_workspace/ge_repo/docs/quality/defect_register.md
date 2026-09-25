@@ -19,6 +19,8 @@ so that it is measured and not forgotten.
 | D22 | v22 round, on the Mac | The first twin adjudications were confirmed as "Your Name": a template placeholder was accepted as a person | Fixed (v23): governance/names.py refuses placeholders for adjudications, basis decisions and arena votes; placeholder records made before the fix stay in the chain and are never counted | governance/names.py |
 | D23 | v22 round, on the Mac | A test of the synthetic pack passed vacuously when the pack was missing: it looped over zero files | Fixed (v23): the test asserts the pack is present | tests/test_wb138_synthetic_m36.py |
 | D24 | v22 round, on the Mac | With the Ollama server down, an arena run asked each of five models all 100 cases, 500 failed calls | Fixed (v23): a contestant is stopped after 5 consecutive failed calls (config/arena.yaml), with the stop on record | governance/arena/arena.py |
+| D25 | v24 round, on the Mac | Run in the wrong Python environment, the suite reported 11 failures, 16 errors and 8 files that could not load; the one real cause, missing packages, scrolled out of the milestone's view | Fixed (v25): the runner stops before any test with ENVIRONMENT NOT READY, names the missing packages and says to activate the project environment | tools/run_all_tests.py |
+| D26 | v24 round, on the Mac | The mail setting accepted a password typed where the environment variable's name belongs | Fixed (v25): `password_env` must look like a variable name; anything else is refused without echoing it | governance/watcher/mailbox.py |
 
 ## Limits of the checks
 
