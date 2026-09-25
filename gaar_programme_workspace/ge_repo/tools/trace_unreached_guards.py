@@ -21,7 +21,8 @@ MODULES = ["governance/production/reconciliation.py", "governance/production/com
            "governance/twin/generator.py", "governance/arena/arena.py", "governance/arena/contestants.py",
            "governance/arena/cases.py", "governance/arena/judge.py", "governance/twin/adjudication.py",
            "governance/basis.py", "governance/paths.py", "governance/names.py",
-           "governance/watcher/mailbox.py"]
+           "governance/watcher/mailbox.py", "governance/field/mandate.py", "governance/field/connectors.py",
+           "governance/field/builder.py", "governance/field/demo.py"]
 # The command-line tools are exercised by tests through separate processes, which this in-process tracer
 # cannot see. They are excluded here and the gap is recorded in the register, rather than reported as passing.
 TESTS = ["tests/test_decisions.py", "tests/test_reconciliation.py", "tests/test_completion.py",
@@ -29,7 +30,7 @@ TESTS = ["tests/test_decisions.py", "tests/test_reconciliation.py", "tests/test_
          "tests/test_guards_exercised.py", "tests/test_governance_events.py", "tests/test_policy_consistency.py",
          "tests/test_gate_status.py", "tests/test_core_guards_exercised.py", "tests/test_upgrade_rerun.py",
          "tests/test_inbox_and_scheduler.py", "tests/test_watch_intel.py", "tests/test_twin.py",
-         "tests/test_arena.py", "tests/test_basis.py"]
+         "tests/test_arena.py", "tests/test_basis.py", "tests/test_field.py"]
 REGISTER = ROOT / "docs/quality/unexercised_guards.md"
 
 

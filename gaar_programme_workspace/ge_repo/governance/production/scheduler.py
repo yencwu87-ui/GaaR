@@ -71,7 +71,16 @@ def job_watcher(ctx: dict) -> dict:
             "new_publications": sum(s["new"] for s in result["scanned"])}
 
 
-JOBS = [("series", job_series), ("watcher", job_watcher), ("gate_status", job_gate_status)]
+def job_field(ctx: dict) -> dict:
+    """Field agents (Part 2): collect ended periods' evidence from the systems under the approved mandate."""
+    from governance.field import builder
+    if not ctx["config"].get("standing_authorisation"):
+        return {"status": "NOT_CONFIGURED", "detail": "no standing authorisation in this workspace"}
+    return builder.run(ctx["config"], ctx["root"], now=ctx["now"])
+
+
+# field runs before series, so evidence it delivers is assessed in the same tick
+JOBS = [("field", job_field), ("series", job_series), ("watcher", job_watcher), ("gate_status", job_gate_status)]
 
 
 # ---------------------------------------------------------------------------------------------------------

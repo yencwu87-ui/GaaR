@@ -49,6 +49,14 @@ def _system_items(config, root, now, config_path) -> list[dict]:
                       "why": "Nothing new is being checked while it is stopped; the inbox shows only what it last saw.",
                       "action": tick_cmd + "   (or reload its launchd job)",
                       "origin": {"journal": "scheduler/operations.sqlite", "event_hash": health["tick_event_hash"]}})
+    field = health["jobs"].get("field") or {}
+    for gap in field.get("gaps") or []:                   # Part 2: a gap is the tower owner's work, not the machine's
+        items.append({"id": f"field:{gap['period']}:{gap['source_id']}", "who": HUMAN, "kind": "evidence_gap",
+                      "title": f"Evidence for {gap['period']} could not be collected from {gap['source_id']}",
+                      "why": gap["gap"],
+                      "action": f"{field.get('owner', 'The system owner')}: restore access or the export named in the "
+                                "collection mandate; the field agents retry every tick and deliver nothing partial.",
+                      "origin": {"journal": "scheduler/operations.sqlite", "event_hash": field.get("event_hash")}})
     for name, outcome in health["jobs"].items():
         if outcome["status"] == "FAILED":
             items.append({"id": f"job:{name}", "who": SYSTEM, "kind": "job_failed",
