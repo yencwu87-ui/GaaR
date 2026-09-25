@@ -140,11 +140,11 @@ def test_the_round_summary_renders_every_milestone_outcome(tmp_path, name):
     assert expected in summary
 
 
-def test_no_test_reads_this_machines_run_history_packs_or_pilot(tmp_path):
+def test_no_test_reads_this_machines_run_history_packs_pilot_or_raas(tmp_path):
     # D27 was a test outcome decided by the machine's own run history; this fails if the isolation ever lapses.
-    from governance import realrecords
+    from governance import raas, realrecords
     from governance.production import gate_status
-    for path in (gate_status.RUNS, gate_status.PACKS, realrecords.home()):
+    for path in (gate_status.RUNS, gate_status.PACKS, realrecords.home(), raas.home()):
         assert str(path).startswith(str(tmp_path)), f"{path} is outside this test's own folder"
 
 

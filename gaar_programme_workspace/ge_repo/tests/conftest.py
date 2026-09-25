@@ -47,3 +47,10 @@ def _isolated_run_history(tmp_path, monkeypatch):
 def _isolated_realrecords_home(tmp_path, monkeypatch):
     """No test may read or write the real real-records pilot (~/gaar-realrecords)."""
     monkeypatch.setenv("GAAR_REALRECORDS_HOME", str(tmp_path / "gaar-realrecords"))
+
+
+@pytest.fixture(autouse=True)
+def _isolated_raas_home(tmp_path, monkeypatch):
+    """No test may read or write the real RaaS records (~/gaar-raas). D30: a copy of this file without this fixture
+    let the RaaS tests write there on the Mac."""
+    monkeypatch.setenv("GAAR_RAAS_HOME", str(tmp_path / "gaar-raas"))
