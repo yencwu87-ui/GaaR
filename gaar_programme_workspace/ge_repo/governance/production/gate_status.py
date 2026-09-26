@@ -106,11 +106,17 @@ def generate(config_path=None, as_of=None) -> dict:
     run = _latest_record(False, moment, inputs)
     if run is None:
         gates["A valid test run"] = ("OPEN", "no canonical test run record at this moment")
+    elif run.get("verdict") == "ENVIRONMENT NOT READY":
+        # D27 (v28 round): this record stops before any test and has no pass counts; reading them crashed the report
+        gates["A valid test run"] = ("OPEN", f"the latest run stopped before any test: environment not ready "
+                                             f"({len(run.get('environment_missing') or [])} package(s) missing "
+                                             f"in {run.get('conda_env') or run.get('python') or 'an unnamed environment'}), "
+                                             f"at {run['at']}")
     else:
-        ok = run["verdict"] == "COMPLETE RUN, ALL PASSED" and not run.get("environment_missing")
+        ok = run.get("verdict") == "COMPLETE RUN, ALL PASSED" and not run.get("environment_missing")
         gates["A valid test run"] = ("HELD" if ok else "OPEN",
-                                     f"{run['verdict']}: {run['collected']} collected, {run['passed']} passed, "
-                                     f"{run['skipped']} skipped, at {run['at']}")
+                                     f"{run.get('verdict')}: {run.get('collected', 0)} collected, "
+                                     f"{run.get('passed', 0)} passed, {run.get('skipped', 0)} skipped, at {run['at']}")
 
     trace = _latest_record(True, moment, inputs)
     register = _register(inputs)
@@ -151,6 +157,7 @@ def generate(config_path=None, as_of=None) -> dict:
             payload = recurring.load(config, root)["payload"]
             series_id = payload["authorisation_id"]
             due = assessed = warned = attested = 0
+            simulated = []
             grace_days = config["periodic_evidence"].get("grace_days", 2)
             from datetime import timedelta
             for period in payload["periods"]:
@@ -159,13 +166,17 @@ def generate(config_path=None, as_of=None) -> dict:
                     due += 1
                 if any(e["event_key"] == "deterministic_run_report" for e in events):
                     assessed += 1
+                simulated += [e["payload"]["clock_simulated"] for e in events
+                              if isinstance(e.get("payload"), dict) and e["payload"].get("clock_simulated")]
                 for e in events:
                     if e["kind"] == "pilot_attestation":
                         attested += 1
                         warned += bool(e["payload"]["attestation"].get("rationale_warnings"))
             gates["Collection completeness"] = (
                 ("HELD" if assessed >= due else "PARTIAL"),
-                f"{assessed} period(s) assessed, {due} due (grace {grace_days} day(s)); shown, not enforced")
+                f"{assessed} period(s) assessed, {due} due (grace {grace_days} day(s)); shown, not enforced"
+                + (f"; constructed demonstration: periods assessed on a simulated clock (latest {max(simulated, key=_when)}), "
+                   "so a period can be assessed before it is due by the report's own time" if simulated else ""))
             gates["Attestation quality"] = ("HELD" if attested else "OPEN",
                                             f"{attested} attestation(s), {warned} carrying a rationale warning; "
                                             "warnings recorded, their review is a procedure")

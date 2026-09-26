@@ -203,6 +203,79 @@ def quarantine(config, root, period, executor, now) -> dict:
     return event
 
 
+UPGRADE_PARTS = {"code_sha256", "knowledge_sha256"}
+
+
+def upgrade_only(config, root, period, executor):
+    """The changed parts, if this unattested record is blocked only because the software or its knowledge base
+    was upgraded after it ran (runbook U1). None otherwise: in particular, never when an evidence export changed,
+    which is a potential integrity event (runbook E1) that a rerun would launder."""
+    journal = _journal(config, root, period["investigation_id"])
+    if journal is None or _record(journal) is None or journal.latest("pilot_attestation"):
+        return None
+    from governance.investigation import InvestigationEngine, InvestigationStore
+    from .lifecycle import check_changes
+    engine = InvestigationEngine(InvestigationStore(Path(root) / config["store"], config["trusted_keys"]),
+                                 config["sources"])
+    changed = check_changes(config, root, period["investigation_id"], engine, journal, executor)
+    if changed["status"] != "INPUT_CHANGE_DETECTED" or set(changed["changes"]) != {"operating_configuration"}:
+        return None
+    parts = set(changed["changes"]["operating_configuration"])
+    return sorted(parts) if parts and parts <= UPGRADE_PARTS else None
+
+
+def rerun_after_upgrade(config, root, period, executor, parts, constructed_demo) -> dict:
+    """Runbook U1, step 2: rerun the period under the current software.
+
+    The superseded case journal is moved aside intact (never edited, never deleted) and the new journal opens with
+    a signed record of what it supersedes. The rerun uses the clock the superseded record was assessed on, so a
+    constructed demonstration is not re-judged against real time.
+    """
+    import hashlib
+    import shutil
+    from .journal import Journal
+    from .orchestrator import run
+    iid = period["investigation_id"]
+    old = _journal(config, root, iid)
+    events = old.read()
+    rec = next((e for e in reversed(events) if e["kind"] == "obligation_reconciliation"), None)
+    clock = (rec or {}).get("payload", {}).get("clock_simulated")
+    if clock and not constructed_demo:
+        raise ValueError("a simulated clock is allowed only for a signed constructed demonstration series")
+    case = _case(config, root, iid)
+    stamp = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S%f")
+    target = case.parent.parent / "superseded" / f"{period['label']}-{stamp}"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    journal_sha = hashlib.sha256((case / "operations.sqlite").read_bytes()).hexdigest()
+    shutil.move(str(case), str(target))
+    record = {"investigation_id": iid, "rule": "runbook U1",
+              "reason": "the software was upgraded after this period's record was produced; rerun under the current software",
+              "changed_parts": parts, "superseded_to": str(target.relative_to(Path(root))),
+              "superseded_head": events[-1]["event_hash"], "superseded_journal_sha256": journal_sha,
+              "superseded_verdict": (_record_from(events) or {}).get("deterministic_verdict"),
+              "clock_reused": clock}
+    Journal(case / "operations.sqlite", config["trusted_keys"]).append(
+        "record_superseded", "record_superseded", record, executor, "executor")
+    try:
+        outcome = run({**config, "simulated_clock": clock} if clock else config, root, iid)
+        produced = _record(_journal(config, root, iid)) is not None
+    except Exception as exc:
+        outcome, produced = {"checkpoint": f"{type(exc).__name__}: {exc}"}, False
+    if not produced:
+        # Never leave the period without its record: an empty case would read as unassessed, and on a real clock
+        # its exports could then be judged afresh. The failed attempt is kept beside the restored original.
+        shutil.move(str(case), str(target.with_name(target.name + "-failed-rerun")))
+        shutil.move(str(target), str(case))
+        raise ValueError(f"the U1 rerun of {period['label']} produced no record ({outcome.get('checkpoint')}); "
+                         "the previous record was restored and stays blocked until the rerun succeeds")
+    return record
+
+
+def _record_from(events):
+    event = next((e for e in events if e["event_key"] == "deterministic_run_report"), None)
+    return event["payload"] if event else None
+
+
 def period_state(config, root, period, now=None) -> dict:
     journal = _journal(config, root, period["investigation_id"])
     record = _record(journal)
@@ -312,9 +385,24 @@ def _tick(config: dict, root: Path, notify=None, now=None) -> list[dict]:
             state = {**period_state(config, root, period, now), "integrity_event": event}
             if notify:
                 notify(f"{period['label']}: premature complete export quarantined (integrity event)")
-        if state["state"] == "EVIDENCE_READY":
-            outcome = run(run_config, root, period["investigation_id"])
-            state = {**period_state(config, root, period, now), "ran": True, "checkpoint": outcome.get("checkpoint")}
+        rerun = None
+        if state["state"] == "AWAITING_ATTESTATION":
+            parts = upgrade_only(config, root, period, executor)
+            if parts:
+                try:
+                    rerun = rerun_after_upgrade(config, root, period, executor, parts, payload.get("constructed_demo"))
+                    state = {**period_state(config, root, period, now), "ran": True, "superseded": rerun}
+                except ValueError as exc:
+                    state = {**state, "rerun_failed": str(exc)}
+                    if notify:
+                        notify(f"{period['label']}: {exc}")
+                if notify and rerun:
+                    notify(f"{period['label']}: rerun under the current software (runbook U1); "
+                           f"the previous record is kept at {rerun['superseded_to']}")
+        if state["state"] == "EVIDENCE_READY" or rerun:
+            if not rerun:
+                outcome = run(run_config, root, period["investigation_id"])
+                state = {**period_state(config, root, period, now), "ran": True, "checkpoint": outcome.get("checkpoint")}
             journal = _journal(config, root, period["investigation_id"])
             if state["state"] == "AWAITING_ATTESTATION" and previous and journal.latest(DELTA) is None:
                 delta = compare(previous, journal)

@@ -30,7 +30,7 @@ from governance.result_contract import (
 )
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_CASE_STORE = ROOT / "reassessment_cases.jsonl"
+DEFAULT_CASE_STORE = Path(os.environ.get("WB_REASSESSMENT_STORE") or ROOT / "reassessment_cases.jsonl")
 GENESIS = "0" * 64
 
 

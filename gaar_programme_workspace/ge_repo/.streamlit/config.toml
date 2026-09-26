@@ -1,0 +1,3 @@
+# Brand colour for both apps (kit v21): amber, dark enough for white button text (WCAG AA).
+[theme]
+primaryColor = "#B45309"

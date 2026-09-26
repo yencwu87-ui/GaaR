@@ -13,6 +13,8 @@ script only answers "is the configured model reachable and roughly sane".
 import argparse
 from pathlib import Path
 
+from governance.paths import workbench_data
+
 from assessor import assess, model_name
 from playbook import load_controls
 
@@ -34,7 +36,7 @@ def main():
     ap.add_argument("--lib", default="SAFR", help="library the control is in")
     a = ap.parse_args()
 
-    xlsx = Path(a.playbook) if a.playbook else next(Path("data").glob("*.xlsx"), None)
+    xlsx = Path(a.playbook) if a.playbook else next(workbench_data().glob("*.xlsx"), None)
     if not xlsx:
         raise SystemExit("Put the playbook workbook in data/ first, or pass --playbook")
 

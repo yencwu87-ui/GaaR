@@ -51,7 +51,7 @@ from governance.source_review import extract_text as extract_source_text, best_e
 import folder_picker as fp
 import tour
 
-DATA = Path("data")
+DATA = ROOT / "data"
 DATA.mkdir(exist_ok=True)
 STATE_FILE = DATA / "assessments.json"
 DEFAULT_PLAYBOOK = next(DATA.glob("*.xlsx"), None)

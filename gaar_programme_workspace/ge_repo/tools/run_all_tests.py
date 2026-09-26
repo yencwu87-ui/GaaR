@@ -69,13 +69,36 @@ def requirement_problems(path=None):
     return missing, mismatched
 
 
+VERDICTS = ("ENVIRONMENT NOT READY", "INCOMPLETE RUN", "COMPLETE RUN, NOT PASSING", "COMPLETE RUN, ALL PASSED")
+
+
+def run_record(verdict, **fields) -> dict:
+    """Every run record has every field (D27: a reader crashed on a stop record that had no pass counts)."""
+    record = {"at": __import__("datetime").datetime.now().astimezone().isoformat(), "python": sys.executable,
+              "python_version": sys.version.split()[0], "conda_env": os.environ.get("CONDA_DEFAULT_ENV"),
+              "packages": versions(), "requirements_sha256": {
+                  name: __import__("hashlib").sha256((ROOT / name).read_bytes()).hexdigest()
+                  for name in ("requirements.txt", "requirements-dev.txt") if (ROOT / name).is_file()},
+              "environment_missing": [], "environment_mismatched": [], "collected": 0, "executed": 0,
+              "passed": 0, "failed": 0, "skipped": 0, "error": 0, "files_failed_to_load": [],
+              "skipped_with_reasons": [], "failing": [], "verdict": verdict}
+    unknown = set(fields) - set(record)
+    if unknown:
+        raise ValueError(f"run record fields not in the record shape: {sorted(unknown)}")
+    return {**record, **fields}
+
+
+def readiness():
+    """The one readiness check (D28): the runner and the doctor both call this, so they cannot disagree."""
+    dev = ROOT / "requirements-dev.txt"         # the test tooling is checked too, not only the application
+    return requirement_problems(dev) if dev.is_file() else requirement_problems()
+
+
 def main():
     print(f"python {sys.executable} ({sys.version.split()[0]})")
     print(f"packages: {versions()}")
     print(f"conda env: {os.environ.get('CONDA_DEFAULT_ENV', '(none)')}")
-    # The runner's guarantee covers the runner: the test tooling (requirements-dev.txt) is checked too.
-    dev = ROOT / "requirements-dev.txt"
-    missing, mismatched = requirement_problems(dev) if dev.is_file() else requirement_problems()
+    missing, mismatched = readiness()
     if missing:
         print("MISSING from this environment (pip install -r requirements.txt):")
         for line in missing:
@@ -87,6 +110,21 @@ def main():
     if not missing and not mismatched:
         print("environment matches requirements.txt")
     print()
+    if missing:
+        # D25 (v24 round): run in the wrong environment, the suite failed in 27 places and the real cause, a missing
+        # package, scrolled away. A run that cannot pass for that reason stops here and says so.
+        env = os.environ.get("CONDA_DEFAULT_ENV")
+        print(f"VERDICT: ENVIRONMENT NOT READY — {len(missing)} required package(s) missing from {sys.executable}"
+              + (f" (conda env '{env}')" if env else ""))
+        print("   activate the project's environment (for example: conda activate gaar), "
+              "or install them: pip install -r requirements.txt")
+        record = run_record("ENVIRONMENT NOT READY", environment_missing=missing, environment_mismatched=mismatched)
+        runs = ROOT / ".test_runs"
+        runs.mkdir(exist_ok=True)
+        target = runs / (record["at"].replace(":", "").replace("+", "_") + ".json")
+        target.write_text(__import__("json").dumps(record, indent=2) + "\n")
+        print(f"run record: {target.relative_to(ROOT)}")
+        raise SystemExit(1)
 
     listing = pytest("--collect-only")
     ids = [line for line in listing.stdout.splitlines() if "::" in line]
@@ -130,14 +168,9 @@ def main():
 
     complete = executed == collected and not load_errors
     passing = complete and not totals["failed"] and not totals["error"]
-    record = {"at": __import__("datetime").datetime.now().astimezone().isoformat(), "python": sys.executable,
-              "python_version": sys.version.split()[0], "conda_env": os.environ.get("CONDA_DEFAULT_ENV"),
-              "packages": versions(), "requirements_sha256": {
-                  name: __import__("hashlib").sha256((ROOT / name).read_bytes()).hexdigest()
-                  for name in ("requirements.txt", "requirements-dev.txt") if (ROOT / name).is_file()},
-              "environment_missing": missing, "environment_mismatched": mismatched,
-              "collected": collected, "executed": executed, **totals, "files_failed_to_load": load_errors,
-              "skipped_with_reasons": skipped_lines, "failing": failing}
+    record = run_record(None, environment_missing=missing, environment_mismatched=mismatched,
+                        collected=collected, executed=executed, **totals, files_failed_to_load=load_errors,
+                        skipped_with_reasons=skipped_lines, failing=failing)
     if passing and missing:
         print("\nVERDICT: COMPLETE RUN, ALL PASSED — but the environment is missing required packages (listed above)")
     elif passing:

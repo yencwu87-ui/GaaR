@@ -16,7 +16,9 @@ def test_synthetic_pack_preserves_all_four_frozen_case_narratives():
 
 def test_synthetic_pack_is_explicitly_non_production():
     evidence_root = ROOT.parent / "synthetic_evidence_v6/MAS/M3.6"
-    for path in evidence_root.glob("*.md"):
+    documents = sorted(evidence_root.glob("*.md"))
+    assert documents, f"no evidence documents under {evidence_root}: the pack must sit next to ge_repo"
+    for path in documents:
         text = path.read_text(encoding="utf-8")
         assert "Evidence Mode: SYNTHETIC_DEMO_ONLY" in text
         assert "Control ID: M3.6" in text

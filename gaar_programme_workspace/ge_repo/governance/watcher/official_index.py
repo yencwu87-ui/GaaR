@@ -62,7 +62,7 @@ def retrieve_index(row:dict,*,get=None)->tuple[bytes,str]:
     hosts=list(row['approved_hosts']);url=str(row['url'])
     for _ in range(6):
         if not safe_url(url,hosts):raise IndexErrorSafe('unapproved source/redirect URL')
-        response=get(url,timeout=20,allow_redirects=False,headers={'User-Agent':'GaaR-RegulatoryWatcher/1.0 (official publication index)'})
+        response=get(url,timeout=20,allow_redirects=False,headers={'User-Agent':row.get('user_agent') or 'GaaR-RegulatoryWatcher/1.0 (official publication index)'})
         if response.status_code in (301,302,303,307,308):
             dest=response.headers.get('Location')
             if not dest:raise IndexErrorSafe('redirect without Location')

@@ -31,7 +31,7 @@ import decisions as D
 import usecases as U
 from reasons import is_template, reason_error
 
-COMPONENT_REGISTER = Path("governance/uc_components.csv")
+COMPONENT_REGISTER = Path(__file__).resolve().parent / "governance" / "uc_components.csv"
 
 REQUIRED_COLUMNS = (
     "use_case",

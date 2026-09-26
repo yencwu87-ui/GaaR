@@ -118,7 +118,7 @@ def test_reviewer_sees_the_deterministic_record_and_attests_it(tmp_path, monkeyp
     assert not any("Press Run to start it" in c.value for c in app.caption)
     app.text_area(key="deterministic-rationale").input(
         "Tests contradict chg.1 and chg.2; model stages unavailable; remediate before reliance.").run()
-    app.checkbox(key="deterministic-confirm").check().run()
+    _confirm(app).check().run()
     next(b for b in app.button if b.label == "Sign attestation").click().run()
     assert not app.exception
     assert journal.latest("pilot_attestation")["payload"]["attestation"]["record_basis"] == "DETERMINISTIC_RECORD"
@@ -228,7 +228,7 @@ def test_the_signed_sentence_describes_a_deterministic_record_truthfully(tmp_pat
     monkeypatch.setenv("GAAR_REVIEWER_TOKEN", "t")
     app = AppTest.from_file(str(ROOT / "app_gaar.py"), default_timeout=60).run()
     app.text_input[0].input("t").run()
-    box = app.checkbox(key="deterministic-confirm")
+    box = _confirm(app)
     assert box.label == CONFIRM and "challenge" not in box.label
     table = next(df.value for df in app.dataframe if "Recorded status" in df.value.columns)
     assert set(table["Assessor said"]) == {"not asked (models off)"}
@@ -254,3 +254,8 @@ def test_rationale_warnings_flag_contradiction_not_legitimate_risk_acceptance():
     assert not rationale_warnings("PASS", "ok to proceed")                              # only FAIL is checked
     shown = local_time("2026-09-23T11:16:17+00:00")
     assert "UTC" in shown and "(UTC" in shown
+
+
+def _confirm(app):
+    """The confirmation is keyed to the record on screen (kit v20), so it is found by its prefix."""
+    return next(c for c in app.checkbox if (c.key or "").startswith("deterministic-confirm-"))

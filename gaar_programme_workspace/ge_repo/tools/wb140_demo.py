@@ -122,7 +122,7 @@ def finish(engine, signers, iid, *, conclude=True):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-root", type=Path, default=Path("governance/wb140_demo"))
+    parser.add_argument("--output-root", type=Path, default=Path(__file__).resolve().parents[1] / "governance" / "wb140_demo")
     args = parser.parse_args()
     # Each run gets a fresh journal; never overwrite a previous signed investigation.
     args.output_root.mkdir(parents=True, exist_ok=True)

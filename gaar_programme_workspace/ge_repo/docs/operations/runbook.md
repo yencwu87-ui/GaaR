@@ -10,8 +10,10 @@ before it can no longer be attested, because the signature would bind a person t
 software never produced.
 
 1. Before upgrading, attest every result that is awaiting attestation.
-2. If a result cannot be attested before the upgrade, rerun that period under the new version after
-   upgrading, and attest the new result.
+2. If a result cannot be attested before the upgrade, the scheduler reruns that period under the new version on
+   its next tick (kit v20; `python tools/gaar_scheduler.py tick --config …`), and you attest the new result. It
+   does so only when the software is the only change, never on an attested record, and on the clock the record
+   was assessed on. The superseded journal is kept intact under `pilot/superseded/`.
 3. Attestations already given are unaffected by an upgrade.
 4. Record the upgrade (version, date, who) in the pilot log.
 

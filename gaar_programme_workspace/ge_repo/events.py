@@ -172,9 +172,9 @@ def cycle(cycle_id: str, path: Path | None = None) -> list[dict]:
     return [e for e in read_all(path) if e.get("cycle_id") == cycle_id]
 
 
-def cycles(path: Path | None = None, control_id: str | None = None) -> list[str]:
+def cycles(path: Path | None = None, control_id: str | None = None, _events: list[dict] | None = None) -> list[str]:
     seen: list[str] = []
-    for e in read_all(path):
+    for e in (read_all(path) if _events is None else _events):
         cid = e.get("cycle_id")
         if not cid or cid in seen:
             continue
@@ -207,13 +207,13 @@ def verify(path: Path | None = None) -> dict:
             "intact": not broken, "breaks": broken}
 
 
-def state(cycle_id: str, path: Path | None = None) -> dict:
+def state(cycle_id: str, path: Path | None = None, _events: list[dict] | None = None) -> dict:
     """Rebuild the current view of one cycle by replaying its events.
 
     Derived, never authoritative. Later events of the same kind supersede earlier ones, so a
     re-assessment or a revised read is a new event and the history stays readable.
     """
-    all_events = read_all(path)
+    all_events = read_all(path) if _events is None else _events
     indexed = [(i, e) for i, e in enumerate(all_events) if e.get("cycle_id") == cycle_id]
     evs = [e for _, e in indexed]
     if not evs:
@@ -325,8 +325,11 @@ def _stage(view: dict) -> str:
 
 
 def iter_states(path: Path | None = None) -> Iterator[dict]:
-    for cid in cycles(path):
-        yield state(cid, path)
+    # One read of the ledger for all cycles (kit v21). Reading it once per cycle made every page load grow with the
+    # square of the history: 168 full reads on the demo ledger.
+    events = read_all(path)
+    for cid in cycles(path, _events=events):
+        yield state(cid, path, _events=events)
 
 
 def decided(path: Path | None = None) -> list[dict]:

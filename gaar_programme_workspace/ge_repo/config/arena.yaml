@@ -1,0 +1,29 @@
+# Model arena parameters (kit v22). Governance parameters, not code constants: changing one is a recorded change,
+# and every arena report states the values it ran under.
+costs:
+  # A model saying "authorised" about a change that broke the rules is the error governance exists to prevent: it
+  # buys false comfort and nobody looks again. A false alarm costs a person's time to look and clear it. A hold
+  # (INSUFFICIENT, or an answer without a confidence) goes to a person by design, and costs less than an error.
+  false_assurance: 10
+  false_alarm: 1
+  hold: 0.5
+  justification: >-
+    Ratio 10:1 reflects that an undetected unauthorised change can persist and compound, while a false alarm is
+    cleared by one review. Raw precision and recall are always reported beside the weighted cost, so the policy's
+    0.95 gate stays comparable if this ratio changes.
+qualification:
+  precision: 0.95
+  recall: 0.95
+  max_false_assurance: 0
+  min_cases: 100
+  note: >-
+    Meeting these on constructed twin cases is necessary, never sufficient: the twin's truth is self-authored.
+    Qualification under policy §8 needs an independently labelled corpus.
+egress:
+  # Cases sent to an endpoint that is not on this machine must be constructed. Real evidence never leaves.
+  hosted_endpoints_accept: [constructed]
+# A contestant whose calls fail this many times in a row is stopped for the run (its model server is down).
+stop_after_consecutive_errors: 5
+elo:
+  start: 1000
+  k: 16

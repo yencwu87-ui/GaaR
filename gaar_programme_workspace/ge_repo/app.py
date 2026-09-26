@@ -51,12 +51,17 @@ from governance.source_review import extract_text as extract_source_text, best_e
 import folder_picker as fp
 import tour
 
-DATA = Path("data")
+from governance.paths import workbench_data
+DATA = workbench_data()          # absolute, never relative to where the app is started (kit v22)
+from governance.paths import shared_state_warning as _shared_state_warning
 DATA.mkdir(exist_ok=True)
 STATE_FILE = DATA / "assessments.json"
 DEFAULT_PLAYBOOK = next(DATA.glob("*.xlsx"), None)
 
 st.set_page_config(page_title="GaaR governance workbench", page_icon="🛡️", layout="wide")
+_shared = _shared_state_warning(DATA)
+if _shared:
+    st.warning(_shared)
 
 
 # ---------- uploaded source review ----------
@@ -345,7 +350,7 @@ _UI_PANEL = "#111827" if THEME == "dark" else "#FFFFFF"
 _UI_PANEL_2 = "#172033" if THEME == "dark" else "#F1F5F9"
 _UI_TEXT = "#F8FAFC" if THEME == "dark" else "#0F172A"
 _UI_MUTED = "#94A3B8" if THEME == "dark" else "#64748B"
-_UI_ACCENT = "#FFB347"
+_UI_ACCENT = "#FFB347" if THEME == "dark" else "#B45309"     # light: darker amber, readable on white
 _UI_PURPLE = "#7C3AED"
 st.markdown(f"""<style>
   .stApp {{ background: {_UI_BG}; }}
@@ -367,43 +372,32 @@ st.markdown(f"""<style>
   div[data-testid="stDataFrame"] {{ border-radius:12px; overflow:hidden; }}
 </style>""", unsafe_allow_html=True)
 
-# ---------- sidebar ----------
-with st.sidebar:
-    st.title("GaaR Workbench")
-    st.caption("Living governance · provable results")
-    st.markdown("### Mission Control · observed")
-    try:
-        from governance.audit_package.mission_control import snapshot as _wb123_snapshot
-        _wb123_status = _wb123_snapshot()
-        st.caption(f"AI Auditor: {_wb123_status['ai_auditor']['cycles']} cycles · {_wb123_status['ai_auditor']['awaiting_human_decision']} awaiting decision")
-        st.caption(f"Autopilot: {_wb123_status['autopilot']['queued']} queued · {_wb123_status['autopilot']['running']} running")
-        st.caption(f"Watcher: {_wb123_status['watcher']['poll_receipts']} recorded polls · {_wb123_status['watcher']['emissions']} emissions")
-        st.caption(f"Scout: {_wb123_status['scout']['acquisition_receipts']} receipts · {_wb123_status['scout']['proposed_dossiers']} proposed dossiers")
-        st.caption("Activity receipts do not prove background workers are currently running.")
-    except Exception as _wb123_exc:
-        st.warning(f"Mission Control unavailable: {type(_wb123_exc).__name__}: {_wb123_exc}")
-    with st.expander("Administration · Upload / Import", expanded=False):
-        up = st.file_uploader("Playbook workbook (.xlsx)", type="xlsx")
-        mas_src = st.file_uploader("MAS whitepaper / consultation source for review", type=["pdf","txt","md","docx"], key="mas_source_upload")
-    src = up if up else DEFAULT_PLAYBOOK
-    if mas_src is not None:
+def _decision_ready_packages():
+    """Audit packages a person can decide now. Read-only: preflight writes nothing."""
+    from governance.audit_package.decision_service import preflight
+    import events as _events
+    ready = []
+    for _st in _events.iter_states():
+        if _st.get("decision"):
+            continue
         try:
-            _txt = extract_source_text(mas_src.getvalue(), mas_src.name)
-            S["mas_source_review"] = {"name": mas_src.name, "text": _txt, "uploaded_at": dt.datetime.now().isoformat(timespec="seconds")}
-            save_state()
-            st.success(f"MAS source staged for review: {mas_src.name}")
-        except Exception as exc:
-            st.error(f"Could not extract MAS source: {type(exc).__name__}: {exc}")
-    elif S.get("mas_source_review"):
-        st.caption(f"MAS source staged: {S['mas_source_review'].get('name','source')}")
-        if st.button("Clear staged MAS source", key="clear_mas_source"):
-            S["mas_source_review"] = {}
-            save_state(); st.rerun()
-    if src is None:
-        st.info("Upload the AI Governance Playbook workbook, or place it in the data/ folder. The Audit and History tabs work without it.")
-    S["org"] = st.text_input("Organisation", S.get("org", ""))
-    S["reviewer"] = st.text_input("Reviewer name", S.get("reviewer", ""))
-    with st.expander("Human Decision Queue · WB-127", expanded=False):
+            _pf = preflight(_st.get("cycle_id"), batch=False)
+        except Exception:
+            continue
+        if _pf.get("single_eligible"):
+            ready.append(_pf)
+    return ready
+
+
+@st.cache_data(show_spinner=False, ttl=300)
+def _ready_count(_log: str, _stamp: int) -> int:
+    """Today's count, recomputed whenever the event ledger changes (its path and mtime are the key)."""
+    return len(_decision_ready_packages())
+
+
+def _render_decision_queue():
+    """Human Decision Queue (WB-127), moved from the sidebar to Review › Decisions ready."""
+    with st.container():
         st.caption("Reviewer name is local attribution only; authenticated IAM/RBAC is not yet implemented.")
         try:
             from governance.audit_package.decision_service import (preflight as _wb127_preflight, approve_one as _wb127_approve_one,
@@ -466,6 +460,165 @@ with st.sidebar:
                             st.error(f"Batch blocked: {type(_e).__name__}: {_e}")
         except Exception as _wb127_exc:
             st.caption(f"Decision queue unavailable: {type(_wb127_exc).__name__}: {_wb127_exc}")
+
+
+# ---------- navigation (kit v21) ----------
+# Sixteen tabs became five places a reviewer goes, plus settings. Each place has a few sections, and only the open
+# section runs: a click costs one view, not sixteen. Navigation lives in session state, so a button anywhere
+# ("Review 3 waiting proposals") can take you straight there.
+VIEWS = {
+    "today": ("Today", ":material/today:", "What needs you, and the one next step.",
+              [("home", "Today")]),
+    "review": ("Review", ":material/fact_check:", "Bring in evidence, give your own reading, then decide.",
+               [("scan", "1 · Add evidence"), ("assess", "2 · Review controls"), ("decide", "3 · Decisions ready")]),
+    "results": ("Results", ":material/verified:", "Where every control stands, and how it got there.",
+                [("live", "Current results"), ("impact", "Impact & root cause"), ("basis", "Requirement basis"),
+                 ("outcomes", "Outcomes"), ("history", "History"), ("lifecycle", "Lifecycle")]),
+    "watch": ("Regulatory watch", ":material/radar:", "New regulation and threats, matched to your controls.",
+              [("intel", "Intel feed"), ("change", "Change reviews"), ("sources", "Watcher internals")]),
+    "reports": ("Reports", ":material/summarize:", "What you hand to an auditor.",
+                [("report", "Readiness report"), ("audit", "Audit trail"), ("measure", "Measurement"),
+                 ("arena", "Model arena")]),
+    "settings": ("Settings", ":material/tune:", "Library, scope, models, and the automation engine room.",
+                 [("general", "General"), ("ai", "AI Auditor"), ("autopilot", "Autopilot"), ("engine", "Engine"),
+                  ("ops", "Operations")]),
+}
+# Every classic tab has exactly one home (pinned by tests/test_workbench_navigation.py).
+TAB_SECTIONS = {"tab_home": "today/home", "tab_s": "review/scan", "tab_a": "review/assess", "tab_ai": "settings/ai",
+                "tab_auto": "settings/autopilot", "tab_watch": "watch/sources", "tab_live": "results/live",
+                "tab_o": "results/outcomes", "tab_c": "watch/change", "tab_b": "reports/audit", "tab_e": "settings/engine",
+                "tab_ops": "settings/ops", "tab_r": "reports/report", "tab_l": "results/lifecycle",
+                "tab_m": "reports/measure", "tab_h": "results/history"}
+
+
+def _current() -> tuple[str, str]:
+    view = st.session_state.get("nav") or "today"
+    if view not in VIEWS:
+        view = "today"
+    sections = [k for k, _ in VIEWS[view][3]]
+    section = st.session_state.get(f"sec_{view}") or sections[0]
+    return view, section if section in sections else sections[0]
+
+
+def _go(view: str, section: str | None = None):
+    """Button callback: open a view (and a section in it)."""
+    st.session_state["nav"] = view
+    if section:
+        st.session_state[f"sec_{view}"] = section
+
+
+def _shown(path: str) -> bool:
+    return "/".join(_current()) == path
+
+
+class _Section:
+    """Stands where a tab used to: `if tab_x.shown: with tab_x:` runs the body only when its section is open."""
+
+    def __init__(self, path: str):
+        self.path, self.shown = path, _shown(path)
+
+    _entered: dict = {}                      # a section may be entered twice (Lifecycle is); keys stay unique
+
+    def __enter__(self):
+        n = _Section._entered[self.path] = _Section._entered.get(self.path, 0) + 1
+        self._box = st.container(key="sec-" + self.path.replace("/", "-") + (f"-{n}" if n > 1 else ""))
+        return self._box.__enter__()
+
+    def __exit__(self, *exc):
+        return self._box.__exit__(*exc)
+
+
+st.session_state.setdefault("nav", "today")
+with st.sidebar:
+    st.markdown('<div class="nav-brand">GaaR<span>·</span>Workbench</div>'
+                '<div class="nav-sub">Governance results, continuously</div>', unsafe_allow_html=True)
+    st.radio("Go to", list(VIEWS), key="nav", label_visibility="collapsed",
+             format_func=lambda k: f"{VIEWS[k][1]}  {VIEWS[k][0]}")
+    st.divider()
+    S["reviewer"] = st.text_input("Your name", S.get("reviewer", ""), placeholder="Needed to record a decision", key="reviewer-name",
+                                  help="Decisions carry this name. Local attribution only: sign-in is not wired yet.")
+    if not S["reviewer"].strip():
+        st.caption(":material/info: Enter your name to record decisions.")
+
+_VIEW, _SECTION = _current()
+_label, _icon, _purpose, _sections = VIEWS[_VIEW]
+st.markdown(f'<div class="wb-head"><div class="wb-t">{_label}</div><div class="wb-s">{_purpose}</div></div>',
+            unsafe_allow_html=True)
+if len(_sections) > 1:
+    st.session_state.setdefault(f"sec_{_VIEW}", _sections[0][0])
+    st.radio("Section", [k for k, _ in _sections], key=f"sec_{_VIEW}", horizontal=True, label_visibility="collapsed",
+             format_func=dict(_sections).get)
+    _VIEW, _SECTION = _current()
+
+# The old sidebar (library, scope, models, reset) still runs on every page, because the rest of the app reads the
+# values it sets; it is shown only under Settings › General.
+_SETTINGS_PANEL = st.container(key="gaar-settings-general")
+if not _shown("settings/general"):
+    st.markdown("<style>.st-key-gaar-settings-general{display:none}</style>", unsafe_allow_html=True)
+
+st.markdown(f"""<style>
+  section[data-testid="stSidebar"] .nav-brand {{ font-weight: 800; font-size: 1.15rem; letter-spacing: -.01em;
+    color: {_UI_TEXT}; margin: .2rem 0 0; }}
+  section[data-testid="stSidebar"] .nav-brand span {{ color: {_UI_ACCENT}; }}
+  section[data-testid="stSidebar"] .nav-sub {{ color: {_UI_MUTED}; font-size: .78rem; margin-bottom: .9rem; }}
+  section[data-testid="stSidebar"] div[role="radiogroup"] {{ gap: 2px; }}
+  section[data-testid="stSidebar"] div[role="radiogroup"] > label {{ width: 100%; padding: 8px 10px; border-radius: 8px;
+    margin: 0; transition: background .15s ease; }}
+  label[data-testid="stRadioOption"] div:has(> div[data-testid="stMarkdownContainer"]) > div:not([data-testid]) {{ display: none; }}
+  section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {{ background: {_UI_PANEL_2}; }}
+  section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-selected="true"] {{
+    background: {_UI_PANEL_2}; box-shadow: inset 3px 0 0 {_UI_ACCENT}; }}
+  section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-selected="true"] p {{ font-weight: 700; }}
+  section.main div[role="radiogroup"][aria-label="Section"], div[data-testid="stMainBlockContainer"] div[role="radiogroup"] {{ gap: 6px; }}
+  div[data-testid="stMainBlockContainer"] .stRadio div[role="radiogroup"] > label {{ border: 1px solid {_STICKY_LINE};
+    border-radius: 999px; padding: 4px 12px; margin: 0; background: {_UI_PANEL}; }}
+  div[data-testid="stMainBlockContainer"] .stRadio div[role="radiogroup"] > label[data-selected="true"] {{
+    border-color: {_UI_ACCENT}; background: {_UI_PANEL_2}; }}
+  div[data-testid="stMainBlockContainer"] .stRadio div[role="radiogroup"] > label[data-selected="true"] p {{ font-weight: 700; }}
+  .today-q {{ font-size: 2rem; font-weight: 800; line-height: 1; color: {_UI_TEXT}; font-variant-numeric: tabular-nums; }}
+  .today-l {{ font-weight: 700; color: {_UI_TEXT}; margin-top: .35rem; }}
+  .today-d {{ color: {_UI_MUTED}; font-size: .84rem; line-height: 1.4; min-height: 2.4em; }}
+  .today-k {{ color: {_UI_ACCENT}; font-size: .7rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }}
+  .today-t {{ color: {_UI_TEXT}; font-size: 1.2rem; font-weight: 780; margin-top: 2px; }}
+  .intel-p {{ display: inline-block; font-size: .7rem; font-weight: 800; letter-spacing: .06em; border-radius: 4px;
+    padding: 1px 6px; margin-right: 6px; color: #111; }}
+  .intel-p1 {{ background: #F87171; }} .intel-p2 {{ background: {_UI_ACCENT}; color: {"#111" if THEME == "dark" else "#fff"}; }}
+  .intel-p3 {{ background: {_UI_MUTED}; color: #fff; }}
+</style>""", unsafe_allow_html=True)
+
+# ---------- settings panel (was the sidebar) ----------
+with _SETTINGS_PANEL:
+    st.markdown("### Mission Control · observed")
+    try:
+        from governance.audit_package.mission_control import snapshot as _wb123_snapshot
+        _wb123_status = _wb123_snapshot()
+        st.caption(f"AI Auditor: {_wb123_status['ai_auditor']['cycles']} cycles · {_wb123_status['ai_auditor']['awaiting_human_decision']} awaiting decision")
+        st.caption(f"Autopilot: {_wb123_status['autopilot']['queued']} queued · {_wb123_status['autopilot']['running']} running")
+        st.caption(f"Watcher: {_wb123_status['watcher']['poll_receipts']} recorded polls · {_wb123_status['watcher']['emissions']} emissions")
+        st.caption(f"Scout: {_wb123_status['scout']['acquisition_receipts']} receipts · {_wb123_status['scout']['proposed_dossiers']} proposed dossiers")
+        st.caption("Activity receipts do not prove background workers are currently running.")
+    except Exception as _wb123_exc:
+        st.warning(f"Mission Control unavailable: {type(_wb123_exc).__name__}: {_wb123_exc}")
+    with st.expander("Administration · Upload / Import", expanded=False):
+        up = st.file_uploader("Playbook workbook (.xlsx)", type="xlsx")
+        mas_src = st.file_uploader("MAS whitepaper / consultation source for review", type=["pdf","txt","md","docx"], key="mas_source_upload")
+    src = up if up else DEFAULT_PLAYBOOK
+    if mas_src is not None:
+        try:
+            _txt = extract_source_text(mas_src.getvalue(), mas_src.name)
+            S["mas_source_review"] = {"name": mas_src.name, "text": _txt, "uploaded_at": dt.datetime.now().isoformat(timespec="seconds")}
+            save_state()
+            st.success(f"MAS source staged for review: {mas_src.name}")
+        except Exception as exc:
+            st.error(f"Could not extract MAS source: {type(exc).__name__}: {exc}")
+    elif S.get("mas_source_review"):
+        st.caption(f"MAS source staged: {S['mas_source_review'].get('name','source')}")
+        if st.button("Clear staged MAS source", key="clear_mas_source"):
+            S["mas_source_review"] = {}
+            save_state(); st.rerun()
+    if src is None:
+        st.info("Upload the AI Governance Playbook workbook, or place it in the data/ folder. The Audit and History tabs work without it.")
+    S["org"] = st.text_input("Organisation", S.get("org", ""))
     st.caption("AI Auditor")
     _auditor_mode = st.selectbox(
         "Operating mode",
@@ -552,12 +705,6 @@ plays = ([] if src is None else _load_plays(str(src)) if isinstance(src, Path) e
 in_scope = [c for lib, rows in controls.items() if scope.get(lib) for c in rows]
 by_key = {c.key: c for c in in_scope}
 
-st.markdown(
-    '<div class="wb-head">'
-    '<div class="gaar-kicker">GOVERNANCE RESULT AS A SERVICE</div>'
-    '<div class="wb-t">GaaR · AI Auditor Control Plane</div>'
-    '<div class="wb-s">Continuous governance state · bounded AI skills · human-on-exception · immutable result lineage.</div>'
-    '</div>', unsafe_allow_html=True)
 
 
 def _tour_context() -> dict:
@@ -592,7 +739,8 @@ def _tour_context() -> dict:
     }
 
 
-tab_home, tab_s, tab_a, tab_ai, tab_auto, tab_watch, tab_live, tab_o, tab_c, tab_b, tab_e, tab_ops, tab_r, tab_l, tab_m, tab_h = st.tabs(["Home", "Scan", "Review", "AI Auditor", "Autopilot", "Watcher", "Living Results", "Outcomes", "Change", "Audit", "Engine", "Operations", "Report", "Lifecycle", "Measurement", "History"])
+tab_home, tab_s, tab_a, tab_ai, tab_auto, tab_watch, tab_live, tab_o, tab_c, tab_b, tab_e, tab_ops, tab_r, tab_l, tab_m, tab_h = (_Section(TAB_SECTIONS[_n]) for _n in (
+    'tab_home', 'tab_s', 'tab_a', 'tab_ai', 'tab_auto', 'tab_watch', 'tab_live', 'tab_o', 'tab_c', 'tab_b', 'tab_e', 'tab_ops', 'tab_r', 'tab_l', 'tab_m', 'tab_h'))
 
 # ---------- Home (WB-130 landing) ----------
 # The first screen answers three questions before any widget asks for input: what is this,
@@ -657,745 +805,711 @@ def _home_next_step(ctx: dict) -> tuple[str, str, str]:
             "Every proposal in scope has a recorded decision.", "Report")
 
 
-with tab_home:
-    _ctx = _tour_context()
-    _mc = globals().get("_wb123_status") or {}
-    _lib_counts = {lib: len(rows) for lib, rows in controls.items() if scope.get(lib)}
-    _org = _html.escape(S.get("org") or "")
+if tab_home.shown:
+    with tab_home:
+        _ctx = _tour_context()
+        _t, _d, _tab = _home_next_step(_ctx)
+        _dest = {"Scan": ("review", "scan"), "Review": ("review", "assess"), "Audit": ("reports", "audit"),
+                 "Report": ("reports", "report"), "Sidebar": ("settings", "general")}.get(_tab, ("review", "scan"))
+        _name = (S.get("reviewer") or "").strip().split(" ")[0]
+        st.markdown(f"#### {'Hello ' + _html.escape(_name) + '. ' if _name else ''}Here is what needs you.")
 
-    st.markdown(f"""<style>
-      .home-hero {{ padding: 28px 30px 26px; border-radius: 18px; border: 1px solid {_STICKY_LINE};
-        background: radial-gradient(120% 140% at 100% 0%, rgba(124,58,237,.16) 0%, transparent 55%),
-                    radial-gradient(90% 120% at 0% 100%, rgba(255,179,71,.14) 0%, transparent 60%),
-                    {_UI_PANEL};
-        margin: .5rem 0 1.1rem; }}
-      .home-hero h1 {{ color: {_UI_TEXT}; font-size: 2.05rem; line-height: 1.15; font-weight: 820;
-        letter-spacing: -.02em; margin: .45rem 0 .55rem; padding: 0; max-width: 34ch; }}
-      .home-hero p {{ color: {_UI_MUTED}; font-size: .98rem; line-height: 1.55; max-width: 68ch; margin: 0; }}
-      .home-tags {{ margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }}
-      .home-tag {{ font-size: .72rem; font-weight: 700; color: {_UI_TEXT}; border: 1px solid {_STICKY_LINE};
-        border-radius: 999px; padding: 3px 10px; background: {_UI_PANEL_2}; }}
-      .home-next {{ display: flex; gap: 16px; align-items: center; border-radius: 14px; padding: 16px 18px;
-        border: 1px solid {_UI_ACCENT}; background: {_UI_PANEL}; margin: 0 0 1.1rem; }}
-      .home-next .n-k {{ color: {_UI_ACCENT}; font-size: .7rem; font-weight: 800; letter-spacing: .13em; }}
-      .home-next .n-t {{ color: {_UI_TEXT}; font-size: 1.1rem; font-weight: 780; margin-top: 2px; }}
-      .home-next .n-d {{ color: {_UI_MUTED}; font-size: .86rem; margin-top: 2px; }}
-      .home-next .n-go {{ margin-left: auto; white-space: nowrap; font-size: .8rem; font-weight: 800;
-        color: #111; background: {_UI_ACCENT}; border-radius: 999px; padding: 6px 12px; }}
-      .home-lanes {{ margin-bottom: 1.2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }}
-      .home-lane {{ border: 1px solid {_STICKY_LINE}; border-radius: 14px; background: {_UI_PANEL}; padding: 14px 16px; }}
-      .home-lane .l-h {{ font-size: .72rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }}
-      .home-lane .l-i {{ margin-top: 10px; }}
-      .home-lane .l-n {{ color: {_UI_TEXT}; font-weight: 750; font-size: .9rem; }}
-      .home-lane .l-d {{ color: {_UI_MUTED}; font-size: .8rem; line-height: 1.4; }}
-      .home-rules {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: .4rem; }}
-      .home-rule {{ border-left: 3px solid {_UI_PURPLE}; padding: 4px 0 4px 12px; }}
-      .home-rule b {{ color: {_UI_TEXT}; font-size: .9rem; }}
-      .home-rule div {{ color: {_UI_MUTED}; font-size: .8rem; line-height: 1.45; margin-top: 2px; }}
-      @media (max-width: 640px) {{ .home-hero h1 {{ font-size: 1.55rem; }} .home-next {{ flex-wrap: wrap; }}
-        .home-next .n-go {{ margin-left: 0; }} }}
-    </style>""", unsafe_allow_html=True)
+        with st.container(border=True, key="today-next"):
+            _a, _b = st.columns([5, 2], vertical_alignment="center")
+            _a.markdown(f'<div class="today-k">Next step</div><div class="today-t">{_html.escape(_t)}</div>'
+                        f'<div class="today-d">{_html.escape(_d)}</div>', unsafe_allow_html=True)
+            if _t == "Name the reviewer":
+                _b.caption(":material/arrow_back: Type your name in the box on the left, under the menu.")
+            else:
+                _b.button(f"{_t} →", type="primary", key="today-go", on_click=_go, args=_dest, width="stretch")
 
-    _tags = "".join(f'<span class="home-tag">{_html.escape(lib)} · {n}</span>'
-                    for lib, n in _lib_counts.items()) or '<span class="home-tag">No library loaded</span>'
-    st.markdown(
-        '<div class="home-hero"><div class="gaar-kicker">Workbench home'
-        + (f' · {_org}' if _org else '') + '</div>'
-        '<h1>Continuous AI governance, with a human on every decision.</h1>'
-        '<p>Evidence is matched to MAS, MGF and SAFR controls, an AI assessor proposes, and you decide. '
-        'Your reading is recorded before any model output is shown, and every decision lands in an '
-        'append-only ledger. A rating here is readiness evidence, not a compliance determination.</p>'
-        f'<div class="home-tags">{_tags}</div></div>',
-        unsafe_allow_html=True)
-
-    _t, _d, _tab = _home_next_step(_ctx)
-    st.markdown(
-        '<div class="home-next"><div><div class="n-k">NEXT STEP</div>'
-        f'<div class="n-t">{_html.escape(_t)}</div><div class="n-d">{_html.escape(_d)}</div></div>'
-        f'<div class="n-go">{"In the sidebar" if _tab == "Sidebar" else _html.escape(_tab) + " tab"} →</div></div>',
-        unsafe_allow_html=True)
-
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Controls in scope", len(in_scope))
-    k2.metric("Evidence passages", f"{_ctx['indexed_docs']:,}")
-    k3.metric("AI proposals", _ctx["ai_proposals"])
-    k4.metric("Recorded decisions", _ctx["decisions"])
-    k5.metric("Evidence bundles", _ctx["bundles"])
-    if _mc:
+        _waiting = max(0, _ctx["ai_proposals"] - _ctx["decisions"])
         try:
-            st.caption(
-                f"AI Auditor {_mc['ai_auditor']['awaiting_human_decision']} awaiting decision · "
-                f"Autopilot {_mc['autopilot']['queued']} queued · "
-                f"Watcher {_mc['watcher']['emissions']} emissions · "
-                f"Scout {_mc['scout']['proposed_dossiers']} proposed dossiers. "
-                "Activity receipts do not prove background workers are running.")
-        except (KeyError, TypeError):
-            pass
+            _log = Path(events.LOG)
+            _ready = _ready_count(str(_log), _log.stat().st_mtime_ns if _log.exists() else 0)
+        except Exception:
+            _ready = None
+        try:
+            from governance.watcher import intel as _intel
+            _alerts = len(_intel.needs_triage()) if _intel.configured() else None
+        except Exception:
+            _alerts = None
+        _issues = _ctx["open_failures"] + _ctx["open_inconclusive"]
+        _queues = [
+            ("Waiting for your reading", _waiting, "Proposals stay hidden until your own reading is recorded.", ("review", "assess")),
+            ("Decisions ready", _ready if _ready is not None else "—", "Audit packages ready for you to approve, investigate or reject.", ("review", "decide")),
+            ("Regulatory alerts", _alerts if _alerts is not None else "Off", "New publications and threats matched to your controls."
+             if _alerts is not None else "Regulatory watch is not set up yet.", ("watch", "intel")),
+            ("Open audit issues", _issues, "Failing or not-testable results in the latest evidence bundle.", ("reports", "audit")),
+        ]
+        for _col, (_lbl, _n, _desc, _where) in zip(st.columns(4), _queues):
+            with _col.container(border=True):
+                st.markdown(f'<div class="today-q">{_n}</div><div class="today-l">{_lbl}</div>'
+                            f'<div class="today-d">{_desc}</div>', unsafe_allow_html=True)
+                st.button("Open", key=f"today-open-{_where[1]}", on_click=_go, args=_where, width="stretch")
 
-    st.markdown("#### The workbench")
-    _lanes = ""
-    for _name, _colr, _items in _HOME_LANES:
-        _rows = "".join(f'<div class="l-i"><div class="l-n">{_html.escape(n)}</div>'
-                        f'<div class="l-d">{_html.escape(d)}</div></div>' for n, d in _items)
-        _lanes += (f'<div class="home-lane" style="border-top:3px solid {_colr}">'
-                   f'<div class="l-h" style="color:{_colr}">{_name}</div>{_rows}</div>')
-    st.markdown(f'<div class="home-lanes">{_lanes}</div>', unsafe_allow_html=True)
+        _lib_counts = {lib: len(rows) for lib, rows in controls.items() if scope.get(lib)}
+        st.caption(" · ".join([f"{lib} {n}" for lib, n in _lib_counts.items()] or ["No control library loaded"])
+                   + f" · {len(in_scope)} controls in scope · {_ctx['indexed_docs']:,} evidence passages indexed"
+                   + f" · {_ctx['bundles']} evidence bundle(s)")
+        with st.expander("How it stays honest"):
+            st.markdown("- **You read first.** The AI proposal stays hidden until your own reading is on record.\n"
+                        "- **The ledger is the record.** Decisions are rebuilt from an append-only event log.\n"
+                        "- **Human on exception.** Automation stops at governed checkpoints; it cannot write your decision.\n"
+                        "- **Results are sealed.** A sealed result never changes in place.\n"
+                        "- **A rating is readiness evidence,** not a compliance determination.")
+        if S.get("guide", True):
+            with st.expander("Guide: the whole workflow, step by step"):
+                tour.render(_ctx, show_all=True)
 
-    st.markdown("#### How it stays honest")
-    st.markdown(
-        '<div class="home-rules">'
-        '<div class="home-rule"><b>You read first</b><div>The AI proposal is hidden until your own reading is on record.</div></div>'
-        '<div class="home-rule"><b>The ledger is the record</b><div>Decisions are rebuilt from the event log. The session cache can never carry one.</div></div>'
-        '<div class="home-rule"><b>Human on exception</b><div>Autopilot stops at governed checkpoints and cannot write a human decision.</div></div>'
-        '<div class="home-rule"><b>Results are sealed</b><div>A sealed GovernanceResult never changes in place. The live view is a projection over them.</div></div>'
-        '</div>', unsafe_allow_html=True)
-
-    if S.get("guide", True):
-        st.markdown("#### Guide")
-        tour.render(_ctx, show_all=True)
 
 # ---------- AI Auditor control plane (WB-115) ----------
-with tab_ai:
-    st.markdown('<div class="gaar-hero"><div class="gaar-kicker">AI AUDITOR</div>'
-                '<div class="gaar-title">Governed Review Conductor</div>'
-                '<div class="gaar-sub">Runs machine-owned audit skills to the next policy-defined human checkpoint. It cannot record a human read or final governance decision.</div></div>',
-                unsafe_allow_html=True)
-    _queue = build_queue(in_scope, cycle_states=_cycle_states(), cache=S) if controls else []
-    _standup = standup_summary(_queue)
-    _metrics = ai_decision_metrics()
-    m1,m2,m3,m4,m5 = st.columns(5)
-    m1.metric("In scope", _standup["in_scope"])
-    m2.metric("Needs human read", _standup["human_read"])
-    m3.metric("Exceptions", _standup["exceptions"])
-    m4.metric("Ready for decision", _standup["decisions"])
-    m5.metric("Recorded decisions", _metrics["total"])
-    st.caption("Framework coverage from the authoritative decision ledger: " +
-               " · ".join(f"{k} {v}" for k,v in sorted(_metrics["by_framework"].items())) if _metrics["by_framework"] else
-               "No governance decisions recorded yet.")
+if tab_ai.shown:
+    with tab_ai:
+        st.markdown('<div class="gaar-hero"><div class="gaar-kicker">AI AUDITOR</div>'
+                    '<div class="gaar-title">Governed Review Conductor</div>'
+                    '<div class="gaar-sub">Runs machine-owned audit skills to the next policy-defined human checkpoint. It cannot record a human read or final governance decision.</div></div>',
+                    unsafe_allow_html=True)
+        _queue = build_queue(in_scope, cycle_states=_cycle_states(), cache=S) if controls else []
+        _standup = standup_summary(_queue)
+        _metrics = ai_decision_metrics()
+        m1,m2,m3,m4,m5 = st.columns(5)
+        m1.metric("In scope", _standup["in_scope"])
+        m2.metric("Needs human read", _standup["human_read"])
+        m3.metric("Exceptions", _standup["exceptions"])
+        m4.metric("Ready for decision", _standup["decisions"])
+        m5.metric("Recorded decisions", _metrics["total"])
+        st.caption("Framework coverage from the authoritative decision ledger: " +
+                   " · ".join(f"{k} {v}" for k,v in sorted(_metrics["by_framework"].items())) if _metrics["by_framework"] else
+                   "No governance decisions recorded yet.")
 
-    if _standup["top_attention"]:
-        st.markdown("### Audit stand-up · attention now")
-        st.dataframe([{
-            "Framework": r["library"], "Control": r["control_id"],
-            "Next": r["next_action"]["label"],
-            "Strong challenges": (r.get("challenge") or {}).get("unresolved_strong", 0),
-            "Cycle": r.get("cycle_id") or "—",
-        } for r in _standup["top_attention"]], width="stretch", hide_index=True)
+        if _standup["top_attention"]:
+            st.markdown("### Audit stand-up · attention now")
+            st.dataframe([{
+                "Framework": r["library"], "Control": r["control_id"],
+                "Next": r["next_action"]["label"],
+                "Strong challenges": (r.get("challenge") or {}).get("unresolved_strong", 0),
+                "Cycle": r.get("cycle_id") or "—",
+            } for r in _standup["top_attention"]], width="stretch", hide_index=True)
 
-    _cycles = []
-    for r in _queue:
-        if r.get("cycle_id"):
-            _cycles.append((f"{r['library']} · {r['control_id']} · {r['next_action']['label']}", r["cycle_id"]))
-    if _cycles:
-        _choice = st.selectbox("Open AI Auditor cycle", options=list(range(len(_cycles))),
-                               format_func=lambda i: _cycles[i][0], key="ai_auditor_cycle")
-        _cid = _cycles[_choice][1]
-        _conductor = ReviewConductor()
-        try:
-            _inspection = _conductor.inspect(_cid)
-            st.markdown(f"**Stage:** `{_inspection.stage}` &nbsp; **Checkpoint:** `{_inspection.checkpoint}`")
-            st.write(_inspection.next_action)
-            with st.expander("WB-123 · Audit package / human-on-exception", expanded=False):
-                st.caption("Read-only preparation: classification cannot bypass the existing cycle blind read, evidence admission, Quality Gate, or human decision.")
-                try:
-                    from governance.audit_package import ReviewContext, prepare_package
-                    _ctx=ReviewContext(risk_tier="unknown", first_assessment=not bool(events.state(_cid).get("decision")))
-                    _pkg=prepare_package(cycle_id=_cid,context=_ctx)
-                    st.write(f"Package: `{_pkg['package_id']}` · {_pkg['status']}")
-                    st.write(f"Policy: {_pkg['review_policy']['name'].upper()}")
-                    for _block in _pkg['blockers']:st.caption("• " + _block)
-                    st.caption("Human decision remains in the Review workspace after the governed checkpoints are met.")
-                except Exception as _pkg_error:
-                    st.error(f"Package inspection: {type(_pkg_error).__name__}: {_pkg_error}")
-            # WB-129: project the CURRENT cycle, never global activity, into one operator outcome.
-            _audit_state = events.state(_cid)
-            _audit_trace = events.cycle(_cid)
-            _audit_living = next((v for v in all_living_views() if
-                v.get("framework") == _audit_state.get("framework") and
-                v.get("control_id") == _audit_state.get("control_id") and
-                any(h.get("cycle_id") == _cid for h in v.get("history", []))), {})
-            _audit_view = audit_outcome(_audit_state, _audit_trace,
-                checkpoint=_inspection.checkpoint, reasons=_inspection.reasons,
-                living=_audit_living)
-            st.markdown("### Your AI audit result")
-            st.subheader(_audit_view["headline"])
-            st.write(_audit_view["detail"])
-            if _audit_view["evidence_free_proposals"]:
-                st.error(f"Integrity check: {_audit_view['evidence_free_proposals']} proposal(s) in THIS cycle predate bound evidence. Do not approve until investigated.")
-            if _audit_view["status"] == "READY_FOR_DECISION":
-                _proposal = _audit_view.get("proposed") or {}
-                st.markdown("**Proposed conclusion (not a human verdict)**")
-                st.json(_proposal, expanded=False)
-            st.info("**Your next action:** " + _audit_view["action"])
-            if _audit_view["status"] == "EVIDENCE_NEEDED":
-                st.caption("Open Review → Evidence, or the Evidence Dossiers area. Scout discoveries must be explicitly admitted before use.")
-            elif _audit_view["status"] == "READY_FOR_DECISION":
-                st.caption("Use Human Decision Queue · WB-127 to approve, investigate, or reject this proposal.")
-            a1,a2 = st.columns(2)
-            _may_run = bool(_audit_state.get("evidence")) and not _audit_view["evidence_free_proposals"]
-            if a1.button("Run AI audit to next safe outcome", type="primary", key="auditor_run_checkpoint",
-                         disabled=S.get("ai_auditor_mode") == "Manual"):
-                if not _may_run:
-                    st.warning("No grounded run started: " + _audit_view["action"])
-                else:
-                    with st.spinner("Preparing an evidence-grounded audit outcome…"):
-                        _out = _conductor.run_to_checkpoint(_cid, actor="ai-auditor", reviewer_actor=S.get("reviewer") or None)
-                    st.session_state["wb129_last_outcome"] = {"cycle_id": _cid, "checkpoint": _out.checkpoint, "action": _out.next_action}
-                    st.rerun()
-            if st.session_state.get("wb129_last_outcome", {}).get("cycle_id") == _cid:
-                with st.expander("Last execution outcome"):
-                    st.write(st.session_state["wb129_last_outcome"])
-            if a2.button("Generate grounded control narrative", key="auditor_narrative"):
-                with st.spinner("Building an evidence-anchored control narrative…"):
+        _cycles = []
+        for r in _queue:
+            if r.get("cycle_id"):
+                _cycles.append((f"{r['library']} · {r['control_id']} · {r['next_action']['label']}", r["cycle_id"]))
+        if _cycles:
+            _choice = st.selectbox("Open AI Auditor cycle", options=list(range(len(_cycles))),
+                                   format_func=lambda i: _cycles[i][0], key="ai_auditor_cycle")
+            _cid = _cycles[_choice][1]
+            _conductor = ReviewConductor()
+            try:
+                _inspection = _conductor.inspect(_cid)
+                st.markdown(f"**Stage:** `{_inspection.stage}` &nbsp; **Checkpoint:** `{_inspection.checkpoint}`")
+                st.write(_inspection.next_action)
+                with st.expander("WB-123 · Audit package / human-on-exception", expanded=False):
+                    st.caption("Read-only preparation: classification cannot bypass the existing cycle blind read, evidence admission, Quality Gate, or human decision.")
                     try:
-                        _narr = _conductor.control_narrative(_cid)
-                        st.session_state["auditor_narrative_output"] = _narr.model_dump()
-                    except Exception as _exc:
-                        st.error(f"Narrative unavailable: {type(_exc).__name__}: {_exc}")
-            if st.session_state.get("auditor_narrative_output"):
-                _n = st.session_state["auditor_narrative_output"]
-                st.markdown("### Control narrative")
-                st.write(_n.get("narrative", ""))
-                c1,c2 = st.columns(2)
-                with c1:
-                    st.markdown("**What the evidence demonstrates**")
-                    for x in _n.get("demonstrates") or []: st.markdown(f"- {x}")
-                with c2:
-                    st.markdown("**What this does not prove**")
-                    for x in _n.get("limitations") or []: st.markdown(f"- {x}")
-                with st.expander("Evidence anchors"):
-                    for x in _n.get("evidence_anchors") or []:
-                        st.code(x.get("quote", ""), language="text")
-                        st.caption(f"{x.get('locator','')} · {x.get('purpose','')}")
-        except Exception as _exc:
-            st.error(f"AI Auditor inspection failed: {type(_exc).__name__}: {_exc}")
+                        from governance.audit_package import ReviewContext, prepare_package
+                        _ctx=ReviewContext(risk_tier="unknown", first_assessment=not bool(events.state(_cid).get("decision")))
+                        _pkg=prepare_package(cycle_id=_cid,context=_ctx)
+                        st.write(f"Package: `{_pkg['package_id']}` · {_pkg['status']}")
+                        st.write(f"Policy: {_pkg['review_policy']['name'].upper()}")
+                        for _block in _pkg['blockers']:st.caption("• " + _block)
+                        st.caption("Human decision remains in the Review workspace after the governed checkpoints are met.")
+                    except Exception as _pkg_error:
+                        st.error(f"Package inspection: {type(_pkg_error).__name__}: {_pkg_error}")
+                # WB-129: project the CURRENT cycle, never global activity, into one operator outcome.
+                _audit_state = events.state(_cid)
+                _audit_trace = events.cycle(_cid)
+                _audit_living = next((v for v in all_living_views() if
+                    v.get("framework") == _audit_state.get("framework") and
+                    v.get("control_id") == _audit_state.get("control_id") and
+                    any(h.get("cycle_id") == _cid for h in v.get("history", []))), {})
+                _audit_view = audit_outcome(_audit_state, _audit_trace,
+                    checkpoint=_inspection.checkpoint, reasons=_inspection.reasons,
+                    living=_audit_living)
+                st.markdown("### Your AI audit result")
+                st.subheader(_audit_view["headline"])
+                st.write(_audit_view["detail"])
+                if _audit_view["evidence_free_proposals"]:
+                    st.error(f"Integrity check: {_audit_view['evidence_free_proposals']} proposal(s) in THIS cycle predate bound evidence. Do not approve until investigated.")
+                if _audit_view["status"] == "READY_FOR_DECISION":
+                    _proposal = _audit_view.get("proposed") or {}
+                    st.markdown("**Proposed conclusion (not a human verdict)**")
+                    st.json(_proposal, expanded=False)
+                st.info("**Your next action:** " + _audit_view["action"])
+                if _audit_view["status"] == "EVIDENCE_NEEDED":
+                    st.caption("Open Review → Evidence, or the Evidence Dossiers area. Scout discoveries must be explicitly admitted before use.")
+                elif _audit_view["status"] == "READY_FOR_DECISION":
+                    st.caption("Use Human Decision Queue · WB-127 to approve, investigate, or reject this proposal.")
+                a1,a2 = st.columns(2)
+                _may_run = bool(_audit_state.get("evidence")) and not _audit_view["evidence_free_proposals"]
+                if a1.button("Run AI audit to next safe outcome", type="primary", key="auditor_run_checkpoint",
+                             disabled=S.get("ai_auditor_mode") == "Manual"):
+                    if not _may_run:
+                        st.warning("No grounded run started: " + _audit_view["action"])
+                    else:
+                        with st.spinner("Preparing an evidence-grounded audit outcome…"):
+                            _out = _conductor.run_to_checkpoint(_cid, actor="ai-auditor", reviewer_actor=S.get("reviewer") or None)
+                        st.session_state["wb129_last_outcome"] = {"cycle_id": _cid, "checkpoint": _out.checkpoint, "action": _out.next_action}
+                        st.rerun()
+                if st.session_state.get("wb129_last_outcome", {}).get("cycle_id") == _cid:
+                    with st.expander("Last execution outcome"):
+                        st.write(st.session_state["wb129_last_outcome"])
+                if a2.button("Generate grounded control narrative", key="auditor_narrative"):
+                    with st.spinner("Building an evidence-anchored control narrative…"):
+                        try:
+                            _narr = _conductor.control_narrative(_cid)
+                            st.session_state["auditor_narrative_output"] = _narr.model_dump()
+                        except Exception as _exc:
+                            st.error(f"Narrative unavailable: {type(_exc).__name__}: {_exc}")
+                if st.session_state.get("auditor_narrative_output"):
+                    _n = st.session_state["auditor_narrative_output"]
+                    st.markdown("### Control narrative")
+                    st.write(_n.get("narrative", ""))
+                    c1,c2 = st.columns(2)
+                    with c1:
+                        st.markdown("**What the evidence demonstrates**")
+                        for x in _n.get("demonstrates") or []: st.markdown(f"- {x}")
+                    with c2:
+                        st.markdown("**What this does not prove**")
+                        for x in _n.get("limitations") or []: st.markdown(f"- {x}")
+                    with st.expander("Evidence anchors"):
+                        for x in _n.get("evidence_anchors") or []:
+                            st.code(x.get("quote", ""), language="text")
+                            st.caption(f"{x.get('locator','')} · {x.get('purpose','')}")
+            except Exception as _exc:
+                st.error(f"AI Auditor inspection failed: {type(_exc).__name__}: {_exc}")
 
-        with st.expander("Technical trace · selected cycle only", expanded=False):
-            _state = events.state(_cid)
-            _stage_names = {
-                "cycle_started":"START", "evidence_bound":"EVIDENCE", "gap_scanned":"CHECK",
-                "proposed":"ASSESS", "read":"HUMAN", "compared":"COMPARE", "challenged":"CHALLENGE",
-                "copilot_presented":"COPILOT", "challenge_copilot_presented":"COPILOT", "decided":"DECISION",
-            }
-            _timeline = []
-            for _e in events.cycle(_cid):
-                _timeline.append({"When": _e.get("ts"), "Stage": _stage_names.get(_e.get("kind"), _e.get("kind", "").upper()),
-                                  "Actor": _e.get("actor"), "Event": _e.get("kind"), "Event ID": _e.get("event_id")})
-            st.dataframe(_timeline, width="stretch", hide_index=True)
-    else:
-        st.info("Start a review cycle to activate the AI Auditor. The Conductor never creates a human read or final decision on its own.")
+            with st.expander("Technical trace · selected cycle only", expanded=False):
+                _state = events.state(_cid)
+                _stage_names = {
+                    "cycle_started":"START", "evidence_bound":"EVIDENCE", "gap_scanned":"CHECK",
+                    "proposed":"ASSESS", "read":"HUMAN", "compared":"COMPARE", "challenged":"CHALLENGE",
+                    "copilot_presented":"COPILOT", "challenge_copilot_presented":"COPILOT", "decided":"DECISION",
+                }
+                _timeline = []
+                for _e in events.cycle(_cid):
+                    _timeline.append({"When": _e.get("ts"), "Stage": _stage_names.get(_e.get("kind"), _e.get("kind", "").upper()),
+                                      "Actor": _e.get("actor"), "Event": _e.get("kind"), "Event ID": _e.get("event_id")})
+                st.dataframe(_timeline, width="stretch", hide_index=True)
+        else:
+            st.info("Start a review cycle to activate the AI Auditor. The Conductor never creates a human read or final decision on its own.")
 
-    with st.expander("WB-123 · Unified activity timeline", expanded=False):
-        try:
-            from governance.audit_package.mission_control import timeline as _wb123_timeline
-            _rows=_wb123_timeline(30)
-            if _rows:st.dataframe(_rows,width="stretch",hide_index=True)
-            else:st.info("No ledger-backed activity yet.")
-        except Exception as _tl_error:
-            st.warning(f"Cannot verify activity timeline: {type(_tl_error).__name__}: {_tl_error}")
+        with st.expander("WB-123 · Unified activity timeline", expanded=False):
+            try:
+                from governance.audit_package.mission_control import timeline as _wb123_timeline
+                _rows=_wb123_timeline(30)
+                if _rows:st.dataframe(_rows,width="stretch",hide_index=True)
+                else:st.info("No ledger-backed activity yet.")
+            except Exception as _tl_error:
+                st.warning(f"Cannot verify activity timeline: {type(_tl_error).__name__}: {_tl_error}")
 
 # ---------- Continuous Governance Autopilot (G / WB-118) ----------
-with tab_auto:
-    st.markdown('<div class="gaar-hero"><div class="gaar-kicker">CONTINUOUS GOVERNANCE</div>'
-                '<div class="gaar-title">Autopilot · governed breathing loop</div>'
-                '<div class="gaar-sub">Projects the append-only trigger/job ledgers. Autopilot may advance machine-owned nodes, but cannot synthesize a human read or final governance decision.</div></div>',
-                unsafe_allow_html=True)
-    try:
-        _ap_policy = load_autopilot_policy()
-        _ap_sched = AutopilotScheduler(policy=_ap_policy)
-        _ap_status = _ap_sched.status()
-        _ap_triggers = TriggerStore().read()
-        aa1,aa2,aa3,aa4,aa5 = st.columns(5)
-        aa1.metric("Autopilot", "ON" if _ap_status["enabled"] else "OFF")
-        aa2.metric("Triggers", len(_ap_triggers))
-        aa3.metric("Queued", _ap_status["queue_depth"])
-        aa4.metric("In flight", _ap_status["in_flight"])
-        aa5.metric("Human attention", _ap_status["counts"].get("WAITING_HUMAN", 0))
-        st.caption(f"Concurrency limit: {_ap_status['max_concurrent']} · policy-driven orchestration · append-only trigger/job ledgers")
-        st.markdown("### Where should I pay attention?")
-        st.caption("Read-only attention map across in-scope controls. This is NOT a likelihood × impact risk assessment or evidence that live regulatory monitoring is running.")
+if tab_auto.shown:
+    with tab_auto:
+        st.markdown('<div class="gaar-hero"><div class="gaar-kicker">CONTINUOUS GOVERNANCE</div>'
+                    '<div class="gaar-title">Autopilot · governed breathing loop</div>'
+                    '<div class="gaar-sub">Projects the append-only trigger/job ledgers. Autopilot may advance machine-owned nodes, but cannot synthesize a human read or final governance decision.</div></div>',
+                    unsafe_allow_html=True)
         try:
-            _ap_queue = build_queue(in_scope, cycle_states=_cycle_states(), cache=S) if controls else []
-            _ap_views = all_living_views()
-            _ap_health = [WatcherHealthStore().latest(src.source_id) or {}
-                          for src in load_watcher_sources()]
-            _snap = portfolio_snapshot(_ap_queue, _ap_views, _ap_status['jobs'], _ap_health)
-            if not _ap_status['jobs']:
-                st.warning("Autopilot is enabled, but no continuous-audit jobs are recorded. ON is a setting, not proof of monitoring. Set up approved sources and a scheduled Watcher/Autopilot runner to start continuous work.")
-            h1,h2,h3,h4=st.columns(4)
-            h1.metric("Exception / blocked", _snap['statuses']['Exception / blocked'])
-            h2.metric("Need evidence", _snap['statuses']['Evidence missing'])
-            h3.metric("Reassessment due", _snap['statuses']['Reassessment due'])
-            h4.metric("Current & gate passed", _snap['statuses']['Current / gate passed'])
-            if _snap['total']:
-                import html as _html
-                _columns=['Exception / blocked','Reassessment due','Evidence missing','Human attention','Not yet verified','Current / gate passed']
-                _palette={'Exception / blocked':'#8f2938','Reassessment due':'#9a4e20',
-                          'Evidence missing':'#92630d','Human attention':'#574ca1',
-                          'Not yet verified':'#334559','Current / gate passed':'#21584a'}
-                _rows_html=[]
-                for _theme, _counts in _snap['by_theme'].items():
-                    _cells=''.join(f'<td title="{_html.escape(_cat)}" style="background:{_palette[_cat]};color:#fff;text-align:center;padding:10px;border:3px solid #101923">{_counts.get(_cat,0) if _counts.get(_cat,0) else "—"}</td>' for _cat in _columns)
-                    _rows_html.append(f'<tr><th style="text-align:left;padding:9px;white-space:nowrap">{_html.escape(_theme)}</th>{_cells}</tr>')
-                _head=''.join(f'<th style="padding:8px;min-width:90px">{_html.escape(_cat)}</th>' for _cat in _columns)
-                st.markdown('<div style="overflow-x:auto"><table style="width:100%;font-size:.82rem"><thead><tr><th>Control theme</th>'+_head+'</tr></thead><tbody>'+''.join(_rows_html)+'</tbody></table></div>',unsafe_allow_html=True)
-                st.caption("Themes use transparent title-keyword mapping; 'Other / unmapped' is retained. A cell counts controls, not severity. No inference that missing evidence means a failed control.")
-                st.markdown("#### Documented findings by theme")
-                if _snap['documented_findings']:
-                    st.dataframe([{'Theme':k, 'Human FAIL':v.get('FAIL',0), 'Human CONDITIONAL_PASS':v.get('CONDITIONAL_PASS',0), 'Human PASS':v.get('PASS',0)}
-                                  for k,v in _snap['documented_findings'].items()],width='stretch',hide_index=True)
-                    st.caption("Counts only human-decided sealed results with CURRENT / REVIEW_REQUIRED / REASSESSING state; not predictions or a risk score.")
+            _ap_policy = load_autopilot_policy()
+            _ap_sched = AutopilotScheduler(policy=_ap_policy)
+            _ap_status = _ap_sched.status()
+            _ap_triggers = TriggerStore().read()
+            aa1,aa2,aa3,aa4,aa5 = st.columns(5)
+            aa1.metric("Autopilot", "ON" if _ap_status["enabled"] else "OFF")
+            aa2.metric("Triggers", len(_ap_triggers))
+            aa3.metric("Queued", _ap_status["queue_depth"])
+            aa4.metric("In flight", _ap_status["in_flight"])
+            aa5.metric("Human attention", _ap_status["counts"].get("WAITING_HUMAN", 0))
+            st.caption(f"Concurrency limit: {_ap_status['max_concurrent']} · policy-driven orchestration · append-only trigger/job ledgers")
+            st.markdown("### Where should I pay attention?")
+            st.caption("Read-only attention map across in-scope controls. This is NOT a likelihood × impact risk assessment or evidence that live regulatory monitoring is running.")
+            try:
+                _ap_queue = build_queue(in_scope, cycle_states=_cycle_states(), cache=S) if controls else []
+                _ap_views = all_living_views()
+                _ap_health = [WatcherHealthStore().latest(src.source_id) or {}
+                              for src in load_watcher_sources()]
+                _snap = portfolio_snapshot(_ap_queue, _ap_views, _ap_status['jobs'], _ap_health)
+                if not _ap_status['jobs']:
+                    st.warning("Autopilot is enabled, but no continuous-audit jobs are recorded. ON is a setting, not proof of monitoring. Set up approved sources and a scheduled Watcher/Autopilot runner to start continuous work.")
+                h1,h2,h3,h4=st.columns(4)
+                h1.metric("Exception / blocked", _snap['statuses']['Exception / blocked'])
+                h2.metric("Need evidence", _snap['statuses']['Evidence missing'])
+                h3.metric("Reassessment due", _snap['statuses']['Reassessment due'])
+                h4.metric("Current & gate passed", _snap['statuses']['Current / gate passed'])
+                if _snap['total']:
+                    import html as _html
+                    _columns=['Exception / blocked','Reassessment due','Evidence missing','Human attention','Not yet verified','Current / gate passed']
+                    _palette={'Exception / blocked':'#8f2938','Reassessment due':'#9a4e20',
+                              'Evidence missing':'#92630d','Human attention':'#574ca1',
+                              'Not yet verified':'#334559','Current / gate passed':'#21584a'}
+                    _rows_html=[]
+                    for _theme, _counts in _snap['by_theme'].items():
+                        _cells=''.join(f'<td title="{_html.escape(_cat)}" style="background:{_palette[_cat]};color:#fff;text-align:center;padding:10px;border:3px solid #101923">{_counts.get(_cat,0) if _counts.get(_cat,0) else "—"}</td>' for _cat in _columns)
+                        _rows_html.append(f'<tr><th style="text-align:left;padding:9px;white-space:nowrap">{_html.escape(_theme)}</th>{_cells}</tr>')
+                    _head=''.join(f'<th style="padding:8px;min-width:90px">{_html.escape(_cat)}</th>' for _cat in _columns)
+                    st.markdown('<div style="overflow-x:auto"><table style="width:100%;font-size:.82rem"><thead><tr><th>Control theme</th>'+_head+'</tr></thead><tbody>'+''.join(_rows_html)+'</tbody></table></div>',unsafe_allow_html=True)
+                    st.caption("Themes use transparent title-keyword mapping; 'Other / unmapped' is retained. A cell counts controls, not severity. No inference that missing evidence means a failed control.")
+                    st.markdown("#### Documented findings by theme")
+                    if _snap['documented_findings']:
+                        st.dataframe([{'Theme':k, 'Human FAIL':v.get('FAIL',0), 'Human CONDITIONAL_PASS':v.get('CONDITIONAL_PASS',0), 'Human PASS':v.get('PASS',0)}
+                                      for k,v in _snap['documented_findings'].items()],width='stretch',hide_index=True)
+                        st.caption("Counts only human-decided sealed results with CURRENT / REVIEW_REQUIRED / REASSESSING state; not predictions or a risk score.")
+                    else:
+                        st.info("No qualifying human-decided Governance Results yet. GaaR cannot honestly identify proven risk themes from unassessed controls.")
+                    st.markdown("#### Attention list — open these controls first")
+                    if _snap['hotspots']:
+                        _filter = st.selectbox("Show", ['All','Exception / blocked','Reassessment due','Evidence missing','Human attention','Not yet verified'],key='wb130_attention_filter')
+                        st.dataframe([r for r in _snap['hotspots'] if _filter == 'All' or r['Attention'] == _filter],width='stretch',hide_index=True)
+                    else:
+                        st.success("No attention items in the in-scope queue; check source and monitoring health before interpreting this as assurance.")
                 else:
-                    st.info("No qualifying human-decided Governance Results yet. GaaR cannot honestly identify proven risk themes from unassessed controls.")
-                st.markdown("#### Attention list — open these controls first")
-                if _snap['hotspots']:
-                    _filter = st.selectbox("Show", ['All','Exception / blocked','Reassessment due','Evidence missing','Human attention','Not yet verified'],key='wb130_attention_filter')
-                    st.dataframe([r for r in _snap['hotspots'] if _filter == 'All' or r['Attention'] == _filter],width='stretch',hide_index=True)
-                else:
-                    st.success("No attention items in the in-scope queue; check source and monitoring health before interpreting this as assurance.")
+                    st.info("No controls in scope. Choose a framework and load the governed playbook to build an attention map.")
+                if not _ap_health:
+                    st.warning("No active Watcher sources. Continuous regulatory coverage is NOT verified.")
+                elif _snap['watcher_degraded']:
+                    st.warning(f"{_snap['watcher_degraded']} Watcher source(s) degraded/blocked/stale; inspect Watcher source health.")
+                elif not _snap['watcher_healthy']:
+                    st.warning("No Watcher source reports OK in its latest health receipt. Do not interpret 0 triggers as no change.")
+            except Exception as _map_error:
+                st.warning(f"Attention map unavailable; no substitute statistics generated: {type(_map_error).__name__}: {_map_error}")
+            if _ap_status["jobs"]:
+                st.markdown("### Governance flow")
+                _rows=[]
+                for _j in sorted(_ap_status["jobs"], key=lambda x:x.updated_at, reverse=True):
+                    _rows.append({"Updated":_j.updated_at,"Framework":_j.framework,"Control":_j.control_id,"Status":_j.status.value,
+                                  "Checkpoint":_j.checkpoint or "—","Outcome":_j.outcome or "—","Cycle":_j.cycle_id or "—","Job":_j.job_id})
+                st.dataframe(_rows,width="stretch",hide_index=True)
             else:
-                st.info("No controls in scope. Choose a framework and load the governed playbook to build an attention map.")
-            if not _ap_health:
-                st.warning("No active Watcher sources. Continuous regulatory coverage is NOT verified.")
-            elif _snap['watcher_degraded']:
-                st.warning(f"{_snap['watcher_degraded']} Watcher source(s) degraded/blocked/stale; inspect Watcher source health.")
-            elif not _snap['watcher_healthy']:
-                st.warning("No Watcher source reports OK in its latest health receipt. Do not interpret 0 triggers as no change.")
-        except Exception as _map_error:
-            st.warning(f"Attention map unavailable; no substitute statistics generated: {type(_map_error).__name__}: {_map_error}")
-        if _ap_status["jobs"]:
-            st.markdown("### Governance flow")
-            _rows=[]
-            for _j in sorted(_ap_status["jobs"], key=lambda x:x.updated_at, reverse=True):
-                _rows.append({"Updated":_j.updated_at,"Framework":_j.framework,"Control":_j.control_id,"Status":_j.status.value,
-                              "Checkpoint":_j.checkpoint or "—","Outcome":_j.outcome or "—","Cycle":_j.cycle_id or "—","Job":_j.job_id})
-            st.dataframe(_rows,width="stretch",hide_index=True)
-        else:
-            st.info("No continuous-governance jobs have been queued yet. Use the governed change pipeline or tools/autopilot_trigger.py for a manual trigger.")
-        with st.expander("Autopilot policy", expanded=False):
-            st.json({
-                "enabled": _ap_policy.enabled,
-                "max_concurrent_reassessments": _ap_policy.max_concurrent_reassessments,
-                "evidence_sufficiency_threshold": _ap_policy.evidence_sufficiency_threshold,
-                "max_evidence_age_days": _ap_policy.max_evidence_age_days,
-                "human_checkpoint_triggers": list(_ap_policy.human_checkpoint_triggers),
-                "colibri_policy": _ap_policy.colibri_policy,
-                "colibri_triggers": list(_ap_policy.colibri_triggers),
-            })
-        st.markdown("### Breathing loop")
-        st.code("MONITOR → IMPACT → REVIEW_REQUIRED → REASSESS → AI AUDITOR → HUMAN CHECKPOINT → QUALITY GATE → LIVING RESULT → MONITOR", language="text")
-    except Exception as _exc:
-        st.error(f"Autopilot status unavailable: {type(_exc).__name__}: {_exc}")
+                st.info("No continuous-governance jobs have been queued yet. Use the governed change pipeline or tools/autopilot_trigger.py for a manual trigger.")
+            with st.expander("Autopilot policy", expanded=False):
+                st.json({
+                    "enabled": _ap_policy.enabled,
+                    "max_concurrent_reassessments": _ap_policy.max_concurrent_reassessments,
+                    "evidence_sufficiency_threshold": _ap_policy.evidence_sufficiency_threshold,
+                    "max_evidence_age_days": _ap_policy.max_evidence_age_days,
+                    "human_checkpoint_triggers": list(_ap_policy.human_checkpoint_triggers),
+                    "colibri_policy": _ap_policy.colibri_policy,
+                    "colibri_triggers": list(_ap_policy.colibri_triggers),
+                })
+            st.markdown("### Breathing loop")
+            st.code("MONITOR → IMPACT → REVIEW_REQUIRED → REASSESS → AI AUDITOR → HUMAN CHECKPOINT → QUALITY GATE → LIVING RESULT → MONITOR", language="text")
+        except Exception as _exc:
+            st.error(f"Autopilot status unavailable: {type(_exc).__name__}: {_exc}")
 
 # ---------- Regulatory Watcher Agent (WB-119) ----------
-with tab_watch:
-    st.markdown('<div class="gaar-hero"><div class="gaar-kicker">REGULATORY WATCHER</div>'
-                '<div class="gaar-title">What changed, what needs attention, what happens next</div>'
-                '<div class="gaar-sub">The Watcher discovers publications. You confirm one reviewed version once; the system preserves, signs and sends it to impact review. Discovery alone never changes a governance result.</div></div>',
-                unsafe_allow_html=True)
-    try:
-        _watch_sources = list(load_watcher_sources())
-        _watch_emissions = WatcherEmissionStore().read()
-        _watch_health_store = WatcherHealthStore()
-        _watch_cursors = WatcherCursorStore()
-        _emitted = sum((r.get("payload") or {}).get("emission_status") == "EMITTED" for r in _watch_emissions)
-        _background = sum((r.get("payload") or {}).get("emission_status") == "BACKGROUND_ONLY" for r in _watch_emissions)
-        _below = sum((r.get("payload") or {}).get("emission_status") == "BELOW_POLICY_THRESHOLD" for r in _watch_emissions)
-        _git = WatcherGitflow()
-        _git_status = _git.status()
-        _scout_runs = EvidenceScoutStore().read()
-        _review_candidates = [r.get("payload") or {} for r in _watch_emissions if
-                              (r.get("payload") or {}).get("emission_status") == "REVIEW_CANDIDATE"]
-        from governance.watcher.operator_view import summary as _watcher_plain_summary
-        _plain_source_states=[]
-        if _watch_sources:
-            _source_rows=[]
-            for _src in _watch_sources:
-                _h=_watch_health_store.latest(_src.source_id) or {}
-                _health_label=_h.get("status","NOT_RUN")
-                if _health_label=="OK" and _h.get("at"):
-                    try:
-                        _checked=dt.datetime.fromisoformat(str(_h["at"]).replace("Z","+00:00"))
-                        _max_age=float(_src.schedule.get("max_staleness_hours",48))
-                        if (dt.datetime.now(dt.timezone.utc)-_checked).total_seconds() > _max_age*3600:
-                            _health_label="STALE"
-                    except (ValueError,TypeError): _health_label="DEGRADED"
-                _source_rows.append({
-                    "Source":_src.source_id, "Authority ceiling":_src.authority.value, "Jurisdiction":_src.jurisdiction,
-                    "Connector":_src.connector.get("type"), "Cursor":_watch_cursors.get(_src.source_id) or "—",
-                    "Health":_health_label, "Last checked":_h.get("at","—"),
-                    "Failures":_h.get("consecutive_failures",0),
-                    "Last fetched":_h.get("fetched",0), "Review candidates":_h.get("review_candidates",0),
-                })
-                _plain_source_states.append({"source_id":_src.source_id,"jurisdiction":_src.jurisdiction,
-                                             "status":_health_label,"checked_at":_h.get("at")})
-        _watcher_summary=_watcher_plain_summary(_plain_source_states,len(_review_candidates))
-        _wc=_watcher_summary["counts"]
-        w1,w2,w3,w4=st.columns(4)
-        w1.metric("Sources working",_wc["Working"])
-        w2.metric("Needs review",len(_review_candidates))
-        w3.metric("Blocked / attention",_wc["Blocked"]+_wc["Attention"])
-        w4.metric("Sent to impact review",sum(p.get("relationship_status")=="IMPACT_REVIEW" for p in _git_status["pushed"]))
-        st.info("**Next action:** "+_watcher_summary["next_action"])
-        st.caption("Blocked or unchecked sources are never treated as up to date. A publication is never treated as an applicable rule until a human confirms its type, lifecycle and affected controls.")
-        if _watcher_summary["rows"]:
-            st.dataframe(_watcher_summary["rows"],width="stretch",hide_index=True)
-        else:
-            st.warning("No enabled source is being monitored. This is NOT evidence that nothing changed.")
+if tab_watch.shown:
+    with tab_watch:
+        st.markdown('<div class="gaar-hero"><div class="gaar-kicker">REGULATORY WATCHER</div>'
+                    '<div class="gaar-title">What changed, what needs attention, what happens next</div>'
+                    '<div class="gaar-sub">The Watcher discovers publications. You confirm one reviewed version once; the system preserves, signs and sends it to impact review. Discovery alone never changes a governance result.</div></div>',
+                    unsafe_allow_html=True)
         try:
-            from governance.maturity import evaluate as _maturity_evaluate
-            _maturity=_maturity_evaluate("M3.6","MAS")
-            with st.expander(f"GaaR proof progress · {_maturity['green']}/{_maturity['total']} milestones ({_maturity['percent']}%)",expanded=False):
-                st.dataframe([{"Milestone":m["number"],"Proof":m["name"],"Status":m["status"],
-                               "Evidence":m["evidence"],"Next action":m["next_action"]}
-                              for m in _maturity["milestones"]],width="stretch",hide_index=True)
-                st.caption("Only durable ledger artifacts turn a milestone GREEN; configuration and demo activity do not.")
-        except Exception as _maturity_error:
-            st.warning(f"Maturity board unavailable: {type(_maturity_error).__name__}: {_maturity_error}")
-        with st.expander("Technical source health and recent decisions",expanded=False):
-            if _watch_sources: st.dataframe(_source_rows,width="stretch",hide_index=True)
-            if _watch_emissions:
-                _rows=[]
-                for _r in reversed(_watch_emissions[-25:]):
-                    _p=_r.get("payload") or {}
-                    _rows.append({"When":_p.get("emitted_at"),"Source":_p.get("source_id"),"Title":_p.get("document_title"),
-                                  "Authority":_p.get("authority"),"Materiality":_p.get("materiality_score"),
-                                  "Status":_p.get("emission_status"),"Change ID":_p.get("change_id")})
-                st.dataframe(_rows,width="stretch",hide_index=True)
-        # WB-134: separate source availability from publication classification.
-        # These are observed configured-feed scan outcomes, not claims of
-        # exhaustive regulator-site or full-PDF coverage.
-        try:
-            from governance.watcher.update_centre import ScanReceipts, domain_suggestions
-            from governance.watcher.policy import DEFAULT_CONFIG
-            import yaml as _watch_yaml
-            from pathlib import Path as _watch_path
-            _source_rows=(_watch_yaml.safe_load(_watch_path(os.environ.get("WB_GAAR_WATCHER_CONFIG") or DEFAULT_CONFIG).read_text(encoding="utf-8")) or {}).get("sources") or []
-            _scan_receipts=ScanReceipts()
-            st.markdown("### Source administration")
-            st.caption("Optional technical controls. The plain-language status above is the normal operator view.")
-            _scan_rows=[]
-            for _src in _source_rows:
-                _source_state=_scan_receipts.status(str(_src.get("source_id")),enabled=bool(_src.get("enabled",True)))
-                _scan_rows.append({"Source":_src.get("source_id"),"Jurisdiction":_src.get("jurisdiction"),"Update status":_source_state.get("status"),"Last check":_source_state.get("checked_at") or "Never", "New snapshots":_source_state.get("discovered",0),"Details":_source_state.get("error") or _source_state.get("message") or ""})
-            if _scan_rows:
-                with st.expander("Feed polling details",expanded=False):
-                    st.caption("Up to date means this configured feed succeeded; it does not certify the whole regulator website.")
-                    st.dataframe(_scan_rows,width="stretch",hide_index=True)
-            if not any(_s.get("enabled",True) for _s in _source_rows):
-                st.info("No live sources enabled. Configure a vetted feed, then run the opt-in Watcher scheduler. Zero updates here is not proof of no new regulation.")
-            _domain_rows=[]
-            for _record in reversed(_watch_emissions[-100:]):
-                _p=_record.get("payload") or {}
-                if _p.get("emission_status") in {"INVALID_DOCUMENT"}: continue
-                _domain_rows.append({"Publication":_p.get("document_title"),"Source":_p.get("source_id"),"Suggested domain":", ".join(domain_suggestions(str(_p.get("document_title") or ""))),"Status":_p.get("emission_status"),"Official URL":_p.get("document_url")})
-            if _domain_rows:
-                with st.expander("Suggested publication domains",expanded=False):
-                    st.caption("Suggestions only; they are not legal classifications.")
-                    st.dataframe(_domain_rows,width="stretch",hide_index=True)
-        except Exception as _update_error:
-            st.warning(f"Publication Update Centre unavailable: {_update_error}")
-        # WB-135: official publication-index sensor, independent of existing basis.
-        # A successful bounded index scan does not prove that all regulator PDFs were inspected.
-        try:
-            from governance.watcher.official_index import (OfficialIndexMonitor, load_manifest,
-                                                           scan_due as _scan_official_indexes)
-            import yaml as _basis_yaml
-            from pathlib import Path as _basis_path
-            _basis_pathname=_basis_path(__file__).resolve().parent/'config'/'governance_basis_status.yaml'
-            _basis=_basis_yaml.safe_load(_basis_pathname.read_text(encoding='utf-8'))
-            st.markdown("#### Official publication indexes")
-            st.caption("Optional bounded index checks. No new listing changes never means the entire regulator site is unchanged.")
-            _index_monitor=OfficialIndexMonitor()
-            _index_entries=load_manifest()
-            _index_rows=[]
-            for _entry in _index_entries:
-                _state=_index_monitor.status(_entry)
-                _index_rows.append({"Source":_entry['source_id'],"Jurisdiction":_entry.get('jurisdiction'),
-                   "Status":_state['status'],"Last checked":_state.get('checked_at','—'),
-                   "New links":len(_state.get('new') or []),"Listing title changes":len(_state.get('changed_listing') or []),
-                   "Language":_entry.get('language','—'),"Reason":_state.get('error') or '',"Scope":_entry.get('coverage_note') or "Index listing only"})
-            with st.expander("Official index details",expanded=False):
-                st.dataframe(_index_rows,width="stretch",hide_index=True)
-            if st.button("Check enabled official indexes now",key="watcher_official_check"):
-                # Button opt-in per execution; disabled sources remain disabled.
-                with st.spinner("Checking enabled publication indexes..."):
-                    _out=_scan_official_indexes(force=True)
-                st.write([{k:v for k,v in item.items() if k not in ('inventory','new','changed_listing','not_seen_on_current_page')}
-                          for item in _out])
-                st.rerun()
-            with st.expander("Official index changes (discovery only; review original documents before ADD)"):
+            _watch_sources = list(load_watcher_sources())
+            _watch_emissions = WatcherEmissionStore().read()
+            _watch_health_store = WatcherHealthStore()
+            _watch_cursors = WatcherCursorStore()
+            _emitted = sum((r.get("payload") or {}).get("emission_status") == "EMITTED" for r in _watch_emissions)
+            _background = sum((r.get("payload") or {}).get("emission_status") == "BACKGROUND_ONLY" for r in _watch_emissions)
+            _below = sum((r.get("payload") or {}).get("emission_status") == "BELOW_POLICY_THRESHOLD" for r in _watch_emissions)
+            _git = WatcherGitflow()
+            _git_status = _git.status()
+            _scout_runs = EvidenceScoutStore().read()
+            _review_candidates = [r.get("payload") or {} for r in _watch_emissions if
+                                  (r.get("payload") or {}).get("emission_status") == "REVIEW_CANDIDATE"]
+            from governance.watcher.operator_view import summary as _watcher_plain_summary
+            _plain_source_states=[]
+            if _watch_sources:
+                _source_rows=[]
+                for _src in _watch_sources:
+                    _h=_watch_health_store.latest(_src.source_id) or {}
+                    _health_label=_h.get("status","NOT_RUN")
+                    if _health_label=="OK" and _h.get("at"):
+                        try:
+                            _checked=dt.datetime.fromisoformat(str(_h["at"]).replace("Z","+00:00"))
+                            _max_age=float(_src.schedule.get("max_staleness_hours",48))
+                            if (dt.datetime.now(dt.timezone.utc)-_checked).total_seconds() > _max_age*3600:
+                                _health_label="STALE"
+                        except (ValueError,TypeError): _health_label="DEGRADED"
+                    _source_rows.append({
+                        "Source":_src.source_id, "Authority ceiling":_src.authority.value, "Jurisdiction":_src.jurisdiction,
+                        "Connector":_src.connector.get("type"), "Cursor":_watch_cursors.get(_src.source_id) or "—",
+                        "Health":_health_label, "Last checked":_h.get("at","—"),
+                        "Failures":_h.get("consecutive_failures",0),
+                        "Last fetched":_h.get("fetched",0), "Review candidates":_h.get("review_candidates",0),
+                    })
+                    _plain_source_states.append({"source_id":_src.source_id,"jurisdiction":_src.jurisdiction,
+                                                 "status":_health_label,"checked_at":_h.get("at")})
+            _watcher_summary=_watcher_plain_summary(_plain_source_states,len(_review_candidates))
+            _wc=_watcher_summary["counts"]
+            w1,w2,w3,w4=st.columns(4)
+            w1.metric("Sources working",_wc["Working"])
+            w2.metric("Needs review",len(_review_candidates))
+            w3.metric("Blocked / attention",_wc["Blocked"]+_wc["Attention"])
+            w4.metric("Sent to impact review",sum(p.get("relationship_status")=="IMPACT_REVIEW" for p in _git_status["pushed"]))
+            st.info("**Next action:** "+_watcher_summary["next_action"])
+            st.caption("Blocked or unchecked sources are never treated as up to date. A publication is never treated as an applicable rule until a human confirms its type, lifecycle and affected controls.")
+            if _watcher_summary["rows"]:
+                st.dataframe(_watcher_summary["rows"],width="stretch",hide_index=True)
+            else:
+                st.warning("No enabled source is being monitored. This is NOT evidence that nothing changed.")
+            try:
+                from governance.maturity import evaluate as _maturity_evaluate
+                _maturity=_maturity_evaluate("M3.6","MAS")
+                with st.expander(f"GaaR proof progress · {_maturity['green']}/{_maturity['total']} milestones ({_maturity['percent']}%)",expanded=False):
+                    st.dataframe([{"Milestone":m["number"],"Proof":m["name"],"Status":m["status"],
+                                   "Evidence":m["evidence"],"Next action":m["next_action"]}
+                                  for m in _maturity["milestones"]],width="stretch",hide_index=True)
+                    st.caption("Only durable ledger artifacts turn a milestone GREEN; configuration and demo activity do not.")
+            except Exception as _maturity_error:
+                st.warning(f"Maturity board unavailable: {type(_maturity_error).__name__}: {_maturity_error}")
+            with st.expander("Technical source health and recent decisions",expanded=False):
+                if _watch_sources: st.dataframe(_source_rows,width="stretch",hide_index=True)
+                if _watch_emissions:
+                    _rows=[]
+                    for _r in reversed(_watch_emissions[-25:]):
+                        _p=_r.get("payload") or {}
+                        _rows.append({"When":_p.get("emitted_at"),"Source":_p.get("source_id"),"Title":_p.get("document_title"),
+                                      "Authority":_p.get("authority"),"Materiality":_p.get("materiality_score"),
+                                      "Status":_p.get("emission_status"),"Change ID":_p.get("change_id")})
+                    st.dataframe(_rows,width="stretch",hide_index=True)
+            # WB-134: separate source availability from publication classification.
+            # These are observed configured-feed scan outcomes, not claims of
+            # exhaustive regulator-site or full-PDF coverage.
+            try:
+                from governance.watcher.update_centre import ScanReceipts, domain_suggestions
+                from governance.watcher.policy import DEFAULT_CONFIG
+                import yaml as _watch_yaml
+                from pathlib import Path as _watch_path
+                _source_rows=(_watch_yaml.safe_load(_watch_path(os.environ.get("WB_GAAR_WATCHER_CONFIG") or DEFAULT_CONFIG).read_text(encoding="utf-8")) or {}).get("sources") or []
+                _scan_receipts=ScanReceipts()
+                st.markdown("### Source administration")
+                st.caption("Optional technical controls. The plain-language status above is the normal operator view.")
+                _scan_rows=[]
+                for _src in _source_rows:
+                    _source_state=_scan_receipts.status(str(_src.get("source_id")),enabled=bool(_src.get("enabled",True)))
+                    _scan_rows.append({"Source":_src.get("source_id"),"Jurisdiction":_src.get("jurisdiction"),"Update status":_source_state.get("status"),"Last check":_source_state.get("checked_at") or "Never", "New snapshots":_source_state.get("discovered",0),"Details":_source_state.get("error") or _source_state.get("message") or ""})
+                if _scan_rows:
+                    with st.expander("Feed polling details",expanded=False):
+                        st.caption("Up to date means this configured feed succeeded; it does not certify the whole regulator website.")
+                        st.dataframe(_scan_rows,width="stretch",hide_index=True)
+                if not any(_s.get("enabled",True) for _s in _source_rows):
+                    st.info("No live sources enabled. Configure a vetted feed, then run the opt-in Watcher scheduler. Zero updates here is not proof of no new regulation.")
+                _domain_rows=[]
+                for _record in reversed(_watch_emissions[-100:]):
+                    _p=_record.get("payload") or {}
+                    if _p.get("emission_status") in {"INVALID_DOCUMENT"}: continue
+                    _domain_rows.append({"Publication":_p.get("document_title"),"Source":_p.get("source_id"),"Suggested domain":", ".join(domain_suggestions(str(_p.get("document_title") or ""))),"Status":_p.get("emission_status"),"Official URL":_p.get("document_url")})
+                if _domain_rows:
+                    with st.expander("Suggested publication domains",expanded=False):
+                        st.caption("Suggestions only; they are not legal classifications.")
+                        st.dataframe(_domain_rows,width="stretch",hide_index=True)
+            except Exception as _update_error:
+                st.warning(f"Publication Update Centre unavailable: {_update_error}")
+            # WB-135: official publication-index sensor, independent of existing basis.
+            # A successful bounded index scan does not prove that all regulator PDFs were inspected.
+            try:
+                from governance.watcher.official_index import (OfficialIndexMonitor, load_manifest,
+                                                               scan_due as _scan_official_indexes)
+                import yaml as _basis_yaml
+                from pathlib import Path as _basis_path
+                _basis_pathname=_basis_path(__file__).resolve().parent/'config'/'governance_basis_status.yaml'
+                _basis=_basis_yaml.safe_load(_basis_pathname.read_text(encoding='utf-8'))
+                st.markdown("#### Official publication indexes")
+                st.caption("Optional bounded index checks. No new listing changes never means the entire regulator site is unchanged.")
+                _index_monitor=OfficialIndexMonitor()
+                _index_entries=load_manifest()
+                _index_rows=[]
                 for _entry in _index_entries:
-                    _last=_index_monitor.latest(_entry['source_id'])
-                    if _last and _last['status']=='UPDATES_AVAILABLE':
-                        st.markdown(f"**{_entry['source_id']}**")
-                        st.write((_last.get('new') or [])+(_last.get('changed_listing') or []))
-            st.caption("Official index changes do not automatically create regulatory requirements, audit evidence, committed documents or Autopilot reassessments.")
-            st.markdown("#### Chinese regulatory review · WB-136")
-            st.caption("NFRA Chinese originals remain primary. After WB-133 extraction, create a local bilingual review derivative with Ollama or Colibri. Translation never ADDs, COMMITs or PUSHes automatically.")
-            st.code("python tools/bilingual_translate.py --source <NFRA-instrument.txt> --authority NFRA --id <instrument-id> --provider colibri", language="bash")
-        except Exception as _official_error:
-            st.warning(f"Official publication monitoring unavailable: {_official_error}")
-        st.markdown("### Review one publication and send it to impact assessment")
-        st.caption("Recommended workflow: the system prepares the immutable version and change summary; one final human confirmation signs and sends it. No compliance decision is created here.")
-        _guided_candidates=[r.get("payload") or {} for r in _watch_emissions if
-            (r.get("payload") or {}).get("emission_status") in {"REVIEW_CANDIDATE","BACKGROUND_ONLY","BELOW_POLICY_THRESHOLD"}
-            and (r.get("payload") or {}).get("source_snapshot_id")]
-        if not _guided_candidates:
-            st.info("Nothing is waiting for review. Run a validated source check to discover a publication.")
-        else:
-            _guided_choices={f"{p.get('document_title') or 'Untitled'} · {p.get('source_id')}":p
-                             for p in _guided_candidates[-100:]}
-            _guided_label=st.selectbox("Publication to review",list(_guided_choices),key="watcher_guided_candidate")
-            _guided=_guided_choices[_guided_label]
-            _guided_app=_guided.get("applicability") or {}
-            st.write(f"**Source:** {_guided.get('document_url') or 'URL not recorded'}")
-            st.caption(f"Immutable snapshot: {_guided.get('source_snapshot_id')} · no result or obligation has been created")
-            _gc1,_gc2=st.columns(2)
-            _guided_class=_gc1.selectbox("Document type",list(CLASS_RULES),
-                index=(list(CLASS_RULES).index("regulatory_guidance") if "regulatory_guidance" in CLASS_RULES else 0),
-                key="watcher_guided_class")
-            _guided_lifecycle=_gc2.selectbox("Lifecycle",sorted(LIFECYCLES),
-                index=(sorted(LIFECYCLES).index("effective") if "effective" in LIFECYCLES else 0),
-                key="watcher_guided_lifecycle")
-            _guided_issuer=st.text_input("Issuing authority",value=str(_guided.get("authority") or _guided.get("source_id") or ""),key="watcher_guided_issuer")
-            _guided_assessment=st.text_input("Assessment or impact-review ID",key="watcher_guided_assessment")
-            _guided_framework=st.text_input("Framework",value=str(_guided_app.get("framework") or ""),key="watcher_guided_framework")
-            _guided_controls=st.text_input("Affected controls",value=",".join(_guided_app.get("controls") or []),key="watcher_guided_controls")
-            _guided_reason=st.text_area("Why this publication may affect those controls",key="watcher_guided_reason")
-            _guided_attestation=st.text_area("How you verified the official source, version and document type",key="watcher_guided_attestation")
-            if st.button("Prepare review",key="watcher_guided_prepare"):
-                try:
-                    _prepared=_git.add_from_snapshot(snapshot_id=str(_guided["source_snapshot_id"]),
-                        issuer=_guided_issuer,doc_class=_guided_class,lifecycle=_guided_lifecycle,
-                        landing_url=str(_guided.get("document_url") or ""),assessment_id=_guided_assessment,
-                        controls=tuple(x.strip() for x in _guided_controls.split(",") if x.strip()),
-                        framework=_guided_framework,actor=S.get("reviewer") or "local-operator",
-                        rationale=_guided_reason,origin_attestation=_guided_attestation)
-                    _prepared_diff=_git.diff(_prepared["stage_id"])
-                    st.session_state["watcher_guided_review"]={"stage_id":_prepared["stage_id"],
-                        "title":_prepared.get("title"),"diff":_prepared_diff.get("diff_lines") or [],
-                        "previous":_prepared_diff.get("previous_version_hash")}
-                    st.success("Review prepared. Inspect the change summary below; nothing has been approved or sent.")
-                except Exception as _e:
-                    st.error(f"Cannot prepare review: {type(_e).__name__}: {_e}")
-            _guided_review=st.session_state.get("watcher_guided_review")
-            if _guided_review:
-                st.markdown("#### Final human checkpoint")
-                st.write(f"**Prepared:** {_guided_review.get('title')} · `{_guided_review.get('stage_id')}`")
-                st.caption("Previous approved version: "+str(_guided_review.get("previous") or "none — first reviewed version"))
-                st.code("\n".join(_guided_review.get("diff") or []) or "No text diff; verify metadata and classification.",language="diff")
-                _guided_reviewer=st.text_input("Reviewer name",value=S.get("reviewer", ""),key="watcher_guided_reviewer")
-                _guided_note=st.text_area("Final review rationale",value=_guided_reason,key="watcher_guided_note")
-                _guided_confirm=st.checkbox("I verified the official origin, document type, lifecycle and affected controls",key="watcher_guided_confirm")
-                if st.button("Approve, sign and send to assessment",type="primary",key="watcher_guided_send",
-                             disabled=not (_guided_confirm and _guided_reviewer.strip() and _guided_note.strip())):
-                    try:
-                        _guided_commit=_git.commit(_guided_review["stage_id"],reviewer=_guided_reviewer.strip(),decision_note=_guided_note.strip())
-                        _guided_push=_git.push(_guided_commit["commit_id"])
-                        st.session_state.pop("watcher_guided_review",None)
-                        st.success(f"Sent safely: {_guided_push['relationship_status']} · {_guided_push['message']}")
-                        st.caption(f"Signed commit {_guided_commit['commit_id']} · push {_guided_push['push_id']}")
-                        st.rerun()
-                    except Exception as _e:
-                        st.error(f"Approval or delivery stopped safely: {type(_e).__name__}: {_e}")
-                        st.caption("Any completed stage or signed commit remains in the audit ledger and can be resumed from Advanced manual controls.")
-        st.markdown("### Advanced manual controls")
-        st.caption("Use these controls for recovery or expert operation. The guided workflow above is the normal path.")
-        g1,g2,g3,g4=st.columns(4)
-        g1.metric("Staged",len(_git_status["staged"]))
-        g2.metric("Approved commits",len(_git_status["committed"]))
-        g3.metric("Pushed links",len(_git_status["pushed"]))
-        g4.metric("Delivery pending",len(_git_status["pending_delivery"]))
-        st.caption(f"Rejected / not applicable: {len(_git_status['rejected'])} · kept in the audit ledger, no trigger.")
-        with st.expander("1 · ADD discovered document to assessment",expanded=False):
-            _candidates=[r.get("payload") or {} for r in _watch_emissions if
+                    _state=_index_monitor.status(_entry)
+                    _index_rows.append({"Source":_entry['source_id'],"Jurisdiction":_entry.get('jurisdiction'),
+                       "Status":_state['status'],"Last checked":_state.get('checked_at','—'),
+                       "New links":len(_state.get('new') or []),"Listing title changes":len(_state.get('changed_listing') or []),
+                       "Language":_entry.get('language','—'),"Reason":_state.get('error') or '',"Scope":_entry.get('coverage_note') or "Index listing only"})
+                with st.expander("Official index details",expanded=False):
+                    st.dataframe(_index_rows,width="stretch",hide_index=True)
+                if st.button("Check enabled official indexes now",key="watcher_official_check"):
+                    # Button opt-in per execution; disabled sources remain disabled.
+                    with st.spinner("Checking enabled publication indexes..."):
+                        _out=_scan_official_indexes(force=True)
+                    st.write([{k:v for k,v in item.items() if k not in ('inventory','new','changed_listing','not_seen_on_current_page')}
+                              for item in _out])
+                    st.rerun()
+                with st.expander("Official index changes (discovery only; review original documents before ADD)"):
+                    for _entry in _index_entries:
+                        _last=_index_monitor.latest(_entry['source_id'])
+                        if _last and _last['status']=='UPDATES_AVAILABLE':
+                            st.markdown(f"**{_entry['source_id']}**")
+                            st.write((_last.get('new') or [])+(_last.get('changed_listing') or []))
+                st.caption("Official index changes do not automatically create regulatory requirements, audit evidence, committed documents or Autopilot reassessments.")
+                st.markdown("#### Chinese regulatory review · WB-136")
+                st.caption("NFRA Chinese originals remain primary. After WB-133 extraction, create a local bilingual review derivative with Ollama or Colibri. Translation never ADDs, COMMITs or PUSHes automatically.")
+                st.code("python tools/bilingual_translate.py --source <NFRA-instrument.txt> --authority NFRA --id <instrument-id> --provider colibri", language="bash")
+            except Exception as _official_error:
+                st.warning(f"Official publication monitoring unavailable: {_official_error}")
+            st.markdown("### Review one publication and send it to impact assessment")
+            st.caption("Recommended workflow: the system prepares the immutable version and change summary; one final human confirmation signs and sends it. No compliance decision is created here.")
+            _guided_candidates=[r.get("payload") or {} for r in _watch_emissions if
                 (r.get("payload") or {}).get("emission_status") in {"REVIEW_CANDIDATE","BACKGROUND_ONLY","BELOW_POLICY_THRESHOLD"}
                 and (r.get("payload") or {}).get("source_snapshot_id")]
-            if not _candidates:
-                st.info("No stageable source snapshots in this workspace. Enable and scan a vetted source, then select its document here. Existing historical emission rows without a snapshot cannot be reconstructed.")
+            if not _guided_candidates:
+                st.info("Nothing is waiting for review. Run a validated source check to discover a publication.")
             else:
-                _choices={f"{p.get('document_title') or 'Untitled'} · {p.get('source_id')} · {p.get('change_id') or p.get('source_snapshot_id')}":p for p in _candidates[-100:]}
-                _chosen=_choices[st.selectbox("Discovered publication",list(_choices),key="watcher_git_candidate")]
-                st.caption(f"Official source: {_chosen.get('document_url') or 'not recorded'}")
-                st.caption(f"Snapshot: {_chosen.get('source_snapshot_id')} · classification pending human review")
-                _doc_class=st.selectbox("What kind of document is this?",list(CLASS_RULES),key="watcher_git_doc_class")
-                _lifecycle=st.selectbox("Document lifecycle",sorted(LIFECYCLES),key="watcher_git_lifecycle")
-                _issuer=st.text_input("Issuing authority (verify against document)",key="watcher_git_issuer")
-                _landing=st.text_input("Official landing-page HTTPS URL",value=str(_chosen.get('document_url') or ""),key="watcher_git_landing")
-                _app=((_chosen.get("applicability") or {}))
-                _assessment=st.text_input("Assessment / impact-review ID",key="watcher_git_assessment")
-                _framework=st.text_input("Framework",value=str(_app.get('framework') or ""),key="watcher_git_framework")
-                _controls=st.text_input("Affected control IDs (comma-separated)",value=",".join(_app.get('controls') or []),key="watcher_git_controls")
-                _actor=st.text_input("Your name (local attribution; not authenticated)",key="watcher_git_actor")
-                _reason=st.text_area("Why stage this document for these controls?",key="watcher_git_reason")
-                _attestation=st.text_area("Source check: explain how you verified landing page, document type and version",key="watcher_git_attestation")
-                if st.button("ADD to assessment staging",key="watcher_git_add"):
+                _guided_choices={f"{p.get('document_title') or 'Untitled'} · {p.get('source_id')}":p
+                                 for p in _guided_candidates[-100:]}
+                _guided_label=st.selectbox("Publication to review",list(_guided_choices),key="watcher_guided_candidate")
+                _guided=_guided_choices[_guided_label]
+                _guided_app=_guided.get("applicability") or {}
+                st.write(f"**Source:** {_guided.get('document_url') or 'URL not recorded'}")
+                st.caption(f"Immutable snapshot: {_guided.get('source_snapshot_id')} · no result or obligation has been created")
+                _gc1,_gc2=st.columns(2)
+                _guided_class=_gc1.selectbox("Document type",list(CLASS_RULES),
+                    index=(list(CLASS_RULES).index("regulatory_guidance") if "regulatory_guidance" in CLASS_RULES else 0),
+                    key="watcher_guided_class")
+                _guided_lifecycle=_gc2.selectbox("Lifecycle",sorted(LIFECYCLES),
+                    index=(sorted(LIFECYCLES).index("effective") if "effective" in LIFECYCLES else 0),
+                    key="watcher_guided_lifecycle")
+                _guided_issuer=st.text_input("Issuing authority",value=str(_guided.get("authority") or _guided.get("source_id") or ""),key="watcher_guided_issuer")
+                _guided_assessment=st.text_input("Assessment or impact-review ID",key="watcher_guided_assessment")
+                _guided_framework=st.text_input("Framework",value=str(_guided_app.get("framework") or ""),key="watcher_guided_framework")
+                _guided_controls=st.text_input("Affected controls",value=",".join(_guided_app.get("controls") or []),key="watcher_guided_controls")
+                _guided_reason=st.text_area("Why this publication may affect those controls",key="watcher_guided_reason")
+                _guided_attestation=st.text_area("How you verified the official source, version and document type",key="watcher_guided_attestation")
+                if st.button("Prepare review",key="watcher_guided_prepare"):
                     try:
-                        _added=_git.add_from_snapshot(snapshot_id=str(_chosen['source_snapshot_id']),
-                            issuer=_issuer,doc_class=_doc_class,lifecycle=_lifecycle,landing_url=_landing,
-                            assessment_id=_assessment,controls=tuple(x.strip() for x in _controls.split(',')),
-                            framework=_framework,actor=_actor,rationale=_reason,origin_attestation=_attestation)
-                        st.success(f"Version staged: {_added['stage_id']} · PROPOSED_ONLY; no impact trigger sent.")
+                        _prepared=_git.add_from_snapshot(snapshot_id=str(_guided["source_snapshot_id"]),
+                            issuer=_guided_issuer,doc_class=_guided_class,lifecycle=_guided_lifecycle,
+                            landing_url=str(_guided.get("document_url") or ""),assessment_id=_guided_assessment,
+                            controls=tuple(x.strip() for x in _guided_controls.split(",") if x.strip()),
+                            framework=_guided_framework,actor=S.get("reviewer") or "local-operator",
+                            rationale=_guided_reason,origin_attestation=_guided_attestation)
+                        _prepared_diff=_git.diff(_prepared["stage_id"])
+                        st.session_state["watcher_guided_review"]={"stage_id":_prepared["stage_id"],
+                            "title":_prepared.get("title"),"diff":_prepared_diff.get("diff_lines") or [],
+                            "previous":_prepared_diff.get("previous_version_hash")}
+                        st.success("Review prepared. Inspect the change summary below; nothing has been approved or sent.")
                     except Exception as _e:
-                        st.error(f"Cannot stage: {type(_e).__name__}: {_e}")
-        with st.expander("2 · DIFF and COMMIT approved version",expanded=False):
-            _stages=_git.status()["staged"]
-            if not _stages:
-                st.info("ADD a source version first.")
-            else:
-                _smap={f"{p['stage_id']} · {p['title']}":p for p in _stages[-100:]}
-                _stage=_smap[st.selectbox("Staged version",list(_smap),key="watcher_git_stage")]
-                st.write({k:_stage.get(k) for k in ("document_class","normative_status","lifecycle_status","issuer","assessment_id","controls","blob_hash","origin_assurance","binding_status")})
-                try:
-                    _diff=_git.diff(_stage['stage_id'])
-                    st.caption("Changed from previous committed SHA-256: "+str(_diff['previous_version_hash'] or 'first version'))
-                    st.code("\n".join(_diff['diff_lines']) or "No text changes; verify document metadata and classification.",language="diff")
-                except Exception as _e:
-                    st.error(f"Source integrity/diff unavailable: {_e}")
-                _reviewer=st.text_input("Reviewer name (local attribution only)",key="watcher_git_reviewer")
-                _note=st.text_area("Approval decision and document applicability rationale",key="watcher_git_commit_note")
-                _confirmed=st.checkbox("I examined this document's official origin, type, effective status and affected controls",key="watcher_git_confirm")
-                if st.button("COMMIT reviewed version (Ed25519)",key="watcher_git_commit"):
+                        st.error(f"Cannot prepare review: {type(_e).__name__}: {_e}")
+                _guided_review=st.session_state.get("watcher_guided_review")
+                if _guided_review:
+                    st.markdown("#### Final human checkpoint")
+                    st.write(f"**Prepared:** {_guided_review.get('title')} · `{_guided_review.get('stage_id')}`")
+                    st.caption("Previous approved version: "+str(_guided_review.get("previous") or "none — first reviewed version"))
+                    st.code("\n".join(_guided_review.get("diff") or []) or "No text diff; verify metadata and classification.",language="diff")
+                    _guided_reviewer=st.text_input("Reviewer name",value=S.get("reviewer", ""),key="watcher_guided_reviewer")
+                    _guided_note=st.text_area("Final review rationale",value=_guided_reason,key="watcher_guided_note")
+                    _guided_confirm=st.checkbox("I verified the official origin, document type, lifecycle and affected controls",key="watcher_guided_confirm")
+                    if st.button("Approve, sign and send to assessment",type="primary",key="watcher_guided_send",
+                                 disabled=not (_guided_confirm and _guided_reviewer.strip() and _guided_note.strip())):
+                        try:
+                            _guided_commit=_git.commit(_guided_review["stage_id"],reviewer=_guided_reviewer.strip(),decision_note=_guided_note.strip())
+                            _guided_push=_git.push(_guided_commit["commit_id"])
+                            st.session_state.pop("watcher_guided_review",None)
+                            st.success(f"Sent safely: {_guided_push['relationship_status']} · {_guided_push['message']}")
+                            st.caption(f"Signed commit {_guided_commit['commit_id']} · push {_guided_push['push_id']}")
+                            st.rerun()
+                        except Exception as _e:
+                            st.error(f"Approval or delivery stopped safely: {type(_e).__name__}: {_e}")
+                            st.caption("Any completed stage or signed commit remains in the audit ledger and can be resumed from Advanced manual controls.")
+            st.markdown("### Advanced manual controls")
+            st.caption("Use these controls for recovery or expert operation. The guided workflow above is the normal path.")
+            g1,g2,g3,g4=st.columns(4)
+            g1.metric("Staged",len(_git_status["staged"]))
+            g2.metric("Approved commits",len(_git_status["committed"]))
+            g3.metric("Pushed links",len(_git_status["pushed"]))
+            g4.metric("Delivery pending",len(_git_status["pending_delivery"]))
+            st.caption(f"Rejected / not applicable: {len(_git_status['rejected'])} · kept in the audit ledger, no trigger.")
+            with st.expander("1 · ADD discovered document to assessment",expanded=False):
+                _candidates=[r.get("payload") or {} for r in _watch_emissions if
+                    (r.get("payload") or {}).get("emission_status") in {"REVIEW_CANDIDATE","BACKGROUND_ONLY","BELOW_POLICY_THRESHOLD"}
+                    and (r.get("payload") or {}).get("source_snapshot_id")]
+                if not _candidates:
+                    st.info("No stageable source snapshots in this workspace. Enable and scan a vetted source, then select its document here. Existing historical emission rows without a snapshot cannot be reconstructed.")
+                else:
+                    _choices={f"{p.get('document_title') or 'Untitled'} · {p.get('source_id')} · {p.get('change_id') or p.get('source_snapshot_id')}":p for p in _candidates[-100:]}
+                    _chosen=_choices[st.selectbox("Discovered publication",list(_choices),key="watcher_git_candidate")]
+                    st.caption(f"Official source: {_chosen.get('document_url') or 'not recorded'}")
+                    st.caption(f"Snapshot: {_chosen.get('source_snapshot_id')} · classification pending human review")
+                    _doc_class=st.selectbox("What kind of document is this?",list(CLASS_RULES),key="watcher_git_doc_class")
+                    _lifecycle=st.selectbox("Document lifecycle",sorted(LIFECYCLES),key="watcher_git_lifecycle")
+                    _issuer=st.text_input("Issuing authority (verify against document)",key="watcher_git_issuer")
+                    _landing=st.text_input("Official landing-page HTTPS URL",value=str(_chosen.get('document_url') or ""),key="watcher_git_landing")
+                    _app=((_chosen.get("applicability") or {}))
+                    _assessment=st.text_input("Assessment / impact-review ID",key="watcher_git_assessment")
+                    _framework=st.text_input("Framework",value=str(_app.get('framework') or ""),key="watcher_git_framework")
+                    _controls=st.text_input("Affected control IDs (comma-separated)",value=",".join(_app.get('controls') or []),key="watcher_git_controls")
+                    _actor=st.text_input("Your name (local attribution; not authenticated)",key="watcher_git_actor")
+                    _reason=st.text_area("Why stage this document for these controls?",key="watcher_git_reason")
+                    _attestation=st.text_area("Source check: explain how you verified landing page, document type and version",key="watcher_git_attestation")
+                    if st.button("ADD to assessment staging",key="watcher_git_add"):
+                        try:
+                            _added=_git.add_from_snapshot(snapshot_id=str(_chosen['source_snapshot_id']),
+                                issuer=_issuer,doc_class=_doc_class,lifecycle=_lifecycle,landing_url=_landing,
+                                assessment_id=_assessment,controls=tuple(x.strip() for x in _controls.split(',')),
+                                framework=_framework,actor=_actor,rationale=_reason,origin_attestation=_attestation)
+                            st.success(f"Version staged: {_added['stage_id']} · PROPOSED_ONLY; no impact trigger sent.")
+                        except Exception as _e:
+                            st.error(f"Cannot stage: {type(_e).__name__}: {_e}")
+            with st.expander("2 · DIFF and COMMIT approved version",expanded=False):
+                _stages=_git.status()["staged"]
+                if not _stages:
+                    st.info("ADD a source version first.")
+                else:
+                    _smap={f"{p['stage_id']} · {p['title']}":p for p in _stages[-100:]}
+                    _stage=_smap[st.selectbox("Staged version",list(_smap),key="watcher_git_stage")]
+                    st.write({k:_stage.get(k) for k in ("document_class","normative_status","lifecycle_status","issuer","assessment_id","controls","blob_hash","origin_assurance","binding_status")})
                     try:
-                        if not _confirmed: raise WatcherGitError("explicit reviewer confirmation required")
-                        _committed=_git.commit(_stage['stage_id'],reviewer=_reviewer,decision_note=_note)
-                        st.success(f"Signed commit: {_committed['commit_id']}. Not pushed; no result changed.")
+                        _diff=_git.diff(_stage['stage_id'])
+                        st.caption("Changed from previous committed SHA-256: "+str(_diff['previous_version_hash'] or 'first version'))
+                        st.code("\n".join(_diff['diff_lines']) or "No text changes; verify document metadata and classification.",language="diff")
                     except Exception as _e:
-                        st.error(f"Cannot commit: {type(_e).__name__}: {_e}")
-                if st.button("Reject stage / Not applicable",key="watcher_git_reject"):
-                    try:
-                        _rejected=_git.reject(_stage['stage_id'],reviewer=_reviewer,reason=_note)
-                        st.warning(f"Stage rejected with explicit rationale: {_rejected['stage_id']}. No assessment trigger.")
-                    except Exception as _e:
-                        st.error(f"Cannot reject: {type(_e).__name__}: {_e}")
-        with st.expander("3 · PUSH approved version to assessment / impact review",expanded=False):
-            _commits=_git.status()["committed"]
-            if not _commits:
-                st.info("COMMIT a reviewed version first.")
-            else:
-                _cmap={f"{p['commit_id']} · {p['title']}":p for p in _commits[-100:]}
-                _commit=_cmap[st.selectbox("Approved commit",list(_cmap),key="watcher_git_push_commit")]
-                st.write({k:_commit.get(k) for k in ("document_class","normative_status","lifecycle_status","assessment_id","controls","blob_hash","identity_assurance")})
-                st.caption("Binding law/rule and approved guidance may request control impact review; consultation, research, standards and threats create non-binding links only.")
-                if st.button("PUSH to assessment",key="watcher_git_push"):
-                    try:
-                        _pushed=_git.push(_commit['commit_id'])
-                        st.success(f"{_pushed['relationship_status']} · {_pushed['message']}")
-                        st.caption(f"Push ID: {_pushed['push_id']} · triggers: {_pushed['trigger_ids']}")
-                    except Exception as _e:
-                        st.error(f"Cannot push: {type(_e).__name__}: {_e}")
-        _links=_git.current_use()
-        if _links:
-            st.markdown("### Assessment links and pending impact reviews")
-            st.dataframe([{k:p.get(k) for k in ("delivered_at","assessment_id","document_id","document_class","relationship_status","controls","blob_hash","trigger_ids","version_status")} for p in reversed(_links[-50:])],width="stretch",hide_index=True)
-        with st.expander("Watcher boundary / source coverage", expanded=False):
-            st.code("DISCOVER → QUARANTINE SNAPSHOT → ADD → DIFF → HUMAN COMMIT → PUSH → IMPACT REVIEW REQUEST → AUTOPILOT\nCONSULTATION / RESEARCH / STANDARD → NON-BINDING ASSESSMENT LINK ONLY\nTHREAT → EXPOSURE REVIEW LINK ONLY\nNO WATCHER ACTION SEALS A RESULT OR ASSERTS CURRENT COMPLIANCE",language="text")
-            st.caption("See config/global_watcher_catalogue.yaml for potential official sources. Catalogue entries are NOT live connectors or proof of monitoring coverage.")
-    except Exception as _exc:
-        st.error(f"Watcher status unavailable: {type(_exc).__name__}: {_exc}")
+                        st.error(f"Source integrity/diff unavailable: {_e}")
+                    _reviewer=st.text_input("Reviewer name (local attribution only)",key="watcher_git_reviewer")
+                    _note=st.text_area("Approval decision and document applicability rationale",key="watcher_git_commit_note")
+                    _confirmed=st.checkbox("I examined this document's official origin, type, effective status and affected controls",key="watcher_git_confirm")
+                    if st.button("COMMIT reviewed version (Ed25519)",key="watcher_git_commit"):
+                        try:
+                            if not _confirmed: raise WatcherGitError("explicit reviewer confirmation required")
+                            _committed=_git.commit(_stage['stage_id'],reviewer=_reviewer,decision_note=_note)
+                            st.success(f"Signed commit: {_committed['commit_id']}. Not pushed; no result changed.")
+                        except Exception as _e:
+                            st.error(f"Cannot commit: {type(_e).__name__}: {_e}")
+                    if st.button("Reject stage / Not applicable",key="watcher_git_reject"):
+                        try:
+                            _rejected=_git.reject(_stage['stage_id'],reviewer=_reviewer,reason=_note)
+                            st.warning(f"Stage rejected with explicit rationale: {_rejected['stage_id']}. No assessment trigger.")
+                        except Exception as _e:
+                            st.error(f"Cannot reject: {type(_e).__name__}: {_e}")
+            with st.expander("3 · PUSH approved version to assessment / impact review",expanded=False):
+                _commits=_git.status()["committed"]
+                if not _commits:
+                    st.info("COMMIT a reviewed version first.")
+                else:
+                    _cmap={f"{p['commit_id']} · {p['title']}":p for p in _commits[-100:]}
+                    _commit=_cmap[st.selectbox("Approved commit",list(_cmap),key="watcher_git_push_commit")]
+                    st.write({k:_commit.get(k) for k in ("document_class","normative_status","lifecycle_status","assessment_id","controls","blob_hash","identity_assurance")})
+                    st.caption("Binding law/rule and approved guidance may request control impact review; consultation, research, standards and threats create non-binding links only.")
+                    if st.button("PUSH to assessment",key="watcher_git_push"):
+                        try:
+                            _pushed=_git.push(_commit['commit_id'])
+                            st.success(f"{_pushed['relationship_status']} · {_pushed['message']}")
+                            st.caption(f"Push ID: {_pushed['push_id']} · triggers: {_pushed['trigger_ids']}")
+                        except Exception as _e:
+                            st.error(f"Cannot push: {type(_e).__name__}: {_e}")
+            _links=_git.current_use()
+            if _links:
+                st.markdown("### Assessment links and pending impact reviews")
+                st.dataframe([{k:p.get(k) for k in ("delivered_at","assessment_id","document_id","document_class","relationship_status","controls","blob_hash","trigger_ids","version_status")} for p in reversed(_links[-50:])],width="stretch",hide_index=True)
+            with st.expander("Watcher boundary / source coverage", expanded=False):
+                st.code("DISCOVER → QUARANTINE SNAPSHOT → ADD → DIFF → HUMAN COMMIT → PUSH → IMPACT REVIEW REQUEST → AUTOPILOT\nCONSULTATION / RESEARCH / STANDARD → NON-BINDING ASSESSMENT LINK ONLY\nTHREAT → EXPOSURE REVIEW LINK ONLY\nNO WATCHER ACTION SEALS A RESULT OR ASSERTS CURRENT COMPLIANCE",language="text")
+                st.caption("See config/global_watcher_catalogue.yaml for potential official sources. Catalogue entries are NOT live connectors or proof of monitoring coverage.")
+        except Exception as _exc:
+            st.error(f"Watcher status unavailable: {type(_exc).__name__}: {_exc}")
 
 # ---------- Living Governance Results (WB-115) ----------
-with tab_live:
-    st.markdown('<div class="gaar-hero"><div class="gaar-kicker">LIVING GOVERNANCE</div>'
-                '<div class="gaar-title">Current state built from immutable results</div>'
-                '<div class="gaar-sub">The projection can change as regulation, evidence and reassessment state change. Sealed GovernanceResults never change in place.</div></div>',
-                unsafe_allow_html=True)
-    try:
-        _views = all_living_views()
-    except Exception as _exc:
-        _views = []
-        st.error(f"Living Result projection could not be verified: {type(_exc).__name__}: {_exc}")
-    if not _views:
-        st.info("No sealed GovernanceResults are available yet. Enable WB_GAAR_RESULT_ENABLE=1 and record a governed human decision to create the first result.")
-    else:
-        l1,l2,l3,l4 = st.columns(4)
-        l1.metric("Living results", len(_views))
-        l2.metric("CURRENT", sum(v.get("current_state") == "CURRENT" for v in _views))
-        l3.metric("Needs review", sum(v.get("current_state") in {"REVIEW_REQUIRED","REASSESSING"} for v in _views))
-        l4.metric("Human attention", sum(bool(v.get("human_attention_required")) for v in _views))
-        _fw = sorted({v.get("framework") or "Unknown" for v in _views})
-        _lf = st.multiselect("Framework", _fw, default=_fw, key="living_framework")
-        for _v in [x for x in _views if (x.get("framework") or "Unknown") in _lf]:
-            _state = _v.get("current_state")
-            _cls = "gaar-ok" if _state == "CURRENT" else "gaar-attn" if _state in {"REVIEW_REQUIRED","REASSESSING"} else "gaar-warn"
-            st.markdown(f'<div class="gaar-card"><span class="gaar-stage">{_v.get("framework")}</span> '
-                        f'<b>{_v.get("control_id")}</b> · <span class="{_cls}">{_state}</span><br>'
-                        f'<small>Result v{_v.get("result_version")} · {_v.get("decision")} · quality {_v.get("quality_gate","NOT_RUN")} · lineage {_v.get("lineage_depth")} · human attention {"required" if _v.get("human_attention_required") else "not required"}</small></div>',
-                        unsafe_allow_html=True)
-            if _v.get("quality_gate") == "BLOCKED":
-                st.warning("Quality Gate blocked CURRENT: " + "; ".join(_v.get("quality_gate_blockers") or []))
-            _rid = _v.get("current_result")
-            if _rid:
-                try:
-                    _passport = governance_passport(_rid)
-                    st.download_button("Download Governance Passport", data=json.dumps(_passport, indent=2, default=str),
-                                       file_name=f"governance_passport_{_rid}.json", mime="application/json",
-                                       key=f"passport_{_rid}")
-                except Exception as _exc:
-                    st.caption(f"Passport unavailable: {type(_exc).__name__}: {_exc}")
-            with st.expander(f"History · {_v.get('framework')} {_v.get('control_id')}"):
-                st.dataframe(_v.get("history") or [], width="stretch", hide_index=True)
-
-
-    # WB-122 proposals are displayed separately from current results: never suggest
-    # a candidate dossier is already admitted, quality-gated or CURRENT.
-    with st.expander("Evidence Dossiers · scrutinise proposed evidence", expanded=False):
-        st.caption("PROPOSED_ONLY. Dossiers are source-verified candidate packages, NOT admitted evidence or governance results.")
+if tab_live.shown:
+    with tab_live:
+        st.markdown('<div class="gaar-hero"><div class="gaar-kicker">LIVING GOVERNANCE</div>'
+                    '<div class="gaar-title">Current state built from immutable results</div>'
+                    '<div class="gaar-sub">The projection can change as regulation, evidence and reassessment state change. Sealed GovernanceResults never change in place.</div></div>',
+                    unsafe_allow_html=True)
         try:
-            _dossier_rows = DossierStore().read()
-            _dossiers = [row["payload"] for row in _dossier_rows]
-            if not _dossiers:
-                st.info("No evidence dossiers yet. Run tools/scout_refresh.py, then tools/assembly_run.py.")
-            for _dossier in reversed(_dossiers[-20:]):
-                with st.expander(f"{_dossier.get('framework')} {_dossier.get('control_id')} · {_dossier.get('dossier_id')} · PROPOSED_ONLY"):
-                    st.write("Control assertion to scrutinise:", _dossier.get("control_assertion"))
-                    st.warning("NOT an admitted evidence set. The reconstructed operation is an evidence inventory, not verified chronology.")
-                    st.markdown("**Exact-source anchors**")
-                    st.dataframe(_dossier.get("anchors") or [], use_container_width=True, hide_index=True)
-                    st.markdown("**Candidate element coverage**")
-                    st.dataframe(_dossier.get("required_elements") or [], use_container_width=True, hide_index=True)
-                    st.markdown("**What this does NOT demonstrate**")
-                    for _limitation in _dossier.get("limitations") or []:
-                        st.write("•", _limitation)
-                    st.markdown("**Scrutinise this evidence**")
-                    st.dataframe(_dossier.get("challenge_surface") or [], use_container_width=True, hide_index=True)
-                    st.download_button("Download Evidence Dossier (.md)",
-                        data=render_markdown(_dossier),
-                        file_name=f"evidence_dossier_{_dossier.get('dossier_id')}.md", mime="text/markdown",
-                        key=f"evidence_dossier_download_{_dossier.get('dossier_id')}")
+            _views = all_living_views()
         except Exception as _exc:
-            st.error(f"Dossier proof cannot be read: {type(_exc).__name__}: {_exc}")
+            _views = []
+            st.error(f"Living Result projection could not be verified: {type(_exc).__name__}: {_exc}")
+        if not _views:
+            st.info("No sealed GovernanceResults are available yet. Enable WB_GAAR_RESULT_ENABLE=1 and record a governed human decision to create the first result.")
+        else:
+            l1,l2,l3,l4 = st.columns(4)
+            l1.metric("Living results", len(_views))
+            l2.metric("CURRENT", sum(v.get("current_state") == "CURRENT" for v in _views))
+            l3.metric("Needs review", sum(v.get("current_state") in {"REVIEW_REQUIRED","REASSESSING"} for v in _views))
+            l4.metric("Human attention", sum(bool(v.get("human_attention_required")) for v in _views))
+            _fw = sorted({v.get("framework") or "Unknown" for v in _views})
+            _lf = st.multiselect("Framework", _fw, default=_fw, key="living_framework")
+            for _v in [x for x in _views if (x.get("framework") or "Unknown") in _lf]:
+                _state = _v.get("current_state")
+                _cls = "gaar-ok" if _state == "CURRENT" else "gaar-attn" if _state in {"REVIEW_REQUIRED","REASSESSING"} else "gaar-warn"
+                st.markdown(f'<div class="gaar-card"><span class="gaar-stage">{_v.get("framework")}</span> '
+                            f'<b>{_v.get("control_id")}</b> · <span class="{_cls}">{_state}</span><br>'
+                            f'<small>Result v{_v.get("result_version")} · {_v.get("decision")} · quality {_v.get("quality_gate","NOT_RUN")} · lineage {_v.get("lineage_depth")} · human attention {"required" if _v.get("human_attention_required") else "not required"}</small></div>',
+                            unsafe_allow_html=True)
+                if _v.get("quality_gate") == "BLOCKED":
+                    st.warning("Quality Gate blocked CURRENT: " + "; ".join(_v.get("quality_gate_blockers") or []))
+                _rid = _v.get("current_result")
+                if _rid:
+                    try:
+                        _passport = governance_passport(_rid)
+                        st.download_button("Download Governance Passport", data=json.dumps(_passport, indent=2, default=str),
+                                           file_name=f"governance_passport_{_rid}.json", mime="application/json",
+                                           key=f"passport_{_rid}")
+                    except Exception as _exc:
+                        st.caption(f"Passport unavailable: {type(_exc).__name__}: {_exc}")
+                with st.expander(f"History · {_v.get('framework')} {_v.get('control_id')}"):
+                    st.dataframe(_v.get("history") or [], width="stretch", hide_index=True)
+
+
+        # WB-122 proposals are displayed separately from current results: never suggest
+        # a candidate dossier is already admitted, quality-gated or CURRENT.
+        with st.expander("Evidence Dossiers · scrutinise proposed evidence", expanded=False):
+            st.caption("PROPOSED_ONLY. Dossiers are source-verified candidate packages, NOT admitted evidence or governance results.")
+            try:
+                _dossier_rows = DossierStore().read()
+                _dossiers = [row["payload"] for row in _dossier_rows]
+                if not _dossiers:
+                    st.info("No evidence dossiers yet. Run tools/scout_refresh.py, then tools/assembly_run.py.")
+                for _dossier in reversed(_dossiers[-20:]):
+                    with st.expander(f"{_dossier.get('framework')} {_dossier.get('control_id')} · {_dossier.get('dossier_id')} · PROPOSED_ONLY"):
+                        st.write("Control assertion to scrutinise:", _dossier.get("control_assertion"))
+                        st.warning("NOT an admitted evidence set. The reconstructed operation is an evidence inventory, not verified chronology.")
+                        st.markdown("**Exact-source anchors**")
+                        st.dataframe(_dossier.get("anchors") or [], use_container_width=True, hide_index=True)
+                        st.markdown("**Candidate element coverage**")
+                        st.dataframe(_dossier.get("required_elements") or [], use_container_width=True, hide_index=True)
+                        st.markdown("**What this does NOT demonstrate**")
+                        for _limitation in _dossier.get("limitations") or []:
+                            st.write("•", _limitation)
+                        st.markdown("**Scrutinise this evidence**")
+                        st.dataframe(_dossier.get("challenge_surface") or [], use_container_width=True, hide_index=True)
+                        st.download_button("Download Evidence Dossier (.md)",
+                            data=render_markdown(_dossier),
+                            file_name=f"evidence_dossier_{_dossier.get('dossier_id')}.md", mime="text/markdown",
+                            key=f"evidence_dossier_download_{_dossier.get('dossier_id')}")
+            except Exception as _exc:
+                st.error(f"Dossier proof cannot be read: {type(_exc).__name__}: {_exc}")
 
 # ---------- Outcomes ----------
-with tab_o:
-    st.subheader("Governance outcomes")
-    st.caption("Outcome posture is computed from governed mappings. The decision ledger summary below includes every framework in scope, including SAFR, so recorded assessments never disappear merely because a framework lacks an outcome crosswalk.")
-    _dm = ai_decision_metrics()
-    if _dm["total"]:
-        _cols = st.columns(max(1, min(4, len(_dm["by_framework"]))))
-        for _i, (_fw, _n) in enumerate(sorted(_dm["by_framework"].items())):
-            _cols[_i % len(_cols)].metric(f"{_fw} decisions", _n)
-        with st.expander("Recent governed decisions · all frameworks", expanded=False):
-            st.dataframe(ai_recent_decisions(), width="stretch", hide_index=True)
+if tab_o.shown:
+    with tab_o:
+        st.subheader("Governance outcomes")
+        st.caption("Outcome posture is computed from governed mappings. The decision ledger summary below includes every framework in scope, including SAFR, so recorded assessments never disappear merely because a framework lacks an outcome crosswalk.")
+        _dm = ai_decision_metrics()
+        if _dm["total"]:
+            _cols = st.columns(max(1, min(4, len(_dm["by_framework"]))))
+            for _i, (_fw, _n) in enumerate(sorted(_dm["by_framework"].items())):
+                _cols[_i % len(_cols)].metric(f"{_fw} decisions", _n)
+            with st.expander("Recent governed decisions · all frameworks", expanded=False):
+                st.dataframe(ai_recent_decisions(), width="stretch", hide_index=True)
 
-    mapping_errors = crosswalk_validation()
-    rows = evaluate_all()
+        mapping_errors = crosswalk_validation()
+        rows = evaluate_all()
 
-    # Graphical outcome surface: every tile is a deterministic projection of governed records.
-    POSTURE_META = {
-        "adequate": ("#2F7D5B", "ADEQUATE"),
-        "remediate": ("#B7791F", "REMEDIATE"),
-        "escalate": ("#8A5A00", "ESCALATE"),
-        "defer": ("#A23B3B", "DEFER"),
-    }
-    CAP_META = {
-        "supported": "#2F7D5B",
-        "insufficient": "#B7791F",
-        "blocked": "#A23B3B",
-        "escalate": "#8A5A00",
-    }
-    st.markdown(f"""
+        # Graphical outcome surface: every tile is a deterministic projection of governed records.
+        POSTURE_META = {
+            "adequate": ("#2F7D5B", "ADEQUATE"),
+            "remediate": ("#B7791F", "REMEDIATE"),
+            "escalate": ("#8A5A00", "ESCALATE"),
+            "defer": ("#A23B3B", "DEFER"),
+        }
+        CAP_META = {
+            "supported": "#2F7D5B",
+            "insufficient": "#B7791F",
+            "blocked": "#A23B3B",
+            "escalate": "#8A5A00",
+        }
+        st.markdown(f"""
     <style>
       .outcome-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:12px; margin:8px 0 18px; }}
       .outcome-card {{ border:1px solid {_STICKY_LINE}; border-radius:12px; padding:16px; background:{_STICKY_BG}; min-height:160px; }}
@@ -1410,379 +1524,380 @@ with tab_o:
     </style>
     """, unsafe_allow_html=True)
 
-    if mapping_errors:
-        st.error(f"Outcome mapping integrity blocked: {len(mapping_errors)} issue(s).")
-        st.caption("The dashboard is intentionally fail-closed; invalid mappings never disappear from the posture calculation.")
+        if mapping_errors:
+            st.error(f"Outcome mapping integrity blocked: {len(mapping_errors)} issue(s).")
+            st.caption("The dashboard is intentionally fail-closed; invalid mappings never disappear from the posture calculation.")
 
-    # Summary counts are calculated only from evaluate_all().
-    counts = {p: sum(1 for r in rows if r.get("posture") == p) for p in ("adequate", "remediate", "escalate", "defer")}
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Adequate", counts["adequate"])
-    c2.metric("Remediate", counts["remediate"])
-    c3.metric("Escalate", counts["escalate"])
-    c4.metric("Defer", counts["defer"])
+        # Summary counts are calculated only from evaluate_all().
+        counts = {p: sum(1 for r in rows if r.get("posture") == p) for p in ("adequate", "remediate", "escalate", "defer")}
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Adequate", counts["adequate"])
+        c2.metric("Remediate", counts["remediate"])
+        c3.metric("Escalate", counts["escalate"])
+        c4.metric("Defer", counts["defer"])
 
-    cards = []
-    for r in rows:
-        color, label = POSTURE_META.get(r["posture"], ("#6B7280", r["posture"].upper()))
-        total_caps = len(r.get("capabilities", {}))
-        supported_caps = sum(1 for v in r.get("capabilities", {}).values() if v.get("status") == "supported")
-        title = next((str(o.get("title")) for o in outcome_definitions() if str(o.get("outcome_id")) == r["outcome_id"]), r["outcome_id"])
-        cards.append(
-            f'<div class="outcome-card"><div class="id">{r["outcome_id"]}</div>'
-            f'<div class="title">{title}</div>'
-            f'<span class="posture" style="background:{color}">{label}</span>'
-            f'<div class="stats"><span>Capabilities: <b>{supported_caps}/{total_caps}</b></span>'
-            f'<span>Elements: <b>{r["full_count"]}/{r["mapped_count"]}</b></span></div>'
-            f'<div class="next">Next: {r["next_action"]}</div></div>'
-        )
-    st.markdown('<div class="outcome-grid">' + ''.join(cards) + '</div>', unsafe_allow_html=True)
+        cards = []
+        for r in rows:
+            color, label = POSTURE_META.get(r["posture"], ("#6B7280", r["posture"].upper()))
+            total_caps = len(r.get("capabilities", {}))
+            supported_caps = sum(1 for v in r.get("capabilities", {}).values() if v.get("status") == "supported")
+            title = next((str(o.get("title")) for o in outcome_definitions() if str(o.get("outcome_id")) == r["outcome_id"]), r["outcome_id"])
+            cards.append(
+                f'<div class="outcome-card"><div class="id">{r["outcome_id"]}</div>'
+                f'<div class="title">{title}</div>'
+                f'<span class="posture" style="background:{color}">{label}</span>'
+                f'<div class="stats"><span>Capabilities: <b>{supported_caps}/{total_caps}</b></span>'
+                f'<span>Elements: <b>{r["full_count"]}/{r["mapped_count"]}</b></span></div>'
+                f'<div class="next">Next: {r["next_action"]}</div></div>'
+            )
+        st.markdown('<div class="outcome-grid">' + ''.join(cards) + '</div>', unsafe_allow_html=True)
 
-    # Deterministic outcome selection for drill-down.
-    st.markdown("**Open an outcome for governed detail**")
-    button_cols = st.columns(min(4, max(1, len(rows))))
-    for idx, r in enumerate(rows):
-        with button_cols[idx % len(button_cols)]:
-            if st.button(r["outcome_id"], key=f"outcome_open_{r['outcome_id']}", use_container_width=True):
-                st.session_state["outcome_focus"] = r["outcome_id"]
+        # Deterministic outcome selection for drill-down.
+        st.markdown("**Open an outcome for governed detail**")
+        button_cols = st.columns(min(4, max(1, len(rows))))
+        for idx, r in enumerate(rows):
+            with button_cols[idx % len(button_cols)]:
+                if st.button(r["outcome_id"], key=f"outcome_open_{r['outcome_id']}", use_container_width=True):
+                    st.session_state["outcome_focus"] = r["outcome_id"]
+                    st.rerun()
+
+        # Fast coverage heatmap: rows=outcomes, columns=catalogue capabilities.
+        all_caps = sorted({cap for r in rows for cap in r.get("capabilities", {})})
+        if all_caps:
+            st.markdown("### Capability coverage")
+            header = ''.join(f'<th title="{c}">{c.replace("_", " ")}</th>' for c in all_caps)
+            body = []
+            for r in rows:
+                cells = []
+                for cap in all_caps:
+                    v = r.get("capabilities", {}).get(cap)
+                    status = v.get("status") if v else "—"
+                    bg = CAP_META.get(status, "#313846") if status != "—" else "#202630"
+                    cells.append(f'<td style="background:{bg};color:white" title="{cap}: {status}">{status[:4].upper() if status != "—" else "—"}</td>')
+                body.append(f'<tr><th>{r["outcome_id"]}</th>' + ''.join(cells) + '</tr>')
+            st.markdown('<div style="overflow-x:auto"><table class="cap-heatmap"><thead><tr><th>Outcome</th>' + header + '</tr></thead><tbody>' + ''.join(body) + '</tbody></table></div>', unsafe_allow_html=True)
+
+        focus = st.session_state.get("outcome_focus")
+        selected = next((r for r in rows if r["outcome_id"] == focus), None)
+        if selected:
+            st.markdown(f"### {selected['outcome_id']} · {selected['posture'].upper()}")
+            if selected["errors"]:
+                st.error("Crosswalk integrity failure: outcome is fail-closed.")
+                st.json(selected["errors"])
+            st.markdown(f"**Next:** {selected['next_action']}")
+            st.dataframe([
+                {"Framework": x["framework"], "Control": x["control_id"], "Element": x["element_id"],
+                 "Status": x["status"], "Evidence modes": ", ".join(x.get("evidence_modes") or []),
+                 "Blockers": ", ".join(x["blockers"]) or "—"}
+                for x in selected["mapped_items"]
+            ], width="stretch", hide_index=True)
+            if selected["capabilities"]:
+                st.markdown("**Capability status**")
+                st.dataframe([
+                    {"Capability": k, "Status": v["status"], "Mapped elements": v["mapped_count"],
+                     "Supported": v["full_count"]}
+                    for k, v in sorted(selected["capabilities"].items())
+                ], width="stretch", hide_index=True)
+            if st.button("Close outcome detail", key="outcome_close"):
+                st.session_state.pop("outcome_focus", None)
                 st.rerun()
 
-    # Fast coverage heatmap: rows=outcomes, columns=catalogue capabilities.
-    all_caps = sorted({cap for r in rows for cap in r.get("capabilities", {})})
-    if all_caps:
-        st.markdown("### Capability coverage")
-        header = ''.join(f'<th title="{c}">{c.replace("_", " ")}</th>' for c in all_caps)
-        body = []
-        for r in rows:
-            cells = []
-            for cap in all_caps:
-                v = r.get("capabilities", {}).get(cap)
-                status = v.get("status") if v else "—"
-                bg = CAP_META.get(status, "#313846") if status != "—" else "#202630"
-                cells.append(f'<td style="background:{bg};color:white" title="{cap}: {status}">{status[:4].upper() if status != "—" else "—"}</td>')
-            body.append(f'<tr><th>{r["outcome_id"]}</th>' + ''.join(cells) + '</tr>')
-        st.markdown('<div style="overflow-x:auto"><table class="cap-heatmap"><thead><tr><th>Outcome</th>' + header + '</tr></thead><tbody>' + ''.join(body) + '</tbody></table></div>', unsafe_allow_html=True)
-
-    focus = st.session_state.get("outcome_focus")
-    selected = next((r for r in rows if r["outcome_id"] == focus), None)
-    if selected:
-        st.markdown(f"### {selected['outcome_id']} · {selected['posture'].upper()}")
-        if selected["errors"]:
-            st.error("Crosswalk integrity failure: outcome is fail-closed.")
-            st.json(selected["errors"])
-        st.markdown(f"**Next:** {selected['next_action']}")
-        st.dataframe([
-            {"Framework": x["framework"], "Control": x["control_id"], "Element": x["element_id"],
-             "Status": x["status"], "Evidence modes": ", ".join(x.get("evidence_modes") or []),
-             "Blockers": ", ".join(x["blockers"]) or "—"}
-            for x in selected["mapped_items"]
-        ], width="stretch", hide_index=True)
-        if selected["capabilities"]:
-            st.markdown("**Capability status**")
+        with st.expander("Audit table", expanded=False):
             st.dataframe([
-                {"Capability": k, "Status": v["status"], "Mapped elements": v["mapped_count"],
-                 "Supported": v["full_count"]}
-                for k, v in sorted(selected["capabilities"].items())
+                {"Outcome": r["outcome_id"], "Posture": r["posture"], "Mapped": r["mapped_count"],
+                 "Full": r["full_count"], "Next action": r["next_action"], "Integrity": "BLOCKED" if r["errors"] else "OK"}
+                for r in rows
             ], width="stretch", hide_index=True)
-        if st.button("Close outcome detail", key="outcome_close"):
-            st.session_state.pop("outcome_focus", None)
-            st.rerun()
-
-    with st.expander("Audit table", expanded=False):
-        st.dataframe([
-            {"Outcome": r["outcome_id"], "Posture": r["posture"], "Mapped": r["mapped_count"],
-             "Full": r["full_count"], "Next action": r["next_action"], "Integrity": "BLOCKED" if r["errors"] else "OK"}
-            for r in rows
-        ], width="stretch", hide_index=True)
 
 VCOL = {"PASS": "#2F7D5B", "FAIL": "#A23B3B", "NOT_TESTABLE": "#6B7A8A"}
 vpill = lambda v: f'<span class="pill" style="background:{VCOL[v]}">{v}</span>'
 
 
 # ---------- Scan ----------
-with tab_s:
-    if not controls:
-        st.info("Load a playbook workbook to use this tab.")
-    else:
-        # ================================================================
-        # WB-037 — Evidence workspace, restructured around the choice a first-time user
-        # actually faces rather than around the widgets the pipeline needs.
-        #
-        # What was wrong with the previous layout:
-        #   - the demo was two widgets pretending to be one. A selectbox reading "Off" looks
-        #     like a toggle, so choosing "Mixed" and pressing Index did nothing, because the
-        #     selectbox was only an argument to the button beside it.
-        #   - the match threshold had the visual weight of a primary action while governing a
-        #     step (matching) that has no button and is never seen to happen.
-        #   - numbering started at the fifth element on the page and step 2 did not exist until
-        #     step 1 succeeded, so the shape of the journey was invisible.
-        #   - the primary button was disabled with no reason shown.
-        #   - the caption said the scan was optional while the page presented itself as the
-        #     mandatory landing tab.
-        #
-        # Nothing about the pipeline changes here. index_folder, match_controls, build_evidence
-        # and propose are called exactly as before, and min_ratio is still recorded on every
-        # evidence bundle so a proposal stays reproducible.
-        # ================================================================
-        st.subheader("Evidence workspace")
-
-        route = st.radio(
-            "How do you want to start?",
-            ["I have an evidence folder", "Try it with synthetic evidence", "Assess one control directly"],
-            horizontal=True, key="scan_route",
-            help="A folder scan is optional. It is a way of getting candidate evidence in front "
-                 "of many controls at once, not a required first step.",
-        )
-
-        folder = ""
-        if route == "Assess one control directly":
-            st.info("Go to the **Review** tab, choose a control, and work through one step at a time. "
-                    "Nothing on this tab is needed for that.")
-
-        elif route == "Try it with synthetic evidence":
-            st.caption("Generates a synthetic document for every one of the 195 control contracts, "
-                       "into a temporary folder outside this repository.")
-            scenario_label = st.radio(
-                "Which pack", ["Mixed — full, partial and none", "All complete"],
-                horizontal=True, key="demo_scenario",
-                label_visibility="collapsed",
-            )
-            if st.button("Generate and load synthetic evidence", type="primary", disabled=not controls):
-                scenario = "full" if scenario_label == "All complete" else "mixed"
-                demo_dir = generate_demo_evidence(scenario=scenario)
-                st.session_state.demo_evidence_dir = str(demo_dir)
-                st.session_state.scan_folder = str(demo_dir)
-                S["scan_folder"] = str(demo_dir)
-                save_state()
-                st.rerun()
-            folder = st.session_state.get("demo_evidence_dir", "")
-            if folder:
-                st.success(f"Synthetic pack loaded: `{folder}`")
-            # The honest caveat belongs on the screen, not only in the release notes: this pack is
-            # generated FROM the control contracts, so it reuses the requirement wording almost
-            # verbatim. Retrieval and assessment both look better against it than against real
-            # documents, and the mixed pack is roughly 60% authored as `full`.
-            st.warning("This pack is generated from the control contracts themselves, so it reuses "
-                       "the requirement wording. Retrieval and assessment will look better here than "
-                       "on real documents. Use it to learn the workflow, never as a measurement.")
-
+if tab_s.shown:
+    with tab_s:
+        if not controls:
+            st.info("Load a playbook workbook to use this tab.")
         else:
-            # WB-038: three ways to name a folder, because none works everywhere. The in-app
-            # browser always works. The native dialog only works when the browser and this
-            # process are on the same machine — opened by a remote server it blocks on a
-            # dialog nobody can see — so fp.local_runtime() gates it. Pasting stays, because
-            # it is still the fastest route for anyone who already has the path.
-            st.session_state.pop("demo_evidence_dir", None)
-            S.setdefault("recent_folders", [])
+            # ================================================================
+            # WB-037 — Evidence workspace, restructured around the choice a first-time user
+            # actually faces rather than around the widgets the pipeline needs.
+            #
+            # What was wrong with the previous layout:
+            #   - the demo was two widgets pretending to be one. A selectbox reading "Off" looks
+            #     like a toggle, so choosing "Mixed" and pressing Index did nothing, because the
+            #     selectbox was only an argument to the button beside it.
+            #   - the match threshold had the visual weight of a primary action while governing a
+            #     step (matching) that has no button and is never seen to happen.
+            #   - numbering started at the fifth element on the page and step 2 did not exist until
+            #     step 1 succeeded, so the shape of the journey was invisible.
+            #   - the primary button was disabled with no reason shown.
+            #   - the caption said the scan was optional while the page presented itself as the
+            #     mandatory landing tab.
+            #
+            # Nothing about the pipeline changes here. index_folder, match_controls, build_evidence
+            # and propose are called exactly as before, and min_ratio is still recorded on every
+            # evidence bundle so a proposal stays reproducible.
+            # ================================================================
+            st.subheader("Evidence workspace")
 
-            def _use_folder(path: str):
-                S["scan_folder"] = path
-                S["recent_folders"] = fp.remember(S.get("recent_folders", []), path)
-                st.session_state.browse_at = path
-                save_state()
+            route = st.radio(
+                "How do you want to start?",
+                ["I have an evidence folder", "Try it with synthetic evidence", "Assess one control directly"],
+                horizontal=True, key="scan_route",
+                help="A folder scan is optional. It is a way of getting candidate evidence in front "
+                     "of many controls at once, not a required first step.",
+            )
 
-            folder = st.text_input("Evidence folder", S.get("scan_folder", ""),
-                                   placeholder="/Users/you/Documents/ai-governance-evidence")
-            if folder != S.get("scan_folder", ""):
-                S["scan_folder"] = folder
+            folder = ""
+            if route == "Assess one control directly":
+                st.info("Go to the **Review** tab, choose a control, and work through one step at a time. "
+                        "Nothing on this tab is needed for that.")
 
-            b1, b2 = st.columns([1, 1])
-            if fp.native_available(folder or None):
-                if b1.button("Browse…", key="btn_native_pick"):
-                    chosen, err = fp.pick_folder_native(folder or str(fp.home()))
-                    if err:
-                        st.warning(err)
-                    elif chosen:
-                        _use_folder(chosen)
-                        st.rerun()
-                    # chosen and err both None means cancelled - not an error, say nothing
-            browsing = b2.toggle("Browse from here", key="browse_open",
-                                 help="Walk the filesystem inside the app. Works whether the "
-                                      "workbench runs on this machine or on a server.")
-
-            if browsing:
-                at = st.session_state.get("browse_at") or folder or str(fp.home())
-                if fp.safe_path(at) is None:
-                    at = str(fp.home())
-                crumbs = fp.breadcrumbs(at)
-                cols = st.columns(len(crumbs) + 1)
-                up = fp.parent_of(at)
-                if cols[0].button("↑", key="browse_up", disabled=up is None,
-                                  help="Up one level"):
-                    st.session_state.browse_at = up
-                    st.rerun()
-                for i, (label, target) in enumerate(crumbs, start=1):
-                    if cols[i].button(label or "/", key=f"crumb_{i}"):
-                        st.session_state.browse_at = target
-                        st.rerun()
-
-                subs = fp.list_subdirs(at, show_hidden=st.session_state.get("browse_hidden", False))
-                st.caption(f"`{at}` — {len(subs)} subfolder(s)")
-                if subs:
-                    pick = st.selectbox("Open a subfolder", ["—"] + subs, key="browse_pick")
-                    if pick != "—":
-                        st.session_state.browse_at = str(Path(at) / pick)
-                        st.session_state.browse_pick = "—"
-                        st.rerun()
-                else:
-                    st.caption("No subfolders here, or this folder cannot be read. "
-                               "It can still be selected.")
-                st.checkbox("Show hidden folders", key="browse_hidden")
-                if st.button(f"Use this folder", type="primary", key="browse_use"):
-                    _use_folder(at)
-                    st.rerun()
-
-            recent = [p for p in S.get("recent_folders", []) if p != folder]
-            if recent:
-                r = st.selectbox("Recent folders", ["—"] + recent, key="recent_pick")
-                if r != "—":
-                    _use_folder(r)
-                    st.rerun()
-
-            if not folder:
-                st.caption("Browse above, or paste the full path. In Finder: right-click the "
-                           "folder, hold Option, then Copy as Pathname.")
-            elif fp.safe_path(folder) is None:
-                st.caption("That path does not point at a readable directory yet.")
-
-        self_scan = self_scan_reason(folder) if folder else None
-        if self_scan:
-            st.error(self_scan)
-
-        # ---- the three steps, always visible, each carrying its own reason when unavailable ----
-        st.markdown("---")
-        idx = st.session_state.get("index")
-        sigs = st.session_state.get("signals", [])
-        s1, s2, s3 = st.columns(3)
-
-        with s1:
-            st.markdown("**1 · Index**")
-            st.caption("Read every file in the folder and split it into searchable passages.")
-            blocked = (not folder) or bool(self_scan)
-            do_index = st.button("Index evidence", type="primary", disabled=blocked, key="btn_index")
-            if blocked:
-                st.caption("Needs an evidence folder above." if not folder
-                           else "Blocked — see the message above.")
-
-        with s2:
-            st.markdown("**2 · Match and assess**")
-            st.caption("Find each control's best passages, then ask the assessor for a proposal "
-                       "on every control that matched.")
-            if not idx:
-                st.caption("Available once evidence is indexed.")
-
-        with s3:
-            st.markdown("**3 · Review**")
-            st.caption("Proposals are stored **hidden**. In the Review workspace each one stays "
-                       "invisible until you have recorded your own reading of the evidence.")
-
-        with st.expander("Advanced — retrieval settings"):
-            st.caption("Defaults are fine for a first run. These change which passages a control is "
-                       "assessed on, so the value in force is recorded with every assessment made "
-                       "under it and a stored proposal stays reproducible.")
-            min_ratio = st.slider("Match threshold", 0.0, 1.0, MIN_RATIO, 0.05, key="min_ratio",
-                                  help="How close to a control's best-matching passage another passage "
-                                       "must score to be included as evidence.")
-            st.caption(f"Passages scoring below **{min_ratio:.0%}** of each control's own best match are "
-                       "excluded. Relative to the best match, not an absolute score, so one value means "
-                       "the same thing across libraries with differently-worded controls. "
-                       "Lower finds more and noisier. Higher is stricter and can leave a control with "
-                       "no evidence at all — which is not the same finding as a control that has none.")
-
-        if do_index:
-            if not os.path.isdir(folder):
-                st.error("Folder not found. Paste the full path (in Finder: right-click the folder, "
-                         "hold Option, Copy as Pathname).")
-            else:
-                bar = st.progress(0.0, "Reading files…")
-                try:
-                    st.session_state.index, st.session_state.signals = index_folder(
-                        folder, lambda n, t, name: bar.progress((n + 1) / max(t, 1), f"Reading {name}"))
-                except SelfScanError as e:
-                    bar.empty()
-                    st.error(str(e))
-                    st.stop()
-                bar.empty()
-                chunks = st.session_state.index.chunks
-                files = len({c.path for c in chunks})
-                st.success(f"Indexed {files} documents into {len(chunks)} passages. "
-                           f"Found {len(st.session_state.signals)} environment signals.")
-                idx = st.session_state.index
-                sigs = st.session_state.signals
-
-        if sigs:
-            with st.expander(f"Environment signals ({len(sigs)})"):
-                st.caption("Configuration and infrastructure files that point at a control without "
-                           "being evidence for it. They are shown to the assessor as context.")
-                st.dataframe([{"File": s_.path, "Kind": s_.kind, "What to check": s_.hint,
-                               "Relevant controls": ", ".join(s_.controls)} for s_ in sigs],
-                             width="stretch", hide_index=True)
-
-        if idx:
-            matches = match_controls(idx, in_scope, min_ratio=min_ratio)
-            found = [c for c in in_scope if c.key in matches]
-            st.markdown("---")
-            m1, m2 = st.columns([2, 3])
-            m1.metric("Controls with candidate evidence", f"{len(found)} of {len(in_scope)}")
-            m2.caption(f"At a match threshold of {min_ratio:.0%}. "
-                       f"**{len(in_scope) - len(found)}** in-scope controls matched no document. "
-                       "Move the threshold and this number changes — a control with no matching "
-                       "document is not the same finding as one whose evidence the threshold excluded.")
-            with st.expander("Preview matches"):
-                st.dataframe([{"Control": f"{c.id} {c.title}", "Library": c.lib,
-                               "Best match": matches[c.key][0][0].label,
-                               "Score": round(matches[c.key][0][1], 1),
-                               "Passages kept": len(matches[c.key]),
-                               "Signals": len(signals_for(c, sigs))} for c in found],
-                             width="stretch", hide_index=True)
-            only_new = st.checkbox("Skip controls that already have a recorded decision", True)
-            todo = [c for c in found if not (only_new and c.key in S["decisions"])]
-            if st.button(f"2 · Assess {len(todo)} matched controls", type="primary",
-                         disabled=not todo, key="btn_assess"):
-                bar = st.progress(0.0)
-                fails = 0
-                skipped = []
-                S.setdefault("contract_blocked", {})
-                for n, c in enumerate(todo):
-                    bar.progress(n / len(todo), f"Assessing {c.id} ({n + 1}/{len(todo)})")
-                    # GE-110: a contract that cannot be assessed does not get an assessor call.
-                    # Running the model and then refusing to record it burns a minute per
-                    # control to produce something the engine will not accept.
-                    _blocked = not _contract_report(c).get("executable", True)
-                    if _blocked:
-                        skipped.append(c.id)
-                        S["contract_blocked"][c.key] = _contract_report(c)
-                        continue
-                    S["evidence"][c.key] = build_evidence(c, matches[c.key], sigs)
-                    # WB-023: preserve the full Evidence Intelligence receipt while recording the
-                    # legacy matching policy that remains part of the reproducibility contract.
-                    S["evidence"][c.key].setdefault("retrieval", {}).update({
-                        "min_ratio": min_ratio, "min_score": MIN_SCORE, "k": TOP_K,
-                    })
-                    S["ai"][c.key] = propose(c, S["evidence"][c.key])
-                    fails += S["ai"][c.key].get("model") == "error"
-                    S["decisions"].pop(c.key, None)
-                    # Persist the assessment lifecycle in the append-only governance log.
-                    _ensure_cycle(c, S["evidence"][c.key])
+            elif route == "Try it with synthetic evidence":
+                st.caption("Generates a synthetic document for every one of the 195 control contracts, "
+                           "into a temporary folder outside this repository.")
+                scenario_label = st.radio(
+                    "Which pack", ["Mixed — full, partial and none", "All complete"],
+                    horizontal=True, key="demo_scenario",
+                    label_visibility="collapsed",
+                )
+                if st.button("Generate and load synthetic evidence", type="primary", disabled=not controls):
+                    scenario = "full" if scenario_label == "All complete" else "mixed"
+                    demo_dir = generate_demo_evidence(scenario=scenario)
+                    st.session_state.demo_evidence_dir = str(demo_dir)
+                    st.session_state.scan_folder = str(demo_dir)
+                    S["scan_folder"] = str(demo_dir)
                     save_state()
-                bar.empty()
-                st.success(f"Assessed {len(todo) - len(skipped)} controls ({fails} errors). "
-                           "**Nothing is recorded yet.** Go to the Review workspace — each proposal "
-                           "stays hidden until you have recorded your own reading of the evidence.")
-                if skipped:
-                    st.warning(
-                        f"**{len(skipped)} control(s) skipped — CONTRACT INVALID.** "
-                        f"Their contracts fail integrity, so no assessment was run and none was "
-                        f"recorded. This is a defect in the control library, not in the evidence.\n\n"
-                        + ", ".join(skipped[:20]) + (" …" if len(skipped) > 20 else ""))
+                    st.rerun()
+                folder = st.session_state.get("demo_evidence_dir", "")
+                if folder:
+                    st.success(f"Synthetic pack loaded: `{folder}`")
+                # The honest caveat belongs on the screen, not only in the release notes: this pack is
+                # generated FROM the control contracts, so it reuses the requirement wording almost
+                # verbatim. Retrieval and assessment both look better against it than against real
+                # documents, and the mixed pack is roughly 60% authored as `full`.
+                st.warning("This pack is generated from the control contracts themselves, so it reuses "
+                           "the requirement wording. Retrieval and assessment will look better here than "
+                           "on real documents. Use it to learn the workflow, never as a measurement.")
 
-        # gap analysis
-        if S["ai"] or S["decisions"]:
-            st.subheader("Gap analysis")
-            rows_ = gap_analysis(in_scope, S["ai"], S["decisions"])
-            st.caption(f"{len(rows_)} controls below full. Proposed ratings are the assessor's; only reviewed ones are recorded.")
-            st.dataframe([{k: v for k, v in r.items() if k != "Priority"} for r in rows_], width="stretch", hide_index=True, height=400)
-            st.session_state.gap_rows = rows_
+            else:
+                # WB-038: three ways to name a folder, because none works everywhere. The in-app
+                # browser always works. The native dialog only works when the browser and this
+                # process are on the same machine — opened by a remote server it blocks on a
+                # dialog nobody can see — so fp.local_runtime() gates it. Pasting stays, because
+                # it is still the fastest route for anyone who already has the path.
+                st.session_state.pop("demo_evidence_dir", None)
+                S.setdefault("recent_folders", [])
+
+                def _use_folder(path: str):
+                    S["scan_folder"] = path
+                    S["recent_folders"] = fp.remember(S.get("recent_folders", []), path)
+                    st.session_state.browse_at = path
+                    save_state()
+
+                folder = st.text_input("Evidence folder", S.get("scan_folder", ""),
+                                       placeholder="/Users/you/Documents/ai-governance-evidence")
+                if folder != S.get("scan_folder", ""):
+                    S["scan_folder"] = folder
+
+                b1, b2 = st.columns([1, 1])
+                if fp.native_available(folder or None):
+                    if b1.button("Browse…", key="btn_native_pick"):
+                        chosen, err = fp.pick_folder_native(folder or str(fp.home()))
+                        if err:
+                            st.warning(err)
+                        elif chosen:
+                            _use_folder(chosen)
+                            st.rerun()
+                        # chosen and err both None means cancelled - not an error, say nothing
+                browsing = b2.toggle("Browse from here", key="browse_open",
+                                     help="Walk the filesystem inside the app. Works whether the "
+                                          "workbench runs on this machine or on a server.")
+
+                if browsing:
+                    at = st.session_state.get("browse_at") or folder or str(fp.home())
+                    if fp.safe_path(at) is None:
+                        at = str(fp.home())
+                    crumbs = fp.breadcrumbs(at)
+                    cols = st.columns(len(crumbs) + 1)
+                    up = fp.parent_of(at)
+                    if cols[0].button("↑", key="browse_up", disabled=up is None,
+                                      help="Up one level"):
+                        st.session_state.browse_at = up
+                        st.rerun()
+                    for i, (label, target) in enumerate(crumbs, start=1):
+                        if cols[i].button(label or "/", key=f"crumb_{i}"):
+                            st.session_state.browse_at = target
+                            st.rerun()
+
+                    subs = fp.list_subdirs(at, show_hidden=st.session_state.get("browse_hidden", False))
+                    st.caption(f"`{at}` — {len(subs)} subfolder(s)")
+                    if subs:
+                        pick = st.selectbox("Open a subfolder", ["—"] + subs, key="browse_pick")
+                        if pick != "—":
+                            st.session_state.browse_at = str(Path(at) / pick)
+                            st.session_state.browse_pick = "—"
+                            st.rerun()
+                    else:
+                        st.caption("No subfolders here, or this folder cannot be read. "
+                                   "It can still be selected.")
+                    st.checkbox("Show hidden folders", key="browse_hidden")
+                    if st.button(f"Use this folder", type="primary", key="browse_use"):
+                        _use_folder(at)
+                        st.rerun()
+
+                recent = [p for p in S.get("recent_folders", []) if p != folder]
+                if recent:
+                    r = st.selectbox("Recent folders", ["—"] + recent, key="recent_pick")
+                    if r != "—":
+                        _use_folder(r)
+                        st.rerun()
+
+                if not folder:
+                    st.caption("Browse above, or paste the full path. In Finder: right-click the "
+                               "folder, hold Option, then Copy as Pathname.")
+                elif fp.safe_path(folder) is None:
+                    st.caption("That path does not point at a readable directory yet.")
+
+            self_scan = self_scan_reason(folder) if folder else None
+            if self_scan:
+                st.error(self_scan)
+
+            # ---- the three steps, always visible, each carrying its own reason when unavailable ----
+            st.markdown("---")
+            idx = st.session_state.get("index")
+            sigs = st.session_state.get("signals", [])
+            s1, s2, s3 = st.columns(3)
+
+            with s1:
+                st.markdown("**1 · Index**")
+                st.caption("Read every file in the folder and split it into searchable passages.")
+                blocked = (not folder) or bool(self_scan)
+                do_index = st.button("Index evidence", type="primary", disabled=blocked, key="btn_index")
+                if blocked:
+                    st.caption("Needs an evidence folder above." if not folder
+                               else "Blocked — see the message above.")
+
+            with s2:
+                st.markdown("**2 · Match and assess**")
+                st.caption("Find each control's best passages, then ask the assessor for a proposal "
+                           "on every control that matched.")
+                if not idx:
+                    st.caption("Available once evidence is indexed.")
+
+            with s3:
+                st.markdown("**3 · Review**")
+                st.caption("Proposals are stored **hidden**. In the Review workspace each one stays "
+                           "invisible until you have recorded your own reading of the evidence.")
+
+            with st.expander("Advanced — retrieval settings"):
+                st.caption("Defaults are fine for a first run. These change which passages a control is "
+                           "assessed on, so the value in force is recorded with every assessment made "
+                           "under it and a stored proposal stays reproducible.")
+                min_ratio = st.slider("Match threshold", 0.0, 1.0, MIN_RATIO, 0.05, key="min_ratio",
+                                      help="How close to a control's best-matching passage another passage "
+                                           "must score to be included as evidence.")
+                st.caption(f"Passages scoring below **{min_ratio:.0%}** of each control's own best match are "
+                           "excluded. Relative to the best match, not an absolute score, so one value means "
+                           "the same thing across libraries with differently-worded controls. "
+                           "Lower finds more and noisier. Higher is stricter and can leave a control with "
+                           "no evidence at all — which is not the same finding as a control that has none.")
+
+            if do_index:
+                if not os.path.isdir(folder):
+                    st.error("Folder not found. Paste the full path (in Finder: right-click the folder, "
+                             "hold Option, Copy as Pathname).")
+                else:
+                    bar = st.progress(0.0, "Reading files…")
+                    try:
+                        st.session_state.index, st.session_state.signals = index_folder(
+                            folder, lambda n, t, name: bar.progress((n + 1) / max(t, 1), f"Reading {name}"))
+                    except SelfScanError as e:
+                        bar.empty()
+                        st.error(str(e))
+                        st.stop()
+                    bar.empty()
+                    chunks = st.session_state.index.chunks
+                    files = len({c.path for c in chunks})
+                    st.success(f"Indexed {files} documents into {len(chunks)} passages. "
+                               f"Found {len(st.session_state.signals)} environment signals.")
+                    idx = st.session_state.index
+                    sigs = st.session_state.signals
+
+            if sigs:
+                with st.expander(f"Environment signals ({len(sigs)})"):
+                    st.caption("Configuration and infrastructure files that point at a control without "
+                               "being evidence for it. They are shown to the assessor as context.")
+                    st.dataframe([{"File": s_.path, "Kind": s_.kind, "What to check": s_.hint,
+                                   "Relevant controls": ", ".join(s_.controls)} for s_ in sigs],
+                                 width="stretch", hide_index=True)
+
+            if idx:
+                matches = match_controls(idx, in_scope, min_ratio=min_ratio)
+                found = [c for c in in_scope if c.key in matches]
+                st.markdown("---")
+                m1, m2 = st.columns([2, 3])
+                m1.metric("Controls with candidate evidence", f"{len(found)} of {len(in_scope)}")
+                m2.caption(f"At a match threshold of {min_ratio:.0%}. "
+                           f"**{len(in_scope) - len(found)}** in-scope controls matched no document. "
+                           "Move the threshold and this number changes — a control with no matching "
+                           "document is not the same finding as one whose evidence the threshold excluded.")
+                with st.expander("Preview matches"):
+                    st.dataframe([{"Control": f"{c.id} {c.title}", "Library": c.lib,
+                                   "Best match": matches[c.key][0][0].label,
+                                   "Score": round(matches[c.key][0][1], 1),
+                                   "Passages kept": len(matches[c.key]),
+                                   "Signals": len(signals_for(c, sigs))} for c in found],
+                                 width="stretch", hide_index=True)
+                only_new = st.checkbox("Skip controls that already have a recorded decision", True)
+                todo = [c for c in found if not (only_new and c.key in S["decisions"])]
+                if st.button(f"2 · Assess {len(todo)} matched controls", type="primary",
+                             disabled=not todo, key="btn_assess"):
+                    bar = st.progress(0.0)
+                    fails = 0
+                    skipped = []
+                    S.setdefault("contract_blocked", {})
+                    for n, c in enumerate(todo):
+                        bar.progress(n / len(todo), f"Assessing {c.id} ({n + 1}/{len(todo)})")
+                        # GE-110: a contract that cannot be assessed does not get an assessor call.
+                        # Running the model and then refusing to record it burns a minute per
+                        # control to produce something the engine will not accept.
+                        _blocked = not _contract_report(c).get("executable", True)
+                        if _blocked:
+                            skipped.append(c.id)
+                            S["contract_blocked"][c.key] = _contract_report(c)
+                            continue
+                        S["evidence"][c.key] = build_evidence(c, matches[c.key], sigs)
+                        # WB-023: preserve the full Evidence Intelligence receipt while recording the
+                        # legacy matching policy that remains part of the reproducibility contract.
+                        S["evidence"][c.key].setdefault("retrieval", {}).update({
+                            "min_ratio": min_ratio, "min_score": MIN_SCORE, "k": TOP_K,
+                        })
+                        S["ai"][c.key] = propose(c, S["evidence"][c.key])
+                        fails += S["ai"][c.key].get("model") == "error"
+                        S["decisions"].pop(c.key, None)
+                        # Persist the assessment lifecycle in the append-only governance log.
+                        _ensure_cycle(c, S["evidence"][c.key])
+                        save_state()
+                    bar.empty()
+                    st.success(f"Assessed {len(todo) - len(skipped)} controls ({fails} errors). "
+                               "**Nothing is recorded yet.** Go to the Review workspace — each proposal "
+                               "stays hidden until you have recorded your own reading of the evidence.")
+                    if skipped:
+                        st.warning(
+                            f"**{len(skipped)} control(s) skipped — CONTRACT INVALID.** "
+                            f"Their contracts fail integrity, so no assessment was run and none was "
+                            f"recorded. This is a defect in the control library, not in the evidence.\n\n"
+                            + ", ".join(skipped[:20]) + (" …" if len(skipped) > 20 else ""))
+
+            # gap analysis
+            if S["ai"] or S["decisions"]:
+                st.subheader("Gap analysis")
+                rows_ = gap_analysis(in_scope, S["ai"], S["decisions"])
+                st.caption(f"{len(rows_)} controls below full. Proposed ratings are the assessor's; only reviewed ones are recorded.")
+                st.dataframe([{k: v for k, v in r.items() if k != "Priority"} for r in rows_], width="stretch", hide_index=True, height=400)
+                st.session_state.gap_rows = rows_
 
 # ---------- Review workspace ----------
 
@@ -2850,608 +2965,829 @@ def _render_review_queue():
 
 
 # ---------- Review ----------
-with tab_a:
-    if not controls:
-        st.info("Load a playbook workbook to use this tab.")
-    elif st.session_state.get("sel") in by_key:
-        current_key=st.session_state["sel"]; current_control=by_key[current_key]
-        current_row=next((r for r in build_queue(in_scope,cycle_states=_cycle_states(),cache=S) if r["key"]==current_key),None)
-        if current_row:
-            _render_review_workspace(current_control,current_row)
+if tab_a.shown:
+    with tab_a:
+        if not controls:
+            st.info("Load a playbook workbook to use this tab.")
+        elif st.session_state.get("sel") in by_key:
+            current_key=st.session_state["sel"]; current_control=by_key[current_key]
+            current_row=next((r for r in build_queue(in_scope,cycle_states=_cycle_states(),cache=S) if r["key"]==current_key),None)
+            if current_row:
+                _render_review_workspace(current_control,current_row)
+            else:
+                st.session_state.pop("sel",None); st.rerun()
         else:
-            st.session_state.pop("sel",None); st.rerun()
-    else:
-        _render_review_queue()
+            _render_review_queue()
 
 # ---------- Report ----------
-with tab_r:
-    if not controls:
-        st.info("Load a playbook workbook to use this tab.")
-    else:
-        st.subheader("Readiness summary")
-        st.caption(f"{S['org'] or 'Organisation not set'} · {S['reviewer'] or 'reviewer not set'} · {dt.date.today()}")
-        stats = []
-        for lib, rows in controls.items():
-            if not scope.get(lib):
-                continue
-            ds = [S["decisions"][c.key] for c in rows if c.key in S["decisions"]]
-            cnt = lambda s: sum(1 for d in ds if d["sufficiency"] == s)
-            mats = [d["maturity"] for d in ds]
-            stats.append({"Library": lib, "Controls": len(rows), "Assessed": len(ds), "Full": cnt("full"), "Partial": cnt("partial"), "None": cnt("none"),
-                          "Avg maturity": round(sum(mats) / len(mats), 1) if mats else None})
-        st.dataframe(stats, width="stretch", hide_index=True)
+if tab_r.shown:
+    with tab_r:
+        if not controls:
+            st.info("Load a playbook workbook to use this tab.")
+        else:
+            st.subheader("Readiness summary")
+            st.caption(f"{S['org'] or 'Organisation not set'} · {S['reviewer'] or 'reviewer not set'} · {dt.date.today()}")
+            stats = []
+            for lib, rows in controls.items():
+                if not scope.get(lib):
+                    continue
+                ds = [S["decisions"][c.key] for c in rows if c.key in S["decisions"]]
+                cnt = lambda s: sum(1 for d in ds if d["sufficiency"] == s)
+                mats = [d["maturity"] for d in ds]
+                stats.append({"Library": lib, "Controls": len(rows), "Assessed": len(ds), "Full": cnt("full"), "Partial": cnt("partial"), "None": cnt("none"),
+                              "Avg maturity": round(sum(mats) / len(mats), 1) if mats else None})
+            st.dataframe(stats, width="stretch", hide_index=True)
 
-        gaps = [c for c in in_scope if S["decisions"].get(c.key, {}).get("sufficiency") != "full"]
-        gaps.sort(key=lambda c: {"none": 0, "partial": 1}.get(S["decisions"].get(c.key, {}).get("sufficiency"), 2))
-        st.subheader(f"Gap register ({len(gaps)})")
-        st.dataframe([{"Control": f"{c.id} {c.title}", "Library": c.lib, "Rating": S["decisions"].get(c.key, {}).get("sufficiency", "not assessed"),
-                       "Owner": c.owner, "Gaps noted": "; ".join(S["ai"].get(c.key, {}).get("gaps", []))} for c in gaps],
-                     width="stretch", hide_index=True, height=360)
+            gaps = [c for c in in_scope if S["decisions"].get(c.key, {}).get("sufficiency") != "full"]
+            gaps.sort(key=lambda c: {"none": 0, "partial": 1}.get(S["decisions"].get(c.key, {}).get("sufficiency"), 2))
+            st.subheader(f"Gap register ({len(gaps)})")
+            st.dataframe([{"Control": f"{c.id} {c.title}", "Library": c.lib, "Rating": S["decisions"].get(c.key, {}).get("sufficiency", "not assessed"),
+                           "Owner": c.owner, "Gaps noted": "; ".join(S["ai"].get(c.key, {}).get("gaps", []))} for c in gaps],
+                         width="stretch", hide_index=True, height=360)
 
-        # markdown report
-        md = [f"# AI Governance Readiness Assessment\n", f"**Organisation:** {S['org']}  ", f"**Reviewer:** {S['reviewer']}  ", f"**Date:** {dt.date.today()}  ",
-              f"**Scope:** {', '.join(l for l in scope if scope[l])}\n",
-              "The named reviewer records their own reading of the evidence before any model output is shown. An AI assistant then proposes a sufficiency rating, and a challenger may attack the reading with questions but cannot rate and cannot agree. Where the reviewer moved from their own reading, both readings stand in the record. Ratings describe how far supplied evidence supports each control. They are not a determination of regulatory compliance.\n",
-              "## Summary\n", "| Library | Controls | Assessed | Full | Partial | None | Avg maturity |", "|---|---|---|---|---|---|---|"]
-        md += [f"| {s['Library']} | {s['Controls']} | {s['Assessed']} | {s['Full']} | {s['Partial']} | {s['None']} | {s['Avg maturity'] or '–'} |" for s in stats]
-        md += ["\n## Gap register\n", "| Control | Library | Rating | Owner | Gaps noted |", "|---|---|---|---|---|"]
-        md += [f"| {c.id} {c.title} | {c.lib} | {S['decisions'].get(c.key, {}).get('sufficiency', 'not assessed')} | {c.owner} | {'; '.join(S['ai'].get(c.key, {}).get('gaps', []))} |" for c in gaps]
-        if st.session_state.get("gap_rows"):
-            md += ["\n## Gap analysis and suggested actions\n", "| Control | Library | Finding | Gaps | Suggested action | Owner |", "|---|---|---|---|---|---|"]
-            md += [f"| {r['Control']} | {r['Library']} | {r['Finding']} | {r['Gaps']} | {r['Suggested action']} | {r['Owner']} |" for r in st.session_state.gap_rows]
-        md += ["\n## Accepted assessments\n"]
-        for c in in_scope:
-            d = S["decisions"].get(c.key)
-            if not d:
-                continue
-            a = S["ai"].get(c.key, {})
-            md += [f"### {c.id} — {c.title} ({c.lib})",
-                   f"- Rating: {d['sufficiency']}, maturity {d['maturity']}/5 — recorded by {d['reviewer']} on {d['at'][:10]}"
-                   + _ai_proposed_clause(d, a),
-                   f"- Reviewer's reading before any model output: {d['blind']['sufficiency']}, maturity {d['blind']['maturity']}/5 — {d['blind']['reason']}" if d.get("blind") else "- Reviewer's reading before any model output: not recorded (assessed before this was required)",
-                   (f"- Moved from that reading after " + ("the challenger" if d.get("revised_after_challenge") else "") + (" and " if d.get("revised_after_challenge") and d.get("revised_after_assessor") else "") + ("the proposal" if d.get("revised_after_assessor") else "")) if d.get("supersedes") else "- Held the reading",
-                   f"- Rationale: {a.get('rationale', '')}"] + ([f'- Evidence excerpt: "{a["excerpt"]}"'] if a.get("excerpt") else []) + ([f"- Validation flags: {'; '.join(a['flags'])}"] if a.get("flags") else []) + ([f"- Reviewer note: {d['note']}"] if d.get("note") else []) + [""]
-        if st.session_state.get("lifecycle_view"):
-            md += ["\n## Lifecycle plays — design vs operation\n",
-                   "| Play | Steps tested | Op PASS | Op FAIL | Op N/T | Design full | Design partial | Design none | Unassessed | Flag |",
-                   "|---|---|---|---|---|---|---|---|---|---|"]
-            for v_ in st.session_state.lifecycle_view:
-                s_ = v_["summary"]
-                md.append(f"| {v_['id']} {v_['title']} | {s_['steps_tested']}/{s_['steps']} | {s_['op_pass']} | {s_['op_fail']} | {s_['op_nt']} | "
-                          f"{s_['design_full']} | {s_['design_partial']} | {s_['design_none']} | {s_['design_unassessed']} | "
-                          f"{'design full / op FAIL' if s_['design_full_op_fail'] else ''} |")
-            md.append("\nOperation verdicts are deterministic Lane B checks; design ratings are reviewer-recorded Lane A assessments. A step without an operating test is a coverage gap, not a pass.")
-        report = "\n".join(md)
+            # markdown report
+            md = [f"# AI Governance Readiness Assessment\n", f"**Organisation:** {S['org']}  ", f"**Reviewer:** {S['reviewer']}  ", f"**Date:** {dt.date.today()}  ",
+                  f"**Scope:** {', '.join(l for l in scope if scope[l])}\n",
+                  "The named reviewer records their own reading of the evidence before any model output is shown. An AI assistant then proposes a sufficiency rating, and a challenger may attack the reading with questions but cannot rate and cannot agree. Where the reviewer moved from their own reading, both readings stand in the record. Ratings describe how far supplied evidence supports each control. They are not a determination of regulatory compliance.\n",
+                  "## Summary\n", "| Library | Controls | Assessed | Full | Partial | None | Avg maturity |", "|---|---|---|---|---|---|---|"]
+            md += [f"| {s['Library']} | {s['Controls']} | {s['Assessed']} | {s['Full']} | {s['Partial']} | {s['None']} | {s['Avg maturity'] or '–'} |" for s in stats]
+            md += ["\n## Gap register\n", "| Control | Library | Rating | Owner | Gaps noted |", "|---|---|---|---|---|"]
+            md += [f"| {c.id} {c.title} | {c.lib} | {S['decisions'].get(c.key, {}).get('sufficiency', 'not assessed')} | {c.owner} | {'; '.join(S['ai'].get(c.key, {}).get('gaps', []))} |" for c in gaps]
+            if st.session_state.get("gap_rows"):
+                md += ["\n## Gap analysis and suggested actions\n", "| Control | Library | Finding | Gaps | Suggested action | Owner |", "|---|---|---|---|---|---|"]
+                md += [f"| {r['Control']} | {r['Library']} | {r['Finding']} | {r['Gaps']} | {r['Suggested action']} | {r['Owner']} |" for r in st.session_state.gap_rows]
+            md += ["\n## Accepted assessments\n"]
+            for c in in_scope:
+                d = S["decisions"].get(c.key)
+                if not d:
+                    continue
+                a = S["ai"].get(c.key, {})
+                md += [f"### {c.id} — {c.title} ({c.lib})",
+                       f"- Rating: {d['sufficiency']}, maturity {d['maturity']}/5 — recorded by {d['reviewer']} on {d['at'][:10]}"
+                       + _ai_proposed_clause(d, a),
+                       f"- Reviewer's reading before any model output: {d['blind']['sufficiency']}, maturity {d['blind']['maturity']}/5 — {d['blind']['reason']}" if d.get("blind") else "- Reviewer's reading before any model output: not recorded (assessed before this was required)",
+                       (f"- Moved from that reading after " + ("the challenger" if d.get("revised_after_challenge") else "") + (" and " if d.get("revised_after_challenge") and d.get("revised_after_assessor") else "") + ("the proposal" if d.get("revised_after_assessor") else "")) if d.get("supersedes") else "- Held the reading",
+                       f"- Rationale: {a.get('rationale', '')}"] + ([f'- Evidence excerpt: "{a["excerpt"]}"'] if a.get("excerpt") else []) + ([f"- Validation flags: {'; '.join(a['flags'])}"] if a.get("flags") else []) + ([f"- Reviewer note: {d['note']}"] if d.get("note") else []) + [""]
+            if st.session_state.get("lifecycle_view"):
+                md += ["\n## Lifecycle plays — design vs operation\n",
+                       "| Play | Steps tested | Op PASS | Op FAIL | Op N/T | Design full | Design partial | Design none | Unassessed | Flag |",
+                       "|---|---|---|---|---|---|---|---|---|---|"]
+                for v_ in st.session_state.lifecycle_view:
+                    s_ = v_["summary"]
+                    md.append(f"| {v_['id']} {v_['title']} | {s_['steps_tested']}/{s_['steps']} | {s_['op_pass']} | {s_['op_fail']} | {s_['op_nt']} | "
+                              f"{s_['design_full']} | {s_['design_partial']} | {s_['design_none']} | {s_['design_unassessed']} | "
+                              f"{'design full / op FAIL' if s_['design_full_op_fail'] else ''} |")
+                md.append("\nOperation verdicts are deterministic Lane B checks; design ratings are reviewer-recorded Lane A assessments. A step without an operating test is a coverage gap, not a pass.")
+            report = "\n".join(md)
 
-        c1, c2 = st.columns(2)
-        c1.download_button("Download report (.md)", report, file_name=f"AI_readiness_{(S['org'] or 'org').replace(' ', '_')}.md", type="primary")
-        if c2.button("Write results back to playbook"):
-            out = DATA / f"playbook_assessed_{dt.date.today()}.xlsx"
-            n = export_playbook(src, str(out), controls, S["decisions"], S["ai"], S["evidence"])
-            st.success(f"{n} control rows updated → {out}")
-            st.download_button("Download updated playbook", out.read_bytes(), file_name=out.name)
+            c1, c2 = st.columns(2)
+            c1.download_button("Download report (.md)", report, file_name=f"AI_readiness_{(S['org'] or 'org').replace(' ', '_')}.md", type="primary")
+            if c2.button("Write results back to playbook"):
+                out = DATA / f"playbook_assessed_{dt.date.today()}.xlsx"
+                n = export_playbook(src, str(out), controls, S["decisions"], S["ai"], S["evidence"])
+                st.success(f"{n} control rows updated → {out}")
+                st.download_button("Download updated playbook", out.read_bytes(), file_name=out.name)
 
 
 # ====================================================================
 # ---------- Audit (Lane B: deterministic control testing) ----------
 # ====================================================================
-with tab_b:
-    st.subheader("Knowledge runtime monitor")
-    st.caption("Runtime trace for assessor/challenger retrieval. LOCAL and TESTING KB are internal advisory channels; INTERNET findings are live external context. Retrieval never becomes an organisational evidence item or a decision.")
-    try:
-        from governance.knowledge_monitor import read as read_knowledge_usage, summary as knowledge_usage_summary
-        km = knowledge_usage_summary()
-        k1,k2,k3,k4,k5 = st.columns(5)
-        k1.metric("Retrievals", km["runs"])
-        k2.metric("Local used", km["local_runs"])
-        k3.metric("Testing KB used", km["testing_runs"])
-        k4.metric("Internet findings", km["internet_findings"])
-        k5.metric("Web attempts", km["internet_attempts"])
-        rows_k = read_knowledge_usage(100)
-        if not rows_k:
-            st.info("No assessor/challenger knowledge retrieval has been recorded yet.")
+if tab_b.shown:
+    with tab_b:
+        st.subheader("Knowledge runtime monitor")
+        st.caption("Runtime trace for assessor/challenger retrieval. LOCAL and TESTING KB are internal advisory channels; INTERNET findings are live external context. Retrieval never becomes an organisational evidence item or a decision.")
+        try:
+            from governance.knowledge_monitor import read as read_knowledge_usage, summary as knowledge_usage_summary
+            km = knowledge_usage_summary()
+            k1,k2,k3,k4,k5 = st.columns(5)
+            k1.metric("Retrievals", km["runs"])
+            k2.metric("Local used", km["local_runs"])
+            k3.metric("Testing KB used", km["testing_runs"])
+            k4.metric("Internet findings", km["internet_findings"])
+            k5.metric("Web attempts", km["internet_attempts"])
+            rows_k = read_knowledge_usage(100)
+            if not rows_k:
+                st.info("No assessor/challenger knowledge retrieval has been recorded yet.")
+            else:
+                def _channels(r):
+                    ch=[]
+                    if (r.get("local") or {}).get("used"): ch.append("LOCAL")
+                    if (r.get("control_testing") or {}).get("used"): ch.append("TESTING KB")
+                    if (r.get("internet") or {}).get("used"): ch.append("INTERNET")
+                    return " + ".join(ch) if ch else "NONE FOUND"
+                view=[]
+                for r in reversed(rows_k):
+                    web=r.get("internet") or {}; local=r.get("local") or {}; testing=r.get("control_testing") or {}
+                    view.append({
+                        "Time": str(r.get("ts", ""))[:19].replace("T", " "),
+                        "Role": r.get("role", ""),
+                        "Control": f"{r.get('framework','')} {r.get('control_id','')}".strip(),
+                        "Channel(s)": _channels(r),
+                        "Local memories": ", ".join(local.get("memory_ids") or []) or "—",
+                        "Testing KB": ", ".join(testing.get("controls") or []) or "—",
+                        "Web findings": len(web.get("sources") or []),
+                        "Web status": "findings" if web.get("used") else ("attempted / none" if web.get("attempted") else "not attempted"),
+                    })
+                st.dataframe(view, width="stretch", hide_index=True)
+                with st.expander("Latest runtime trace", expanded=True):
+                    st.json(rows_k[-1])
+        except Exception as exc:
+            st.warning(f"Knowledge monitor unavailable: {type(exc).__name__}: {exc}")
+
+        st.divider()
+        st.subheader("Continuous control testing")
+        st.caption("Deterministic checks over artefacts (git history, dependency pins, deploy manifests, governance exports, environment signals). "
+                   "No model is involved. Each run writes a hashed evidence bundle; only a named reviewer can sign a result.")
+        afolder = st.text_input("Target folder (repo or evidence root)", S.get("scan_folder", ""), key="audit_folder")
+        S["scan_folder"] = afolder
+        c1, c2, c3 = st.columns([1, 1, 2])
+        trig = c2.selectbox("Trigger", ["manual", "on_commit", "on_deploy", "scheduled"], help="Selects controls by frequency. `manual` runs everything.")
+        if c1.button("Run audit", type="primary", disabled=not afolder):
+            if not os.path.isdir(afolder):
+                st.error("Folder not found.")
+            else:
+                with st.spinner("Discovering artefacts and running checks…"):
+                    try:
+                        b, bpath = run_audit(afolder, trig)
+                        st.session_state.sel_bundle = str(bpath)
+                        st.success(f"Bundle {b['bundle_id'][:8]} written: {len(b['results'])} controls run.")
+                    except Exception as e:
+                        st.error(f"Audit failed: {e}")
+        save_state()
+
+        bundles = list_bundles()
+        if not bundles:
+            st.info("No bundles yet. Run an audit, or `python -m caa.runner --target <folder>` from a terminal / CI.")
         else:
-            def _channels(r):
-                ch=[]
-                if (r.get("local") or {}).get("used"): ch.append("LOCAL")
-                if (r.get("control_testing") or {}).get("used"): ch.append("TESTING KB")
-                if (r.get("internet") or {}).get("used"): ch.append("INTERNET")
-                return " + ".join(ch) if ch else "NONE FOUND"
-            view=[]
-            for r in reversed(rows_k):
-                web=r.get("internet") or {}; local=r.get("local") or {}; testing=r.get("control_testing") or {}
-                view.append({
-                    "Time": str(r.get("ts", ""))[:19].replace("T", " "),
-                    "Role": r.get("role", ""),
-                    "Control": f"{r.get('framework','')} {r.get('control_id','')}".strip(),
-                    "Channel(s)": _channels(r),
-                    "Local memories": ", ".join(local.get("memory_ids") or []) or "—",
-                    "Testing KB": ", ".join(testing.get("controls") or []) or "—",
-                    "Web findings": len(web.get("sources") or []),
-                    "Web status": "findings" if web.get("used") else ("attempted / none" if web.get("attempted") else "not attempted"),
-                })
-            st.dataframe(view, width="stretch", hide_index=True)
-            with st.expander("Latest runtime trace", expanded=True):
-                st.json(rows_k[-1])
-    except Exception as exc:
-        st.warning(f"Knowledge monitor unavailable: {type(exc).__name__}: {exc}")
+            st.markdown("#### Bundles")
+            st.dataframe([{"Run at": b_["run_at"][:19].replace("T", " "), "Trigger": b_["trigger"], "Controls": b_["controls"],
+                           "PASS": b_["PASS"], "FAIL": b_["FAIL"], "NOT_TESTABLE": b_["NOT_TESTABLE"], "Unsigned": b_["unsigned"],
+                           "Integrity": "✓" if b_["integrity"] else "✗ TAMPERED", "Bundle": b_["bundle_id"][:8]} for b_ in bundles],
+                         width="stretch", hide_index=True, height=200)
+            paths = [b_["path"] for b_ in bundles]
+            default = st.session_state.get("sel_bundle") if st.session_state.get("sel_bundle") in paths else paths[0]
+            selp = st.selectbox("Open bundle", paths, index=paths.index(default),
+                                format_func=lambda p_: next(f"{b_['run_at'][:19].replace('T',' ')} · {b_['trigger']} · {b_['bundle_id'][:8]}" for b_ in bundles if b_["path"] == p_))
+            st.session_state.sel_bundle = selp
+            bd = load_bundle(selp)
+            ok = next(b_["integrity"] for b_ in bundles if b_["path"] == selp)
+            if not ok:
+                st.error("Integrity check failed: machine results in this bundle were modified after the run. Signing is disabled.")
+            st.caption(f"Runner {bd['runner_version']} · control pack {bd['control_pack']['sha256'][:12]} ({bd['control_pack']['control_count']} controls) · "
+                       f"target `{bd.get('inventory_id','')[:8]}` · bundle sha {bd['bundle_sha256'][:12]}")
 
-    st.divider()
-    st.subheader("Continuous control testing")
-    st.caption("Deterministic checks over artefacts (git history, dependency pins, deploy manifests, governance exports, environment signals). "
-               "No model is involved. Each run writes a hashed evidence bundle; only a named reviewer can sign a result.")
-    afolder = st.text_input("Target folder (repo or evidence root)", S.get("scan_folder", ""), key="audit_folder")
-    S["scan_folder"] = afolder
-    c1, c2, c3 = st.columns([1, 1, 2])
-    trig = c2.selectbox("Trigger", ["manual", "on_commit", "on_deploy", "scheduled"], help="Selects controls by frequency. `manual` runs everything.")
-    if c1.button("Run audit", type="primary", disabled=not afolder):
-        if not os.path.isdir(afolder):
-            st.error("Folder not found.")
+            order = {"FAIL": 0, "NOT_TESTABLE": 1, "PASS": 2}
+            results = sorted(bd["results"], key=lambda r_: (order[r_["machine_verdict"]], r_["control_id"]))
+            show_pass = st.checkbox("Show PASS results", False)
+            for r_ in results:
+                if r_["machine_verdict"] == "PASS" and not show_pass:
+                    continue
+                hv = r_.get("human_verdict")
+                head = f"{r_['control_id']} — {r_['assertion'][:90]}"
+                with st.expander(head, expanded=(r_["machine_verdict"] != "PASS" and not hv)):
+                    st.markdown(f"{vpill(r_['machine_verdict'])} &nbsp; <small>{r_['severity']} · {r_['domain']} · {', '.join(r_.get('framework_refs', []))}</small>", unsafe_allow_html=True)
+                    st.write(r_["detail"])
+                    if r_.get("findings"):
+                        flat = [{k: (v if not isinstance(v, (dict, list)) else json.dumps(v)[:120]) for k, v in f_.items()} for f_ in r_["findings"][:50]]
+                        st.dataframe(flat, width="stretch", hide_index=True)
+                    if r_.get("evidence"):
+                        st.caption("Evidence examined: " + "; ".join(f"{e_['source']} ({e_['sha256'][:10]})" for e_ in r_["evidence"]))
+                    st.markdown(f'<div class="req"><b>Human gate</b> — {r_["human_gate"]}</div>', unsafe_allow_html=True)
+
+                    if hv:
+                        st.markdown(f"**{hv['disposition']}** — signed by {hv['reviewer']}, {hv['signed_at'][:16].replace('T', ' ')}" +
+                                    (f" · exception {hv['exception_ref']}" if hv.get("exception_ref") else ""))
+                        if hv.get("rationale"):
+                            st.caption(hv["rationale"])
+                        if st.button("Reopen", key=f"unsign_{r_['control_id']}"):
+                            unsign_result(selp, r_["control_id"]); st.rerun()
+                    elif ok:
+                        k1, k2, k3 = st.columns([1.2, 1, 2])
+                        disp = k1.selectbox("Disposition", DISPOSITIONS, key=f"disp_{r_['control_id']}")
+                        exc = k2.text_input("Exception ref", key=f"exc_{r_['control_id']}", placeholder="EXC-…")
+                        rat = k3.text_input("Rationale", key=f"rat_{r_['control_id']}")
+                        if st.button("Sign", key=f"sign_{r_['control_id']}", type="primary", disabled=not S.get("reviewer")):
+                            try:
+                                sign_result(selp, r_["control_id"], S["reviewer"], disp, rat, exc or None)
+                                st.rerun()
+                            except Exception as e:
+                                st.error(str(e))
+                        if not S.get("reviewer"):
+                            st.caption("Set your reviewer name in the sidebar to sign.")
+
+    # ====================================================================
+    # ---------- History (Lane B: one control across runs) ----------
+    # ====================================================================
+        st.subheader("Control history")
+        bundles = list_bundles()
+        if not bundles:
+            st.info("No bundles yet.")
         else:
-            with st.spinner("Discovering artefacts and running checks…"):
-                try:
-                    b, bpath = run_audit(afolder, trig)
-                    st.session_state.sel_bundle = str(bpath)
-                    st.success(f"Bundle {b['bundle_id'][:8]} written: {len(b['results'])} controls run.")
-                except Exception as e:
-                    st.error(f"Audit failed: {e}")
-    save_state()
-
-    bundles = list_bundles()
-    if not bundles:
-        st.info("No bundles yet. Run an audit, or `python -m caa.runner --target <folder>` from a terminal / CI.")
-    else:
-        st.markdown("#### Bundles")
-        st.dataframe([{"Run at": b_["run_at"][:19].replace("T", " "), "Trigger": b_["trigger"], "Controls": b_["controls"],
-                       "PASS": b_["PASS"], "FAIL": b_["FAIL"], "NOT_TESTABLE": b_["NOT_TESTABLE"], "Unsigned": b_["unsigned"],
-                       "Integrity": "✓" if b_["integrity"] else "✗ TAMPERED", "Bundle": b_["bundle_id"][:8]} for b_ in bundles],
-                     width="stretch", hide_index=True, height=200)
-        paths = [b_["path"] for b_ in bundles]
-        default = st.session_state.get("sel_bundle") if st.session_state.get("sel_bundle") in paths else paths[0]
-        selp = st.selectbox("Open bundle", paths, index=paths.index(default),
-                            format_func=lambda p_: next(f"{b_['run_at'][:19].replace('T',' ')} · {b_['trigger']} · {b_['bundle_id'][:8]}" for b_ in bundles if b_["path"] == p_))
-        st.session_state.sel_bundle = selp
-        bd = load_bundle(selp)
-        ok = next(b_["integrity"] for b_ in bundles if b_["path"] == selp)
-        if not ok:
-            st.error("Integrity check failed: machine results in this bundle were modified after the run. Signing is disabled.")
-        st.caption(f"Runner {bd['runner_version']} · control pack {bd['control_pack']['sha256'][:12]} ({bd['control_pack']['control_count']} controls) · "
-                   f"target `{bd.get('inventory_id','')[:8]}` · bundle sha {bd['bundle_sha256'][:12]}")
-
-        order = {"FAIL": 0, "NOT_TESTABLE": 1, "PASS": 2}
-        results = sorted(bd["results"], key=lambda r_: (order[r_["machine_verdict"]], r_["control_id"]))
-        show_pass = st.checkbox("Show PASS results", False)
-        for r_ in results:
-            if r_["machine_verdict"] == "PASS" and not show_pass:
-                continue
-            hv = r_.get("human_verdict")
-            head = f"{r_['control_id']} — {r_['assertion'][:90]}"
-            with st.expander(head, expanded=(r_["machine_verdict"] != "PASS" and not hv)):
-                st.markdown(f"{vpill(r_['machine_verdict'])} &nbsp; <small>{r_['severity']} · {r_['domain']} · {', '.join(r_.get('framework_refs', []))}</small>", unsafe_allow_html=True)
-                st.write(r_["detail"])
-                if r_.get("findings"):
-                    flat = [{k: (v if not isinstance(v, (dict, list)) else json.dumps(v)[:120]) for k, v in f_.items()} for f_ in r_["findings"][:50]]
-                    st.dataframe(flat, width="stretch", hide_index=True)
-                if r_.get("evidence"):
-                    st.caption("Evidence examined: " + "; ".join(f"{e_['source']} ({e_['sha256'][:10]})" for e_ in r_["evidence"]))
-                st.markdown(f'<div class="req"><b>Human gate</b> — {r_["human_gate"]}</div>', unsafe_allow_html=True)
-
-                if hv:
-                    st.markdown(f"**{hv['disposition']}** — signed by {hv['reviewer']}, {hv['signed_at'][:16].replace('T', ' ')}" +
-                                (f" · exception {hv['exception_ref']}" if hv.get("exception_ref") else ""))
-                    if hv.get("rationale"):
-                        st.caption(hv["rationale"])
-                    if st.button("Reopen", key=f"unsign_{r_['control_id']}"):
-                        unsign_result(selp, r_["control_id"]); st.rerun()
-                elif ok:
-                    k1, k2, k3 = st.columns([1.2, 1, 2])
-                    disp = k1.selectbox("Disposition", DISPOSITIONS, key=f"disp_{r_['control_id']}")
-                    exc = k2.text_input("Exception ref", key=f"exc_{r_['control_id']}", placeholder="EXC-…")
-                    rat = k3.text_input("Rationale", key=f"rat_{r_['control_id']}")
-                    if st.button("Sign", key=f"sign_{r_['control_id']}", type="primary", disabled=not S.get("reviewer")):
-                        try:
-                            sign_result(selp, r_["control_id"], S["reviewer"], disp, rat, exc or None)
-                            st.rerun()
-                        except Exception as e:
-                            st.error(str(e))
-                    if not S.get("reviewer"):
-                        st.caption("Set your reviewer name in the sidebar to sign.")
-
-# ====================================================================
-# ---------- History (Lane B: one control across runs) ----------
-# ====================================================================
-    st.subheader("Control history")
-    bundles = list_bundles()
-    if not bundles:
-        st.info("No bundles yet.")
-    else:
-        ids = sorted({r_["control_id"] for b_ in bundles for r_ in load_bundle(b_["path"])["results"]})
-        cid = st.selectbox("Control", ids)
-        hist = control_history(cid)
-        if hist:
-            st.markdown(f"**{cid}** — latest: {vpill(hist[0]['machine_verdict'])}", unsafe_allow_html=True)
-            st.dataframe([{"Run at": h["run_at"][:19].replace("T", " "), "Trigger": h["trigger"], "Machine": h["machine_verdict"],
-                           "Detail": h["detail"], "Disposition": h["disposition"] or "—", "Reviewer": h["reviewer"] or "—"} for h in hist],
+            ids = sorted({r_["control_id"] for b_ in bundles for r_ in load_bundle(b_["path"])["results"]})
+            cid = st.selectbox("Control", ids)
+            hist = control_history(cid)
+            if hist:
+                st.markdown(f"**{cid}** — latest: {vpill(hist[0]['machine_verdict'])}", unsafe_allow_html=True)
+                st.dataframe([{"Run at": h["run_at"][:19].replace("T", " "), "Trigger": h["trigger"], "Machine": h["machine_verdict"],
+                               "Detail": h["detail"], "Disposition": h["disposition"] or "—", "Reviewer": h["reviewer"] or "—"} for h in hist],
+                             width="stretch", hide_index=True)
+                streak = 0
+                for h in hist:
+                    if h["machine_verdict"] == "FAIL":
+                        streak += 1
+                    else:
+                        break
+                if streak >= 3:
+                    st.warning(f"{cid} has failed on the last {streak} runs. If an exception is in place it should appear in the exception register (MCM-10).")
+            items = open_items()
+            st.markdown(f"#### Open items in latest bundle ({len(items)})")
+            st.caption("FAIL or NOT_TESTABLE results with no reviewer signature.")
+            st.dataframe([{"Control": i_["control_id"], "Verdict": i_["machine_verdict"], "Severity": i_["severity"], "Detail": i_["detail"]} for i_ in items],
                          width="stretch", hide_index=True)
-            streak = 0
-            for h in hist:
-                if h["machine_verdict"] == "FAIL":
-                    streak += 1
-                else:
-                    break
-            if streak >= 3:
-                st.warning(f"{cid} has failed on the last {streak} runs. If an exception is in place it should appear in the exception register (MCM-10).")
-        items = open_items()
-        st.markdown(f"#### Open items in latest bundle ({len(items)})")
-        st.caption("FAIL or NOT_TESTABLE results with no reviewer signature.")
-        st.dataframe([{"Control": i_["control_id"], "Verdict": i_["machine_verdict"], "Severity": i_["severity"], "Detail": i_["detail"]} for i_ in items],
-                     width="stretch", hide_index=True)
 
 
 # ====================================================================
 # ---------- Lifecycle (join: plays link design and operation) ----------
 # ====================================================================
-with tab_l:
-    st.subheader("Lifecycle plays — design vs operation")
-    st.caption("Each play from the playbook's Playbooks & Runbooks sheet. Design = Lane A rating of the controls the play satisfies "
-               "(reviewer-recorded, or AI-proposed and flagged). Operation = latest Lane B verdict of the tests hung off each step's evidence output. "
-               "A step with no test is a gap in continuous coverage, not a pass.")
-    if not plays:
-        st.info("Load the playbook workbook to see the lifecycle plays.")
-    else:
-        lb = latest_lane_b()
-        view = lifecycle_view(plays, in_scope, S["decisions"], S["ai"], lb)
-        RCOL = {"full": COL["full"], "partial": COL["partial"], "none": COL["none"], None: COL["pending"]}
-
-        # overview
-        st.dataframe([{"Play": f"{v['id']} {v['title']}", "Steps": v["summary"]["steps"], "Steps tested": v["summary"]["steps_tested"],
-                       "Op PASS": v["summary"]["op_pass"], "Op FAIL": v["summary"]["op_fail"], "Op N/T": v["summary"]["op_nt"],
-                       "Controls in scope": v["summary"]["controls"], "Design full": v["summary"]["design_full"],
-                       "Design partial": v["summary"]["design_partial"], "Design none": v["summary"]["design_none"],
-                       "Unassessed": v["summary"]["design_unassessed"],
-                       "Flag": "design full / op FAIL" if v["summary"]["design_full_op_fail"] else ""} for v in view],
-                     width="stretch", hide_index=True, height=430)
-        st.session_state.lifecycle_view = view
-
-        sel_play = st.selectbox("Open play", [v["id"] for v in view], format_func=lambda i: next(f"{v['id']} {v['title']}" for v in view if v["id"] == i))
-        v = next(x for x in view if x["id"] == sel_play)
-        st.markdown(f"#### {v['id']} — {v['title']}")
-        st.caption(v["header"])
-        if v["summary"]["design_full_op_fail"]:
-            st.error("Design rated full on at least one control, but an operating test is failing. Investigate before relying on the design rating.")
-
-        st.markdown("**Steps and operating tests**")
-        for s in v["steps"]:
-            c1, c2 = st.columns([3, 2])
-            c1.markdown(f"**{s['id']}** {s['action']}  \n<small>{s['owner']}"
-                        + (f" · {s['cadence']}" if s["cadence"] else "") + f" · evidence: *{s['evidence']}*</small>", unsafe_allow_html=True)
-            if not s["tests"]:
-                c2.markdown('<span class="pill" style="background:#6B7A8A">no operating test</span>', unsafe_allow_html=True)
-            for r_ in s["tests"]:
-                hv = r_.get("human_verdict") or {}
-                c2.markdown(f"{vpill(r_['machine_verdict'])} **{r_['control_id']}** <small>{r_['detail'][:60]}"
-                            + (f" · {hv['disposition']} by {hv['reviewer']}" if hv else "") + f" · {r_['run_at'][:10]}</small>", unsafe_allow_html=True)
-
-        st.markdown("**Controls this play satisfies (design)**")
-        if v["controls"]:
-            # Maturity is rendered as text, not as a number. Mixing ints with the "—"
-            # placeholder in one column gave pyarrow an unconvertible object column and a
-            # traceback on every render; coercing the other way is worse, because pandas turns
-            # int-plus-missing into float64 and the table would show "3.0" for maturity 3.
-            #
-            # A numeric column would also have to represent "not assessed" as NaN, which is the
-            # absent-versus-value collapse this project refuses everywhere else. Maturity here is
-            # an ordinal label in a display table, 1 to 5, so string sorting is well behaved and
-            # "not assessed" stays visibly distinct from any rating.
-            st.dataframe([{"Control": f"{c['id']} {c['title'][:70]}", "Library": c["lib"],
-                           "Design rating": (c["rating"] or "not assessed") + ("" if c["recorded"] or not c["rating"] else " (proposed)"),
-                           "Maturity": str(c["maturity"]) if c["maturity"] else "—"}
-                          for c in v["controls"]], width="stretch", hide_index=True)
+if tab_l.shown:
+    with tab_l:
+        st.subheader("Lifecycle plays — design vs operation")
+        st.caption("Each play from the playbook's Playbooks & Runbooks sheet. Design = Lane A rating of the controls the play satisfies "
+                   "(reviewer-recorded, or AI-proposed and flagged). Operation = latest Lane B verdict of the tests hung off each step's evidence output. "
+                   "A step with no test is a gap in continuous coverage, not a pass.")
+        if not plays:
+            st.info("Load the playbook workbook to see the lifecycle plays.")
         else:
-            st.caption("None of this play's controls are in the selected scope.")
+            lb = latest_lane_b()
+            view = lifecycle_view(plays, in_scope, S["decisions"], S["ai"], lb)
+            RCOL = {"full": COL["full"], "partial": COL["partial"], "none": COL["none"], None: COL["pending"]}
+
+            # overview
+            st.dataframe([{"Play": f"{v['id']} {v['title']}", "Steps": v["summary"]["steps"], "Steps tested": v["summary"]["steps_tested"],
+                           "Op PASS": v["summary"]["op_pass"], "Op FAIL": v["summary"]["op_fail"], "Op N/T": v["summary"]["op_nt"],
+                           "Controls in scope": v["summary"]["controls"], "Design full": v["summary"]["design_full"],
+                           "Design partial": v["summary"]["design_partial"], "Design none": v["summary"]["design_none"],
+                           "Unassessed": v["summary"]["design_unassessed"],
+                           "Flag": "design full / op FAIL" if v["summary"]["design_full_op_fail"] else ""} for v in view],
+                         width="stretch", hide_index=True, height=430)
+            st.session_state.lifecycle_view = view
+
+            sel_play = st.selectbox("Open play", [v["id"] for v in view], format_func=lambda i: next(f"{v['id']} {v['title']}" for v in view if v["id"] == i))
+            v = next(x for x in view if x["id"] == sel_play)
+            st.markdown(f"#### {v['id']} — {v['title']}")
+            st.caption(v["header"])
+            if v["summary"]["design_full_op_fail"]:
+                st.error("Design rated full on at least one control, but an operating test is failing. Investigate before relying on the design rating.")
+
+            st.markdown("**Steps and operating tests**")
+            for s in v["steps"]:
+                c1, c2 = st.columns([3, 2])
+                c1.markdown(f"**{s['id']}** {s['action']}  \n<small>{s['owner']}"
+                            + (f" · {s['cadence']}" if s["cadence"] else "") + f" · evidence: *{s['evidence']}*</small>", unsafe_allow_html=True)
+                if not s["tests"]:
+                    c2.markdown('<span class="pill" style="background:#6B7A8A">no operating test</span>', unsafe_allow_html=True)
+                for r_ in s["tests"]:
+                    hv = r_.get("human_verdict") or {}
+                    c2.markdown(f"{vpill(r_['machine_verdict'])} **{r_['control_id']}** <small>{r_['detail'][:60]}"
+                                + (f" · {hv['disposition']} by {hv['reviewer']}" if hv else "") + f" · {r_['run_at'][:10]}</small>", unsafe_allow_html=True)
+
+            st.markdown("**Controls this play satisfies (design)**")
+            if v["controls"]:
+                # Maturity is rendered as text, not as a number. Mixing ints with the "—"
+                # placeholder in one column gave pyarrow an unconvertible object column and a
+                # traceback on every render; coercing the other way is worse, because pandas turns
+                # int-plus-missing into float64 and the table would show "3.0" for maturity 3.
+                #
+                # A numeric column would also have to represent "not assessed" as NaN, which is the
+                # absent-versus-value collapse this project refuses everywhere else. Maturity here is
+                # an ordinal label in a display table, 1 to 5, so string sorting is well behaved and
+                # "not assessed" stays visibly distinct from any rating.
+                st.dataframe([{"Control": f"{c['id']} {c['title'][:70]}", "Library": c["lib"],
+                               "Design rating": (c["rating"] or "not assessed") + ("" if c["recorded"] or not c["rating"] else " (proposed)"),
+                               "Maturity": str(c["maturity"]) if c["maturity"] else "—"}
+                              for c in v["controls"]], width="stretch", hide_index=True)
+            else:
+                st.caption("None of this play's controls are in the selected scope.")
 
 
 # ---- Step 8: per-use-case lifecycle cards (judge proposes, reviewer decides) ----
-with tab_l:
-    if plays:
-        st.markdown("---")
-        import lifecycle_cards
-        lifecycle_cards.render(plays, st.session_state.get("index"), latest_lane_b())
+if tab_l.shown:
+    with tab_l:
+        if plays:
+            st.markdown("---")
+            import lifecycle_cards
+            lifecycle_cards.render(plays, st.session_state.get("index"), latest_lane_b())
 
 
 # ---------------------------------------------------------------- Measurement (GE-110b.5)
 
-with tab_m:
-    st.subheader("Measurement runs")
-    st.caption(
-        "A projection of the stored MeasurementRun record. Every figure below is read from the "
-        "run; nothing on this page is recalculated, because a UI that recomputes a metric can "
-        "disagree with the record it claims to display."
-    )
-    try:
-        from eval.evaluators import load_runs
-        _runs = load_runs()
-    except Exception as exc:
-        _runs, = [], 
-        st.warning(f"Could not load runs: {exc}")
-
-    if not _runs:
-        st.info("No measurement runs recorded yet.")
-    else:
-        _labels = [f"{r['evaluator']} · labels {r['lineage']['labelset_sha'][:8]} · "
-                   f"evaluator {r['lineage']['evaluator_sha'][:8]}" for r in _runs]
-        _sel = st.selectbox("Run", range(len(_runs)), format_func=lambda i: _labels[i],
-                            key="measurement_run_pick")
-        r = _runs[_sel]
-        lin = r["lineage"]
-
-        st.markdown("**Lineage**")
-        l1, l2, l3, l4 = st.columns(4)
-        l1.metric("Contract", lin["contract_sha"][:12])
-        l2.metric("Corpus", lin["corpus_sha"][:12])
-        l3.metric("Labels", lin["labelset_sha"][:12])
-        l4.metric("Evaluator", lin["evaluator_sha"][:12])
-        st.caption(f"cases {', '.join(lin['cases'])} · {lin['n_elements']} element(s) · "
-                   f"{lin['n_judgements']} adjudicated judgement(s)")
-
-        st.divider()
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Scored judgements", r["n_scored"])
-        _acc = r.get("element_accuracy")
-        m2.metric("Element accuracy", f"{_acc:.1%}" if _acc is not None else "not computed")
-        _margin = r.get("margin_over_strongest_trivial")
-        m3.metric(f"Margin over {r.get('strongest_trivial_strategy') or 'baseline'}",
-                  f"{_margin:+.3f}" if _margin is not None else "—")
+if tab_m.shown:
+    with tab_m:
+        st.subheader("Measurement runs")
         st.caption(
-            f"excluded as not applicable (gold n/a): {r['n_excluded_not_applicable']}"
-            + (f" · declined {r['n_declined']}" if r.get("n_declined") else "")
-            + (f" · no answer {r['n_no_answer']}" if r.get("n_no_answer") else "")
-            + f" · baseline population: {r.get('baseline_population', 'unrecorded')}"
+            "A projection of the stored MeasurementRun record. Every figure below is read from the "
+            "run; nothing on this page is recalculated, because a UI that recomputes a metric can "
+            "disagree with the record it claims to display."
         )
-        if r.get("evaluator_errors"):
-            st.warning(f"{len(r['evaluator_errors'])} judgement(s) raised in the evaluator and "
-                       f"are recorded as unanswered, not as wrong answers.")
+        try:
+            from eval.evaluators import load_runs
+            _runs = load_runs()
+        except Exception as exc:
+            _runs, = [], 
+            st.warning(f"Could not load runs: {exc}")
 
-        if r.get("aggregate_not_computed"):
-            st.error("**Aggregate outcome — NOT COMPUTED**\n\n" + r["aggregate_not_computed"])
+        if not _runs:
+            st.info("No measurement runs recorded yet.")
+        else:
+            _labels = [f"{r['evaluator']} · labels {r['lineage']['labelset_sha'][:8]} · "
+                       f"evaluator {r['lineage']['evaluator_sha'][:8]}" for r in _runs]
+            _sel = st.selectbox("Run", range(len(_runs)), format_func=lambda i: _labels[i],
+                                key="measurement_run_pick")
+            r = _runs[_sel]
+            lin = r["lineage"]
 
-        st.markdown("**Limitations travelling with this result**")
-        st.caption("Each names the claim it blocks. They are attached to the result rather than "
-                   "folded into the score.")
-        for _l in r.get("limitations") or []:
-            st.markdown(f"- **{_l['code']}** — blocks {_l['blocks']}  \n"
-                        f"  <small>{_l['detail']}</small>", unsafe_allow_html=True)
+            st.markdown("**Lineage**")
+            l1, l2, l3, l4 = st.columns(4)
+            l1.metric("Contract", lin["contract_sha"][:12])
+            l2.metric("Corpus", lin["corpus_sha"][:12])
+            l3.metric("Labels", lin["labelset_sha"][:12])
+            l4.metric("Evaluator", lin["evaluator_sha"][:12])
+            st.caption(f"cases {', '.join(lin['cases'])} · {lin['n_elements']} element(s) · "
+                       f"{lin['n_judgements']} adjudicated judgement(s)")
 
-        with st.expander("Per-element accuracy"):
-            for _eid, _p in sorted((r.get("per_element") or {}).items(),
-                                   key=lambda kv: (kv[1]["accuracy"] is None, kv[1]["accuracy"])):
-                st.markdown(f"`{_eid}`  {_p['accuracy']:.0%} over {_p['n']} judgement(s)")
+            st.divider()
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Scored judgements", r["n_scored"])
+            _acc = r.get("element_accuracy")
+            m2.metric("Element accuracy", f"{_acc:.1%}" if _acc is not None else "not computed")
+            _margin = r.get("margin_over_strongest_trivial")
+            m3.metric(f"Margin over {r.get('strongest_trivial_strategy') or 'baseline'}",
+                      f"{_margin:+.3f}" if _margin is not None else "—")
+            st.caption(
+                f"excluded as not applicable (gold n/a): {r['n_excluded_not_applicable']}"
+                + (f" · declined {r['n_declined']}" if r.get("n_declined") else "")
+                + (f" · no answer {r['n_no_answer']}" if r.get("n_no_answer") else "")
+                + f" · baseline population: {r.get('baseline_population', 'unrecorded')}"
+            )
+            if r.get("evaluator_errors"):
+                st.warning(f"{len(r['evaluator_errors'])} judgement(s) raised in the evaluator and "
+                           f"are recorded as unanswered, not as wrong answers.")
 
-        with st.expander("Baselines"):
-            for _k, _v in sorted((r.get("baselines") or {}).items()):
-                st.markdown(f"{_k}: {_v:.1%}")
-            st.caption("Descriptive. There is no pass mark here; the comparison is the reader's.")
+            if r.get("aggregate_not_computed"):
+                st.error("**Aggregate outcome — NOT COMPUTED**\n\n" + r["aggregate_not_computed"])
+
+            st.markdown("**Limitations travelling with this result**")
+            st.caption("Each names the claim it blocks. They are attached to the result rather than "
+                       "folded into the score.")
+            for _l in r.get("limitations") or []:
+                st.markdown(f"- **{_l['code']}** — blocks {_l['blocks']}  \n"
+                            f"  <small>{_l['detail']}</small>", unsafe_allow_html=True)
+
+            with st.expander("Per-element accuracy"):
+                for _eid, _p in sorted((r.get("per_element") or {}).items(),
+                                       key=lambda kv: (kv[1]["accuracy"] is None, kv[1]["accuracy"])):
+                    st.markdown(f"`{_eid}`  {_p['accuracy']:.0%} over {_p['n']} judgement(s)")
+
+            with st.expander("Baselines"):
+                for _k, _v in sorted((r.get("baselines") or {}).items()):
+                    st.markdown(f"{_k}: {_v:.1%}")
+                st.caption("Descriptive. There is no pass mark here; the comparison is the reader's.")
 
 
 # ---------------------------------------------------------------- Governance Engine / GE-116
 
-with tab_e:
-    st.subheader("Governance engine")
-    st.caption(
-        "Thin UI projection. Services coordinate the governed engine; this page does not define "
-        "predicates, calculate verdicts, or decide what blocks."
-    )
-    if not in_scope:
-        st.info("Load a playbook workbook to use the governance engine.")
-    else:
-        _eng_control_key = st.selectbox("Control", [c.key for c in in_scope], key="engine_control")
-        _eng_control = by_key[_eng_control_key]
-        _raw_obs = (S.get("plugin_observations") or {}).get(_eng_control_key) or []
-        _eng_obs = []
-        for _row in _raw_obs:
-            try:
-                _eng_obs.append(Observation(**_row))
-            except Exception:
-                continue
-        _available_caps = sorted({cap for pl in list_plugins() for cap in (pl.get("capabilities") or [])})
-        render_governance_engine(
-            st,
-            control=_eng_control,
-            service=type("GovernanceService", (), {
-                "Resource": Resource,
-                "verification_plan": staticmethod(governance_service.verification_plan),
-                "deterministic_evaluate": staticmethod(governance_service.deterministic_evaluate),
-            }),
-            observations=_eng_obs,
-            capabilities=_available_caps,
+if tab_e.shown:
+    with tab_e:
+        st.subheader("Governance engine")
+        st.caption(
+            "Thin UI projection. Services coordinate the governed engine; this page does not define "
+            "predicates, calculate verdicts, or decide what blocks."
         )
+        if not in_scope:
+            st.info("Load a playbook workbook to use the governance engine.")
+        else:
+            _eng_control_key = st.selectbox("Control", [c.key for c in in_scope], key="engine_control")
+            _eng_control = by_key[_eng_control_key]
+            _raw_obs = (S.get("plugin_observations") or {}).get(_eng_control_key) or []
+            _eng_obs = []
+            for _row in _raw_obs:
+                try:
+                    _eng_obs.append(Observation(**_row))
+                except Exception:
+                    continue
+            _available_caps = sorted({cap for pl in list_plugins() for cap in (pl.get("capabilities") or [])})
+            render_governance_engine(
+                st,
+                control=_eng_control,
+                service=type("GovernanceService", (), {
+                    "Resource": Resource,
+                    "verification_plan": staticmethod(governance_service.verification_plan),
+                    "deterministic_evaluate": staticmethod(governance_service.deterministic_evaluate),
+                }),
+                observations=_eng_obs,
+                capabilities=_available_caps,
+            )
 
 
 # ---------------------------------------------------------------- MAS change review surface
 
-with tab_c:
-    st.subheader("Regulatory change review")
-    st.caption(
-        "A source upload is evidence for change analysis. It never authorises a change to the "
-        "governed contract, and nothing on this page writes to it."
-    )
-    _up = st.file_uploader("MAS source under review (txt/md)", type=["txt", "md"],
-                           key="cr_upload")
-    _default = ROOT / "instruments/Final_Consultation_Paper_on_Guidelines_on_AI_Risk_Management_ForRelease.txt"
-    _path = None
-    if _up is not None:
-        _tmp = ROOT / "data" / f"_under_review_{_up.name}"
-        _tmp.write_bytes(_up.getvalue())
-        _path = _tmp
-    elif _default.exists() and st.checkbox("Use the consultation paper already in instruments/",
-                                           key="cr_default"):
-        _path = _default
+if tab_c.shown:
+    with tab_c:
+        st.subheader("Regulatory change review")
+        st.caption(
+            "A source upload is evidence for change analysis. It never authorises a change to the "
+            "governed contract, and nothing on this page writes to it."
+        )
+        _up = st.file_uploader("MAS source under review (txt/md)", type=["txt", "md"],
+                               key="cr_upload")
+        _default = ROOT / "instruments/Final_Consultation_Paper_on_Guidelines_on_AI_Risk_Management_ForRelease.txt"
+        _path = None
+        if _up is not None:
+            _tmp = ROOT / "data" / f"_under_review_{_up.name}"
+            _tmp.write_bytes(_up.getvalue())
+            _path = _tmp
+        elif _default.exists() and st.checkbox("Use the consultation paper already in instruments/",
+                                               key="cr_default"):
+            _path = _default
 
-    if _path is None:
-        st.info("Upload a source, or tick the box to review against the paper already on disk.")
-    else:
-        from governance import mas_change_review as CR
-        if st.session_state.get("cr_source") != str(_path):
-            with st.spinner("Fingerprinting and matching…"):
-                st.session_state.cr_artefact = CR.review(
-                    _contracts_for_review(), _path,
-                    uploaded_by=S.get("reviewer", "") or "unrecorded")
-            st.session_state.cr_source = str(_path)
-        _a = st.session_state.cr_artefact
-        _src = _a["source"]
-
-        st.markdown(f"**{_src['file']}** · sha256 `{_src['sha256'][:16]}` · uploaded by "
-                    f"{_src['uploaded_by']} · {_src['status']}")
-        st.caption(f"{_a['controls_reviewed']} control(s) · {_a['passages_in_source']} passage(s) "
-                   f"· source match {_a['by_state']} · canon modified: {_a['canon_modified']}")
-
-        _prog = CR.determination_progress(_a)
-        pc1, pc2, pc3 = st.columns(3)
-        pc1.metric("Elements", _prog["rows"])
-        pc2.metric("Determined", _prog["determined"])
-        pc3.metric("Outstanding", _prog["outstanding"])
-
-        _ctl_ids = [c["control_id"] for c in _a["controls"]]
-        _cid = st.selectbox("Control", _ctl_ids, key="cr_control")
-        _ctl = next(c for c in _a["controls"] if c["control_id"] == _cid)
-        st.markdown(f"#### {_ctl['control_id']} — {_ctl['title']}")
-
-        for _i, _row in enumerate(_ctl["elements"]):
-            _eid = _row["element_id"]
-            st.divider()
-            st.markdown(f"**Element {_eid}**")
-
-            # Rule 1: the canonical element, exactly as governed.
-            st.markdown("*Governed element*")
-            st.info(_row["governed_text"])
-
-            # Rule 2: passages exactly as retrieved, so source_match_at_determination means
-            # something. Rule 3: the score is stated as retrieval information, never as a
-            # recommended determination.
-            st.markdown("*Candidate source passages — what retrieval surfaced*")
-            if not _row["candidates"]:
-                st.warning("Retrieval surfaced nothing for this element.")
-            for _c in _row["candidates"]:
-                with st.expander(f"{_c['passage_id']} · containment {_c['score']:.2f}"):
-                    st.text(_c["text"])
-            st.caption(f"Source match: **{_row['source_match']}** · {_row['match_score']:.2f}. "
-                       f"This is retrieval information. It is not evidence that any particular "
-                       f"determination is correct.")
-
-            _existing = _row.get("reviewer_determination")
-            if _existing:
-                st.success(f"**{_existing['determination']}** — {_existing['reviewer']} on "
-                           f"{_existing['determined_at']}")
-                st.caption(_existing["rationale"])
-                if _existing.get("retrieval_miss"):
-                    st.caption(f"⚑ retrieval miss — reviewer located "
-                               f"{', '.join(_existing['reviewer_found_passages'])} unaided")
-                continue
-
-            # Rule 4: genuinely unset. No option is preselected.
-            _det = st.radio("Semantic determination", ["UNCHANGED", "CHANGED", "NEW", "REMOVED"],
-                            index=None, horizontal=True, key=f"cr_det_{_cid}_{_eid}")
-            _rat = st.text_area("Rationale — what you read and what you concluded", "",
-                                key=f"cr_rat_{_cid}_{_eid}", height=80)
-            # Rule 5: the UI enforces the same contract as the determination layer.
-            _need = _det in ("CHANGED", "NEW")
-            _read = st.text_input(
-                "Passages read" + (" (required for CHANGED / NEW)" if _need else " (optional)"),
-                "", key=f"cr_read_{_cid}_{_eid}",
-                placeholder="p0042, p0043")
-            _miss = st.text_input("Passages you found that retrieval did not surface", "",
-                                  key=f"cr_miss_{_cid}_{_eid}",
-                                  placeholder="leave blank if retrieval showed you what you needed")
-            _nobasis = st.checkbox("I could not find any basis for this element in the source",
-                                   key=f"cr_nb_{_cid}_{_eid}")
-
-            if st.button("Record determination", key=f"cr_rec_{_cid}_{_eid}",
-                         disabled=not (_det and S.get("reviewer"))):
-                try:
-                    _new = CR.record_determination(
-                        _row, determination=_det, rationale=_rat,
-                        reviewer=S.get("reviewer", ""),
-                        passages_read=[x.strip() for x in _read.split(",") if x.strip()],
-                        reviewer_found_passages=[x.strip() for x in _miss.split(",") if x.strip()],
-                        reviewer_found_basis=(not _nobasis))
-                    _ctl["elements"][_i] = _new
-                    st.rerun()
-                except CR.DeterminationError as exc:
-                    st.error(str(exc))
-            if not S.get("reviewer"):
-                st.caption("Set your reviewer name in the sidebar before recording.")
-
-        _adq = CR.retrieval_adequacy(_a)
-        st.divider()
-        if _adq.get("measurable"):
-            st.markdown(f"**Retrieval adequacy** — {_adq['retrieval_misses']} miss(es) across "
-                        f"{_adq['determined']} determination(s), rate {_adq['miss_rate']:.0%}")
-            st.caption(_adq["note"])
+        if _path is None:
+            st.info("Upload a source, or tick the box to review against the paper already on disk.")
         else:
-            st.caption(f"Retrieval adequacy: {_adq['reason']}")
+            from governance import mas_change_review as CR
+            if st.session_state.get("cr_source") != str(_path):
+                with st.spinner("Fingerprinting and matching…"):
+                    st.session_state.cr_artefact = CR.review(
+                        _contracts_for_review(), _path,
+                        uploaded_by=S.get("reviewer", "") or "unrecorded")
+                st.session_state.cr_source = str(_path)
+            _a = st.session_state.cr_artefact
+            _src = _a["source"]
+
+            st.markdown(f"**{_src['file']}** · sha256 `{_src['sha256'][:16]}` · uploaded by "
+                        f"{_src['uploaded_by']} · {_src['status']}")
+            st.caption(f"{_a['controls_reviewed']} control(s) · {_a['passages_in_source']} passage(s) "
+                       f"· source match {_a['by_state']} · canon modified: {_a['canon_modified']}")
+
+            _prog = CR.determination_progress(_a)
+            pc1, pc2, pc3 = st.columns(3)
+            pc1.metric("Elements", _prog["rows"])
+            pc2.metric("Determined", _prog["determined"])
+            pc3.metric("Outstanding", _prog["outstanding"])
+
+            _ctl_ids = [c["control_id"] for c in _a["controls"]]
+            _cid = st.selectbox("Control", _ctl_ids, key="cr_control")
+            _ctl = next(c for c in _a["controls"] if c["control_id"] == _cid)
+            st.markdown(f"#### {_ctl['control_id']} — {_ctl['title']}")
+
+            for _i, _row in enumerate(_ctl["elements"]):
+                _eid = _row["element_id"]
+                st.divider()
+                st.markdown(f"**Element {_eid}**")
+
+                # Rule 1: the canonical element, exactly as governed.
+                st.markdown("*Governed element*")
+                st.info(_row["governed_text"])
+
+                # Rule 2: passages exactly as retrieved, so source_match_at_determination means
+                # something. Rule 3: the score is stated as retrieval information, never as a
+                # recommended determination.
+                st.markdown("*Candidate source passages — what retrieval surfaced*")
+                if not _row["candidates"]:
+                    st.warning("Retrieval surfaced nothing for this element.")
+                for _c in _row["candidates"]:
+                    with st.expander(f"{_c['passage_id']} · containment {_c['score']:.2f}"):
+                        st.text(_c["text"])
+                st.caption(f"Source match: **{_row['source_match']}** · {_row['match_score']:.2f}. "
+                           f"This is retrieval information. It is not evidence that any particular "
+                           f"determination is correct.")
+
+                _existing = _row.get("reviewer_determination")
+                if _existing:
+                    st.success(f"**{_existing['determination']}** — {_existing['reviewer']} on "
+                               f"{_existing['determined_at']}")
+                    st.caption(_existing["rationale"])
+                    if _existing.get("retrieval_miss"):
+                        st.caption(f"⚑ retrieval miss — reviewer located "
+                                   f"{', '.join(_existing['reviewer_found_passages'])} unaided")
+                    continue
+
+                # Rule 4: genuinely unset. No option is preselected.
+                _det = st.radio("Semantic determination", ["UNCHANGED", "CHANGED", "NEW", "REMOVED"],
+                                index=None, horizontal=True, key=f"cr_det_{_cid}_{_eid}")
+                _rat = st.text_area("Rationale — what you read and what you concluded", "",
+                                    key=f"cr_rat_{_cid}_{_eid}", height=80)
+                # Rule 5: the UI enforces the same contract as the determination layer.
+                _need = _det in ("CHANGED", "NEW")
+                _read = st.text_input(
+                    "Passages read" + (" (required for CHANGED / NEW)" if _need else " (optional)"),
+                    "", key=f"cr_read_{_cid}_{_eid}",
+                    placeholder="p0042, p0043")
+                _miss = st.text_input("Passages you found that retrieval did not surface", "",
+                                      key=f"cr_miss_{_cid}_{_eid}",
+                                      placeholder="leave blank if retrieval showed you what you needed")
+                _nobasis = st.checkbox("I could not find any basis for this element in the source",
+                                       key=f"cr_nb_{_cid}_{_eid}")
+
+                if st.button("Record determination", key=f"cr_rec_{_cid}_{_eid}",
+                             disabled=not (_det and S.get("reviewer"))):
+                    try:
+                        _new = CR.record_determination(
+                            _row, determination=_det, rationale=_rat,
+                            reviewer=S.get("reviewer", ""),
+                            passages_read=[x.strip() for x in _read.split(",") if x.strip()],
+                            reviewer_found_passages=[x.strip() for x in _miss.split(",") if x.strip()],
+                            reviewer_found_basis=(not _nobasis))
+                        _ctl["elements"][_i] = _new
+                        st.rerun()
+                    except CR.DeterminationError as exc:
+                        st.error(str(exc))
+                if not S.get("reviewer"):
+                    st.caption("Set your reviewer name in the sidebar before recording.")
+
+            _adq = CR.retrieval_adequacy(_a)
+            st.divider()
+            if _adq.get("measurable"):
+                st.markdown(f"**Retrieval adequacy** — {_adq['retrieval_misses']} miss(es) across "
+                            f"{_adq['determined']} determination(s), rate {_adq['miss_rate']:.0%}")
+                st.caption(_adq["note"])
+            else:
+                st.caption(f"Retrieval adequacy: {_adq['reason']}")
 
 
 # ---------------------------------------------------------------- Operations
 
-with tab_ops:
-    render_operations_dashboard(THEME)
+if tab_ops.shown:
+    with tab_ops:
+        render_operations_dashboard(THEME)
 
 
 # ---------------------------------------------------------------- History
 
-with tab_h:
-    st.subheader("Cycle history")
-    st.caption(
-        "Every event in the append-only ledger, projected per control. This is the record — it "
-        "is hash-chained and nothing in the app can edit it. The session cache is only an "
-        "acceleration layer over what you see here."
-    )
+if tab_h.shown:
+    with tab_h:
+        st.subheader("Cycle history")
+        st.caption(
+            "Every event in the append-only ledger, projected per control. This is the record — it "
+            "is hash-chained and nothing in the app can edit it. The session cache is only an "
+            "acceleration layer over what you see here."
+        )
+        try:
+            _all = [s_ for s_ in events.iter_states() if s_]
+        except Exception as exc:
+            _all = []
+            st.error(f"Ledger unreadable: {type(exc).__name__}: {exc}")
+
+        if not _all:
+            st.info("No cycles recorded yet. A cycle is created when you bind evidence to a control.")
+        else:
+            import collections as _co
+            _stages = _co.Counter(s_.get("stage") for s_ in _all)
+            _decided = [s_ for s_ in _all if s_.get("decision")]
+            h1, h2, h3 = st.columns(3)
+            h1.metric("Cycles", len(_all))
+            h2.metric("Controls", len({s_.get("control_id") for s_ in _all}))
+            h3.metric("Decided", len(_decided))
+            st.caption("Stages: " + " · ".join(f"{k}: {v}" for k, v in sorted(_stages.items())))
+
+            _by_control = _co.defaultdict(list)
+            for s_ in _all:
+                _by_control[s_.get("control_id")].append(s_)
+
+            _pick = st.selectbox("Control", sorted(_by_control), key="hist_control")
+            _cycles = _by_control[_pick]
+            # Newest first — the current cycle is the one a reviewer is working in.
+            _cycles = sorted(_cycles, key=lambda s_: s_.get("cycle_id", ""), reverse=True)
+            st.caption(f"{len(_cycles)} cycle(s) for {_pick}. "
+                       + ("More than one usually means earlier cycles were superseded or abandoned."
+                          if len(_cycles) > 1 else ""))
+
+            for _s in _cycles[:20]:
+                _cid = _s.get("cycle_id", "?")
+                _mark = "✓" if _s.get("decision") else "·"
+                with st.expander(f"{_mark} {_cid} — {_s.get('stage', 'unknown')}", expanded=False):
+                    _d = _s.get("decision") or {}
+                    if _d:
+                        st.success(f"{_d.get('sufficiency', '?')} · maturity "
+                                   f"{_d.get('maturity', '?')}/5 — {_d.get('reviewer', 'unattributed')}")
+                        if _d.get("reason"):
+                            st.caption(_d["reason"])
+                    st.markdown("**Events**")
+                    try:
+                        for _e in events.cycle(_cid):
+                            st.markdown(f"- `{_e.get('kind')}` · {_e.get('actor', '?')} · "
+                                        f"{str(_e.get('at', ''))[:19]}")
+                    except Exception as exc:
+                        st.caption(f"Events unreadable: {exc}")
+                    with st.expander("Full projected state", expanded=False):
+                        st.json(_s)
+
+
+# ---------- sections that were not tabs (kit v21) ----------
+if _shown("review/decide"):
+    _render_decision_queue()
+
+
+def _render_watch_intel():
+    """Regulatory watch: what's new, matched to your controls. Reading and triage only; checking runs in the
+    scheduler every 8 hours (tools/gaar_scheduler.py), never from this page."""
+    from governance.watcher import intel
+    if not intel.configured():
+        with st.container(border=True):
+            st.markdown("**Regulatory watch is not set up yet.**")
+            st.markdown("Subscribe to the recommended sources (MAS consultations, notices and guidelines, and CISA's "
+                        "known-exploited vulnerabilities). The scheduler then checks each source every 8 hours, and "
+                        "anything new that touches your controls appears here and on Today.")
+            if st.button("Subscribe to the recommended sources", type="primary", key="watch-setup"):
+                intel.subscriptions()
+                st.rerun()
+        return
+    subs, health = intel.subscriptions(), intel.health()
+    failing = [h for h in health if h["state"] in ("FAILING", "OVERDUE")]
+    cols = st.columns(4)
+    cols[0].metric("Sources", len(health))
+    cols[1].metric("Healthy", sum(h["state"] == "OK" for h in health))
+    cols[2].metric("Needs attention", len(failing) + sum(h["state"] == "NEVER_CHECKED" for h in health))
+    cols[3].metric("Checked every", f"{subs['interval_minutes'] / 60:g} h")
+    for h in failing:
+        st.warning(f"**{h['source_id']}**: {h['state'].replace('_', ' ').lower()} · {h['error'] or 'no recent check'}. "
+                   "Until it recovers, 'nothing new' from this source means nothing.")
+    if any(h["state"] == "NEVER_CHECKED" for h in health):
+        st.info("Some sources have not been checked yet. The scheduler checks them on its next run.")
+
+    reviewer = (S.get("reviewer") or "").strip()
+    pending = intel.needs_triage()
+    st.markdown(f"#### Needs your triage ({len(pending)})")
+    if not pending:
+        st.success("Nothing new needs you. Everything seen so far is triaged, or below the alert threshold.")
+    for item in pending:
+        with st.container(border=True):
+            p = item["priority"]
+            st.markdown(f'<span class="intel-p intel-{p.lower()}">{p}</span> **{_html.escape(item["title"])}**',
+                        unsafe_allow_html=True)
+            meta = [item["kind"].replace("_", " ").lower(), f"first seen {item['first_seen'][:10]}"]
+            if item.get("url", "").startswith("http"):
+                meta.append(f"[open the source]({item['url']})")
+            st.caption(" · ".join(meta))
+            if item.get("language_label"):
+                st.warning(item["language_label"])
+            if item.get("matched_controls"):
+                st.markdown("Likely touches: " + ", ".join(
+                    f"**{m['framework']} {m['control_id']}** {m['title']}" for m in item["matched_controls"]))
+            if item.get("forecast"):
+                f = item["forecast"]
+                st.caption(f"Outlook: final rules expected between {f['final_expected_from']} and "
+                           f"{f['final_expected_to']}. {f['basis']}")
+            if item["kind"] != "THREAT_DIGEST" and st.button("Draft a new control from this", key=f"propose-{item['item_id']}",
+                                                             disabled=not reviewer,
+                                                             help="Creates a draft in your watch home. It joins the assessment suite only after a named approval with a change ticket."):
+                made = intel.propose_control(item["item_id"], reviewer)
+                st.success(f"Drafted {made['proposed_control']} in `{made['draft']}`. Next: {made['next'][:160]}…")
+            b1, b2, b3, _ = st.columns([1.2, 1.2, 1.3, 3])
+            for col, decision, label in ((b1, "RELEVANT", "Relevant"), (b2, "NOT_RELEVANT", "Not relevant"),
+                                         (b3, "WATCH", "Keep watching")):
+                if col.button(label, key=f"triage-{decision}-{item['item_id']}", disabled=not reviewer,
+                              help=None if reviewer else "Enter your name in the sidebar first."):
+                    if item["kind"] == "THREAT_DIGEST":
+                        intel.triage_digest(item["source_id"], decision, reviewer)
+                    else:
+                        intel.triage(item["item_id"], decision, reviewer)
+                    st.rerun()
+
+    outlook = intel.outlook()
+    with st.expander("Outlook: controls likely to need reassessment"):
+        st.caption(outlook["label"])
+        if outlook["controls_likely_to_need_reassessment"]:
+            st.dataframe([{"Control": f"{c['framework']} {c['control_id']}", "Title": c["title"], "Weight": c["weight"],
+                           "Because of": "; ".join(c["because_of"])} for c in outlook["controls_likely_to_need_reassessment"]],
+                         hide_index=True, width="stretch")
+        else:
+            st.caption("No regulatory publication has matched a control yet.")
+        if outlook["trends"]:
+            st.dataframe([{"Topic": t["topic"], "Last 30 days": t["last_30_days"], "Prior 90 days": t["prior_90_days"],
+                           "Trend": t["state"].replace("_", " ").lower()} for t in outlook["trends"]],
+                         hide_index=True, width="stretch")
+    with st.expander("Everything seen"):
+        every = intel.items()
+        if every:
+            st.dataframe([{"Priority": i["priority"], "Kind": i["kind"].lower(), "Title": i["title"],
+                           "First seen": i["first_seen"][:10], "Triage": (i["triage"] or {}).get("decision", "—")}
+                          for i in every], hide_index=True, width="stretch")
+        else:
+            st.caption("Nothing new since each source's first check. The first check sets a baseline; only later "
+                       "additions become intel.")
+    with st.expander("Subscriptions"):
+        catalogue = intel.catalogue()
+        st.caption("Each subscribed source is checked every "
+                   f"{subs['interval_minutes'] / 60:g} hours. A change here is logged with your name.")
+        for sid, row in sorted(catalogue.items(), key=lambda kv: (kv[1].get("jurisdiction") != "Singapore", kv[0])):
+            on = sid in subs["sources"]
+            want = st.checkbox(f"{row.get('authority')} · {sid} ({row.get('jurisdiction')})", value=on,
+                               key=f"sub-{sid}", disabled=not reviewer)
+            if want != on:
+                intel.set_subscribed(sid, want, by=reviewer)
+                st.rerun()
+        st.caption(f"Health: " + " · ".join(f"{h['source_id']} {h['state'].lower()}" for h in health))
+
+
+if _shown("watch/intel"):
+    _render_watch_intel()
+
+
+def _render_impact():
+    """Control impact graph: a lapse flags dependent controls (reliance reduced or impaired) and points up its
+    dependencies to the likely root cause. Flags are leads, never verdicts."""
+    from governance.impact import ImpactGraph, statuses_from_ledger
+    graph = ImpactGraph()
+    recorded = statuses_from_ledger()
+    known = sorted(set(graph.down) | set(graph.up) | set(recorded))
+    st.caption(f"Dependency knowledge {graph.version} · {len(known)} controls with modelled dependencies. "
+               "Every edge is a proposed hypothesis, so a flag can reach 'reliance reduced' but not 'impaired' until "
+               "edges are approved.")
+    source = st.radio("Look at", ["Recorded decisions", "What if…"], horizontal=True, key="impact-source",
+                      help="What if… lets you mark controls as lapsed or weak to see the consequences before they happen.")
+    statuses = dict(recorded)
+    if source == "What if…":
+        statuses = {}
+        c1, c2 = st.columns(2)
+        for c in c1.multiselect("Lapsed controls", known, key="impact-lapsed"):
+            statuses[c] = "none"
+        for c in c2.multiselect("Weak (partial) controls", known, key="impact-weak"):
+            statuses.setdefault(c, "partial")
+        for c in st.multiselect("Known effective controls (rule them out)", known, key="impact-effective"):
+            statuses.setdefault(c, "full")
+    if source == "What if…":
+        st.warning("**Simulation.** These results come from controls you marked, not from recorded decisions. "
+                   "Do not present them as the state of any control.")
+    result = graph.analyse(statuses)
+    if not result["lapses"]:
+        st.info("No lapsed or weak control " + ("recorded yet." if source == "Recorded decisions" else "selected yet.")
+                + " Pick some under What if… to see what they would flag.")
+        return
+    flagged = result["flagged_controls"]
+    a, b, c = st.columns(3)
+    a.metric("Lapsed or weak", len(result["lapses"]))
+    b.metric("Other controls flagged", len(flagged))
+    c.metric("Shared likely causes", len(result["common_causes"]))
+    for cause in result["common_causes"]:
+        st.warning(f"**{cause['control']}** sits upstream of {', '.join(cause['explains'])}: "
+                   f"a likely common cause ({cause['status'].lower()}). Test it first.")
     try:
-        _all = [s_ for s_ in events.iter_states() if s_]
-    except Exception as exc:
-        _all = []
-        st.error(f"Ledger unreadable: {type(exc).__name__}: {exc}")
+        st.graphviz_chart(graph.dot(statuses), width="stretch")
+    except Exception:
+        pass
+    for control, res in result["lapses"].items():
+        with st.expander(f"{control} · {res['status'].lower()} · flags {len(res['downstream'])} · "
+                         f"{'cause looks local' if res['root_cause_local'] else 'cause likely upstream'}", expanded=len(result["lapses"]) == 1):
+            if res["downstream"]:
+                st.markdown("**What it flags downstream**")
+                st.dataframe([{"Control": f["control"], "Flag": f["flag"].replace("_", " ").lower(), "Steps away": f["depth"],
+                               "Why": f["because"][-1], "Before relying, corroborate": f["corroborate"]}
+                              for f in res["downstream"]], hide_index=True, width="stretch")
+            if res["peers"]:
+                st.caption("Peers on watch (same capability in another framework): "
+                           + ", ".join(p["control"] for p in res["peers"]))
+            if res["root_cause"]:
+                st.markdown("**Where the cause may sit**")
+                st.dataframe([{"Control": r["control"], "Assessment": r["assessment"].replace("_", " ").lower(),
+                               "Its status": r["status"].lower(), "Why": r["because"][0], "Test": r["test"]}
+                              for r in res["root_cause"][:12]], hide_index=True, width="stretch")
+            else:
+                st.caption("No modelled upstream dependency: the cause is local to this control, as far as the catalogue knows.")
+    st.caption(result["non_inference"] + " " + result["coverage_statement"])
 
-    if not _all:
-        st.info("No cycles recorded yet. A cycle is created when you bind evidence to a control.")
-    else:
-        import collections as _co
-        _stages = _co.Counter(s_.get("stage") for s_ in _all)
-        _decided = [s_ for s_ in _all if s_.get("decision")]
-        h1, h2, h3 = st.columns(3)
-        h1.metric("Cycles", len(_all))
-        h2.metric("Controls", len({s_.get("control_id") for s_ in _all}))
-        h3.metric("Decided", len(_decided))
-        st.caption("Stages: " + " · ".join(f"{k}: {v}" for k, v in sorted(_stages.items())))
 
-        _by_control = _co.defaultdict(list)
-        for s_ in _all:
-            _by_control[s_.get("control_id")].append(s_)
+if _shown("results/impact"):
+    _render_impact()
 
-        _pick = st.selectbox("Control", sorted(_by_control), key="hist_control")
-        _cycles = _by_control[_pick]
-        # Newest first — the current cycle is the one a reviewer is working in.
-        _cycles = sorted(_cycles, key=lambda s_: s_.get("cycle_id", ""), reverse=True)
-        st.caption(f"{len(_cycles)} cycle(s) for {_pick}. "
-                   + ("More than one usually means earlier cycles were superseded or abandoned."
-                      if len(_cycles) > 1 else ""))
 
-        for _s in _cycles[:20]:
-            _cid = _s.get("cycle_id", "?")
-            _mark = "✓" if _s.get("decision") else "·"
-            with st.expander(f"{_mark} {_cid} — {_s.get('stage', 'unknown')}", expanded=False):
-                _d = _s.get("decision") or {}
-                if _d:
-                    st.success(f"{_d.get('sufficiency', '?')} · maturity "
-                               f"{_d.get('maturity', '?')}/5 — {_d.get('reviewer', 'unattributed')}")
-                    if _d.get("reason"):
-                        st.caption(_d["reason"])
-                st.markdown("**Events**")
-                try:
-                    for _e in events.cycle(_cid):
-                        st.markdown(f"- `{_e.get('kind')}` · {_e.get('actor', '?')} · "
-                                    f"{str(_e.get('at', ''))[:19]}")
-                except Exception as exc:
-                    st.caption(f"Events unreadable: {exc}")
-                with st.expander("Full projected state", expanded=False):
-                    st.json(_s)
+def _render_arena():
+    """Read-only arena leaderboard. Runs happen in tools/gaar_arena.py, never from this page."""
+    from governance.arena import arena
+    runs = arena.runs()
+    if not runs:
+        st.info("No arena run yet. Run one on this machine, for example:\n\n"
+                "`python tools/gaar_arena.py run ollama:qwen2.5:14b ollama:mistral-nemo:12b baseline:rules --cases 40`")
+        return
+    picked = st.selectbox("Run", [r["run_id"] for r in reversed(runs)], key="arena-run",
+                          format_func=lambda rid: next(f"{rid} · {r['cases']} cases · {r['started_at'][:16]}"
+                                                       for r in runs if r["run_id"] == rid))
+    board = arena.leaderboard(picked)
+    st.warning(board["provenance"])
+    st.dataframe([{"Contestant": r["contestant"], "Cost per case": r["cost_per_case"], "Precision": r["precision"],
+                   "Recall": r["recall"], "False 'authorised'": r["false_assurance"], "False alarms": r["false_alarms"],
+                   "Holds": r["holds"], "Errors": r["errors"], "Seconds per case": r["median_seconds"],
+                   "Elo": r["elo"]} for r in board["table"]], hide_index=True, width="stretch")
+    seat = board["advisory_seat"]
+    st.markdown("**Advisory seat:** " + (", ".join(seat) if seat else "nobody qualifies on this run."))
+    st.caption(f"Costs: false 'authorised' {board['params']['false_assurance']}, false alarm "
+               f"{board['params']['false_alarm']}, hold {board['params']['hold']} (config/arena.yaml). "
+               "Ranked by cost; Elo counts wins, not their size. " + board["qualification_note"])
+
+
+if _shown("reports/arena"):
+    _render_arena()
+
+
+if _shown("results/basis"):
+    from ui import basis_view
+    basis_view.render()

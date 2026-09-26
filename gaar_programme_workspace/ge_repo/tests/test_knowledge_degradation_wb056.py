@@ -50,6 +50,17 @@ def test_an_empty_result_is_not_an_error(monkeypatch):
     assert rows == [] and err is None
 
 
+def test_a_search_library_that_raises_on_zero_matches_still_reports_an_empty_result(monkeypatch):
+    """v25 Mac round: ddgs raises DDGSException("No results found.") for a query that matches nothing."""
+    class _Raises:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def text(self, *a, **k): raise RuntimeError("No results found.")
+    monkeypatch.setitem(sys.modules, "ddgs", type("m", (), {"DDGS": _Raises}))
+    rows, err = OS.search_web_checked("anything")
+    assert rows == [] and err is None
+
+
 def test_the_resolver_marks_a_degraded_retrieval(monkeypatch):
     monkeypatch.setattr(KR, "_web", lambda q, n=5: ([], "the web search failed (RuntimeError: nope)"))
     monkeypatch.setenv("WB_WEB_KNOWLEDGE", "always")

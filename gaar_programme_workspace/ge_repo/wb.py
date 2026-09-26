@@ -159,7 +159,8 @@ def cmd_metrics(a) -> int:
 def _controls_in_scope(scope: str | None):
     import glob
     from playbook import load_controls
-    wb = sorted(glob.glob("data/*.xlsx"))
+    from governance.paths import workbench_data
+    wb = sorted(glob.glob(str(workbench_data() / "*.xlsx")))
     if not wb:
         sys.exit("no playbook workbook in data/")
     libs = load_controls(wb[0])
@@ -332,7 +333,7 @@ def main() -> int:
 
     s = sub.add_parser("report", help="generate the assurance workpaper from the record")
     s.add_argument("--control")
-    s.add_argument("--out", type=Path, default=Path("reports/assurance-workpaper.docx"))
+    s.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "reports" / "assurance-workpaper.docx")
     s.add_argument("--markdown", action="store_true")
     s.set_defaults(fn=cmd_report)
 

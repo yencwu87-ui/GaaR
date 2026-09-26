@@ -20,7 +20,8 @@ def authorized_kind(kind,payload,role):
              'dependency_review':'assessor','challenge_dependency_binding':'challenger','result_sealed':'result_sealer',
              'result_current':'result_sealer','reassessment_requested':'executor','remediation_opened':'executor',
              'collection_receipt':'executor','notification_draft':'executor','remediation_closed':'executor','change_intent':'executor',
-             'pilot_attestation':'result_approver','obligation_reconciliation':'executor','model_stage_unavailable':'executor','period_delta':'executor','integrity_event':'executor'}
+             'pilot_attestation':'result_approver','obligation_reconciliation':'executor','model_stage_unavailable':'executor','period_delta':'executor','integrity_event':'executor',
+             'record_superseded':'executor','scheduler_tick':'executor','job_outcome':'executor'}
     return allowed.get(kind)==role
 
 

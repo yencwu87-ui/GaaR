@@ -20,7 +20,7 @@ from governance.result_contract import ResultStateLog, StateTransitionEvent, Val
 from governance.result_store import ResultStore
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_CHANGE_LOG = ROOT / "governance_change_events.jsonl"
+DEFAULT_CHANGE_LOG = Path(os.environ.get("WB_GOV_CHANGE_LOG") or ROOT / "governance_change_events.jsonl")
 GENESIS = "0" * 64
 
 
