@@ -1,5 +1,9 @@
 # GaaR RaaS: build plan to live attestation
 
+> **Superseded, kept as history.** The authoritative build order is section 9 of `CLAUDE.md` and the hardening plan in
+> the builder's repository; `CODEX_BRIEF.md` is the evaluator's guidance. This file was written from the GitHub view
+> on 26 September 2026, which was behind the Mac builder's work. Do not use it to order or status the work.
+
 Written 26 September 2026, after kit v34 (block 1, "Wire the chain"). For the Claude Code builder in `~/dev/gaar` and for
 the owner. Kit numbers are assigned in order as kits ship; this plan names blocks and tasks, never kit numbers.
 
